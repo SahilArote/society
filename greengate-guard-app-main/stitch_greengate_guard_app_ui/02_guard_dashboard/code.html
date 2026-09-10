@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;}body{overscroll-behavior:none;font-family:'Inter',sans-serif;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"on-secondary-fixed-variant":"#005236","on-primary-container":"#dad7ff","inverse-on-surface":"#eaf1ff","outline-variant":"#c7c4d8","on-tertiary-fixed-variant":"#930013","surface-bright":"#f8f9ff","on-error-container":"#93000a","on-tertiary-fixed":"#410004","surface-container-high":"#dce9ff","on-tertiary":"#ffffff","tertiary-container":"#bc1d25","inverse-primary":"#c3c0ff","on-secondary-fixed":"#002113","on-surface":"#0b1c30","secondary-fixed-dim":"#4edea3","primary-container":"#4f46e5","on-secondary-container":"#00714d","surface-dim":"#cbdbf5","surface":"#f8f9ff","secondary":"#006c49","on-tertiary-container":"#ffd0cc","on-secondary":"#ffffff","tertiary":"#960014","outline":"#777587","on-background":"#0b1c30","surface-variant":"#d3e4fe","surface-container-lowest":"#ffffff","on-primary-fixed":"#0f0069","surface-container-highest":"#d3e4fe","surface-container":"#e5eeff","primary-fixed":"#e2dfff","background":"#f8f9ff","on-error":"#ffffff","tertiary-fixed-dim":"#ffb3ad","error-container":"#ffdad6","surface-tint":"#4d44e3","on-primary-fixed-variant":"#3323cc","inverse-surface":"#213145","secondary-fixed":"#6ffbbe","error":"#ba1a1a","secondary-container":"#6cf8bb","primary-fixed-dim":"#c3c0ff","tertiary-fixed":"#ffdad7","on-primary":"#ffffff","primary":"#3525cd","on-surface-variant":"#464555","surface-container-low":"#eff4ff"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"space-xl":"1.5rem","space-lg":"1.25rem","space-3xl":"2.5rem","touch-target-primary":"3.5rem","space-2xs":"0.25rem","space-2xl":"2rem","margin-screen":"1rem","touch-target-min":"3rem","space-xs":"0.5rem","space-md":"1rem","gutter-kiosk":"0.75rem","space-sm":"0.75rem"},"fontFamily":{"body-md":["Inter"],"display-lg":["Inter"],"body-lg":["Inter"],"headline-md":["Inter"],"headline-lg":["Inter"],"headline-sm":["Inter"],"label-lg":["Inter"],"body-sm":["Inter"],"label-md":["Inter"],"label-sm":["Inter"],"code-plate":["Inter"]},"fontSize":{"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"display-lg":["32px",{"lineHeight":"40px","letterSpacing":"-0.02em","fontWeight":"700"}],"body-lg":["16px",{"lineHeight":"24px","fontWeight":"500"}],"headline-md":["20px",{"lineHeight":"28px","letterSpacing":"-0.005em","fontWeight":"600"}],"headline-lg":["24px",{"lineHeight":"32px","letterSpacing":"-0.01em","fontWeight":"700"}],"headline-sm":["18px",{"lineHeight":"24px","fontWeight":"600"}],"label-lg":["16px",{"lineHeight":"20px","letterSpacing":"0.01em","fontWeight":"600"}],"body-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}],"label-md":["14px",{"lineHeight":"18px","letterSpacing":"0.01em","fontWeight":"600"}],"label-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.04em","fontWeight":"700"}],"code-plate":["22px",{"lineHeight":"28px","letterSpacing":"0.08em","fontWeight":"700"}]}}}};</script></head><body class="bg-surface text-on-surface flex flex-col min-h-screen"><header class="fixed top-0 inset-x-0 z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe"><div class="h-28 px-space-md flex flex-col justify-center"><div class="h-6 flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm mb-space-2xs"><div class="flex items-center gap-space-xs"><span class="font-label-md text-label-md font-bold text-on-surface">10:45 AM</span><span class="material-symbols-outlined text-[14px] text-primary">lock</span><span class="bg-surface-container-high text-on-surface px-space-2xs py-[1px] rounded-full text-[10px] font-semibold tracking-wider uppercase">Kiosk Mode</span></div><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-[15px]">wifi</span><span class="material-symbols-outlined text-[15px]">signal_cellular_alt</span><span class="text-[11px] font-semibold">92%</span><span class="material-symbols-outlined text-[15px]">battery_5_bar</span></div></div><div class="flex items-center justify-between gap-space-xs"><div class="flex items-center gap-space-sm min-w-0"><img alt="GreenGate Guard Logo" class="h-8 w-auto object-contain flex-shrink-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAuhJ636Mkg3Oi2p3Q5vwNxZxt3EDj2HwIvS1Bhj8uCXDQZI3cz302yYhI958fdVn8VZsb1bgBDAmdzckmyapwUr9z9mudlw1k-HEIFV2UW9nst2zf9f60o5lKrBPAxxr94qgFFYuolPnj28M86IaLfUH4lCGcC9ZXusRuP1fX8Tpo2_OZ1aqTVebhV7oTegK9eD4YKpE_x1LlYlCtzXEX_BsCmKyCLFkYg2SkqZ6MTa4x9m0e0ZCBc"/><div class="flex flex-col min-w-0"><div class="flex items-center gap-space-xs"><span class="font-headline-sm text-headline-sm font-bold text-on-surface truncate">Home</span><div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-fixed/30 text-on-secondary-fixed-variant text-[11px] font-semibold flex-shrink-0"><span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span><span>Active</span></div></div><div class="flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant truncate"><span class="truncate font-medium">Green Valley Heights</span><span class="text-outline-variant">•</span><span class="truncate text-primary font-semibold">Gate 01</span></div></div></div><div class="flex items-center gap-space-xs flex-shrink-0"><button aria-label="Guard Profile" class="w-touch-target-min h-touch-target-min flex items-center justify-center" type="button"><img alt="Profile" class="w-8 h-8 rounded-full object-cover shadow-[0_1px_4px_rgba(0,0,0,0.08)]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3ue6rwaG4Bm8stFz2jkI2w4tLolDyQtPovpkvFxzQwvvjR_l-CZtGnHxwJV0JHFzqQQaQgHtmycGRmFBlwdNObpOiR6x6foNIH73pLiS_dSRt8czJyb8SsES4gMiH2cZKZuayAb8rs4StIw7tGu3YN9P3tjHYj-k1zQrVifkmwYePeEhhYg2sZqj_BXguE4pmB46XzIrfny0qaGd01Ue6YDFhQjYE-f1zZ-WeubS6ujDk8ym5gH5Y"/></button></div></div></div></header><main class="flex-1 flex flex-col relative w-full px-space-md pt-28 pb-28 bg-surface"><div class="flex flex-col w-full gap-y-space-md">
+<!-- Guard Operational Banner -->
+<section class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+<div class="flex items-center justify-between gap-space-sm mb-space-xs">
+<div class="flex items-center gap-space-xs min-w-0">
+<div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center flex-shrink-0 text-primary">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">local_police</span>
+</div>
+<div class="min-w-0">
+<p class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Active Shift</p>
+<h1 class="font-headline-sm text-headline-sm text-on-surface truncate">Officer Vikram Singh</h1>
+</div>
+</div>
+<span class="px-2.5 py-1 rounded-full bg-secondary-fixed/40 text-on-secondary-fixed-variant font-label-sm text-label-sm font-semibold flex items-center gap-1.5 flex-shrink-0">
+<span class="w-2 h-2 rounded-full bg-secondary animate-ping"></span>
+        Duty On
+      </span>
+</div>
+<div class="bg-surface-container-low rounded-lg p-space-sm flex items-center justify-between text-on-surface-variant font-body-sm text-body-sm">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-primary text-[18px] flex-shrink-0">sensor_door</span>
+<span class="font-semibold text-on-surface truncate">Gate 01 • North Entrance</span>
+</div>
+<div class="flex items-center gap-space-xs flex-shrink-0">
+<span class="inline-flex items-center gap-1 text-secondary font-medium">
+<span class="material-symbols-outlined text-[15px]">sync</span>
+          Synced
+        </span>
+<span class="text-outline-variant">•</span>
+<span class="inline-flex items-center gap-0.5 font-medium text-on-surface">
+<span class="material-symbols-outlined text-[16px] text-secondary">battery_charging_90</span>
+          94%
+        </span>
+</div>
+</div>
+</section>
+<!-- Giant High-Visibility Tactile Hero Primary Action -->
+<section class="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary via-primary-container to-surface-tint p-space-lg text-on-primary shadow-xl cursor-pointer active:scale-[0.98] transition-all duration-200 select-none group" id="new-visitor-hero-btn">
+<div class="absolute -right-10 -bottom-10 w-48 h-48 rounded-full bg-on-primary/10 blur-2xl pointer-events-none"></div>
+<div class="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-on-primary/15 backdrop-blur-md font-label-sm text-label-sm font-bold tracking-wider uppercase text-on-primary">
+<span class="material-symbols-outlined text-[14px]">bolt</span> Priority 1
+    </div>
+<div class="flex flex-col gap-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-14 h-14 rounded-xl bg-on-primary/20 backdrop-blur-md flex items-center justify-center text-on-primary shadow-inner">
+<span class="material-symbols-outlined text-[32px]">photo_camera_front</span>
+</div>
+<div class="min-w-0">
+<div class="inline-flex items-center gap-1 font-label-sm text-label-sm text-on-primary-container font-semibold uppercase tracking-wider mb-0.5">
+<span class="material-symbols-outlined text-[14px]">add_circle</span> Quick Registration
+          </div>
+<h2 class="font-headline-lg text-headline-lg font-bold text-on-primary tracking-tight leading-tight">NEW VISITOR ENTRY</h2>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-primary-container/90">
+        Tap to capture photo, assign pass, &amp; notify resident instantly.
+      </p>
+<!-- Giant Interactive Camera CTA Zone -->
+<div class="mt-space-2xs w-full bg-on-primary rounded-xl p-space-sm flex items-center justify-between text-primary shadow-md group-hover:bg-surface-container-lowest">
+<div class="flex items-center gap-space-sm">
+<div class="relative flex items-center justify-center w-12 h-12 rounded-full bg-primary-fixed text-primary flex-shrink-0">
+<span class="material-symbols-outlined text-[26px]">camera</span>
+<span class="absolute inset-0 rounded-full bg-primary/20 animate-ping"></span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg font-bold text-primary tracking-wide">TAP TO SCAN / CAPTURE</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Instant AI Plate &amp; Face recognition</span>
+</div>
+</div>
+<div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary flex-shrink-0">
+<span class="material-symbols-outlined text-[22px]">arrow_forward</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Real-Time Gate Statistics Grid (2x2) -->
+<section class="grid grid-cols-2 gap-space-sm">
+<!-- Stat 1: Pending Approvals -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-space-2xs">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline font-semibold">Pending</span>
+<span class="w-8 h-8 rounded-full bg-error-container/40 text-error flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">hourglass_top</span>
+</span>
+</div>
+<div class="flex items-baseline justify-between mt-1">
+<span class="font-display-lg text-display-lg font-bold text-on-surface">3</span>
+<span class="px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-label-sm text-label-sm font-semibold">
+          Awaiting
+        </span>
+</div>
+<p class="font-body-sm text-body-sm text-outline mt-1 truncate">Waiting Flat Reply</p>
+</div>
+<!-- Stat 2: Today Total Visitors -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-space-2xs">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline font-semibold">Today Total</span>
+<span class="w-8 h-8 rounded-full bg-primary-fixed text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">groups</span>
+</span>
+</div>
+<div class="flex items-baseline justify-between mt-1">
+<span class="font-display-lg text-display-lg font-bold text-on-surface">84</span>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-label-sm text-label-sm font-semibold">
+          Logs
+        </span>
+</div>
+<p class="font-body-sm text-body-sm text-outline mt-1 truncate">All Entries Today</p>
+</div>
+<!-- Stat 3: Approved Entries -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-space-2xs">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline font-semibold">Approved</span>
+<span class="w-8 h-8 rounded-full bg-secondary-fixed/50 text-on-secondary-fixed-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</span>
+</div>
+<div class="flex items-baseline justify-between mt-1">
+<span class="font-display-lg text-display-lg font-bold text-secondary">76</span>
+<span class="px-2 py-0.5 rounded-full bg-secondary-fixed/30 text-on-secondary-fixed-variant font-label-sm text-label-sm font-semibold">
+          90.4%
+        </span>
+</div>
+<p class="font-body-sm text-body-sm text-outline mt-1 truncate">Granted Access</p>
+</div>
+<!-- Stat 4: Denied Entries -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-space-2xs">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline font-semibold">Rejected</span>
+<span class="w-8 h-8 rounded-full bg-error-container text-error flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">cancel</span>
+</span>
+</div>
+<div class="flex items-baseline justify-between mt-1">
+<span class="font-display-lg text-display-lg font-bold text-tertiary">5</span>
+<span class="px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-label-sm text-label-sm font-semibold">
+          Restricted
+        </span>
+</div>
+<p class="font-body-sm text-body-sm text-outline mt-1 truncate">Turned Back</p>
+</div>
+</section>
+<!-- Quick Recent Gate Activity Feed -->
+<section class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-2xs">
+<span class="material-symbols-outlined text-primary text-[20px]">receipt_long</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Recent Gate Activity</h3>
+</div>
+<button class="font-label-sm text-label-sm font-bold text-primary px-space-xs py-1 rounded-lg bg-primary-fixed/40 active:bg-primary-fixed transition-colors" type="button">
+        View All
+      </button>
+</div>
+<!-- Activity Item 1 -->
+<div class="bg-surface-container-low rounded-lg p-space-sm flex items-center justify-between gap-space-xs">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="relative w-11 h-11 rounded-full overflow-hidden flex-shrink-0 bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Close-up professional security checkpoint badge photo of guest Rahul Verma smiling calmly with clean neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCWtUmWcXOMG8YVfwLj3nbOzd7927g4twR_Wk9NgMxFvuJKc2270eOrPTJDozwfj5IFrXEBgGbTzjtfSpkB58ujnUhf8TgNUyieUqGMMfkdyl_ov0Hpea0-TpCj0jPF9t39gf70oJeNRqt6_FT1uM5dKrI8fGBTzxMX8ZjmzIXdGyQjuaFKWzC_b8gz8nn95u9xaqIy-gvTd4rlC6sFt3D1L91FaW8JboHlrVham7VUbygaceGi4IGh"/>
+</div>
+<div class="min-w-0 flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="font-label-md text-label-md font-bold text-on-surface truncate">Rahul Verma</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container text-on-surface-variant font-label-sm text-[10px] uppercase font-semibold">Guest</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">
+            Flat B-402 • <span class="text-outline">2 mins ago</span>
+</p>
+</div>
+</div>
+<div class="flex flex-col items-end flex-shrink-0 gap-1">
+<span class="px-2.5 py-1 rounded-full bg-secondary-fixed/40 text-on-secondary-fixed-variant font-label-sm text-label-sm font-semibold flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+          Approved
+        </span>
+<span class="font-code-plate text-[11px] text-outline font-semibold tracking-wider">MH02-CL-4412</span>
+</div>
+</div>
+<!-- Activity Item 2 -->
+<div class="bg-surface-container-low rounded-lg p-space-sm flex items-center justify-between gap-space-xs">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="relative w-11 h-11 rounded-full overflow-hidden flex-shrink-0 bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Courier rider delivery personnel wearing safety helmet and bright uniform at gate checkpoint" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0fVKJibyleKiPBNfcObsFCDpoIj7pzlTgCu09Jjl65ty5WyGM9KrPccThlfxeC2RaZeTYfzAx9KXo8vS9L27Ft3Lswb4NzGP5vAn-BnKjf_Awo65VgbWUK7UIvaxeqa-GlzV7Uxn8Kxgt1nlnvDD73wFmPKxiX7Ntu5X3WopeUMIM0gV57o9KHw9Wrtq2KJBL0Co7eognQ2M8NwwP_9YZSyuuShmBL8ybBf_ZTBuH0yHyzQMLrpOm"/>
+</div>
+<div class="min-w-0 flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="font-label-md text-label-md font-bold text-on-surface truncate">Swiggy Delivery</span>
+<span class="px-1.5 py-0.2 rounded bg-error-container/50 text-on-error-container font-label-sm text-[10px] uppercase font-semibold">Delivery</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">
+            Flat A-104 • <span class="text-outline">4 mins ago</span>
+</p>
+</div>
+</div>
+<div class="flex flex-col items-end flex-shrink-0 gap-1">
+<span class="px-2.5 py-1 rounded-full bg-error-container text-on-error-container font-label-sm text-label-sm font-semibold flex items-center gap-1 animate-pulse">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+          Waiting
+        </span>
+<span class="font-code-plate text-[11px] text-outline font-semibold tracking-wider">DL08-SK-9011</span>
+</div>
+</div>
+<!-- Activity Item 3 -->
+<div class="bg-surface-container-low rounded-lg p-space-sm flex items-center justify-between gap-space-xs">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="relative w-11 h-11 rounded-full overflow-hidden flex-shrink-0 bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Amazon logistics delivery driver wearing polo uniform holding parcel box at residential community gate" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD6BzT6AbZ-RLkBEuw1y4EOj8t1Ej3wX426Ikv0LPsEyicS-GCvY7eLSlGi523S99a09XWwCqIJZDSbyDmJ5_-0B0y9HrGAfnZTWBW2McH51QBY4QZq-eqTeXCtFcDZIwyQKI_v2vK4hlx076YHA3VrZsTEAARSnbjh_D0B4UMZ6VJvuW2BpegVbUQNqQGZ2DttxPUufoE3Gz3HYHKxhbDQGJ9Ujfj1uNEygny3kUB64MNcMIeh3zlG"/>
+</div>
+<div class="min-w-0 flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="font-label-md text-label-md font-bold text-on-surface truncate">Amazon Courier</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container text-on-surface-variant font-label-sm text-[10px] uppercase font-semibold">Delivery</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">
+            Flat C-201 • <span class="text-outline">12 mins ago</span>
+</p>
+</div>
+</div>
+<div class="flex flex-col items-end flex-shrink-0 gap-1">
+<span class="px-2.5 py-1 rounded-full bg-primary-fixed text-on-primary-fixed-variant font-label-sm text-label-sm font-semibold flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+          Entered
+        </span>
+<span class="font-code-plate text-[11px] text-outline font-semibold tracking-wider">MH01-BK-8299</span>
+</div>
+</div>
+</section>
+<!-- Emergency & Quick Tactical Actions Row -->
+<section class="grid grid-cols-2 gap-space-sm pt-space-2xs">
+<button class="h-touch-target-min bg-surface-container-lowest active:bg-surface-container-high text-on-surface rounded-xl flex items-center justify-center gap-2 p-space-sm shadow-sm transition-all" type="button">
+<div class="w-8 h-8 rounded-lg bg-tertiary/10 text-tertiary flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-[20px]">phone_in_talk</span>
+</div>
+<span class="font-label-md text-label-md font-bold text-left truncate">Call Supervisor</span>
+</button>
+<button class="h-touch-target-min bg-surface-container-lowest active:bg-surface-container-high text-on-surface rounded-xl flex items-center justify-center gap-2 p-space-sm shadow-sm transition-all" type="button">
+<div class="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-[20px]">contact_phone</span>
+</div>
+<span class="font-label-md text-label-md font-bold text-left truncate">Intercom Directory</span>
+</button>
+</section>
+</div>
+<script>
+  (function() {
+    const heroBtn = document.getElementById('new-visitor-hero-btn');
+    if (heroBtn) {
+      heroBtn.addEventListener('click', function() {
+        if (window.navigator && window.navigator.vibrate) {
+          window.navigator.vibrate([30, 50, 30]);
+        }
+      });
+    }
+  })();
+</script></main><nav class="fixed bottom-0 inset-x-0 z-50 pb-safe bg-surface/90 backdrop-blur-xl shadow-[0_-2px_12px_rgba(15,23,42,0.06)]" data-active-classes="text-primary font-bold"><div class="flex justify-around items-center h-20 px-space-sm"><a aria-current="page" class="flex flex-col items-center justify-center gap-1 min-w-[64px] h-touch-target-primary transition-colors text-primary font-bold" data-path="home" href="#"><span class="material-symbols-outlined text-[24px]">shield</span><span class="font-label-sm text-label-sm">Home</span></a><a class="flex flex-col items-center justify-center gap-1 min-w-[64px] h-touch-target-primary text-on-surface-variant transition-colors" data-path="visitors" href="#"><span class="material-symbols-outlined text-[24px]">badge</span><span class="font-label-sm text-label-sm">Visitors</span></a><a class="flex flex-col items-center justify-center gap-1 min-w-[64px] h-touch-target-primary text-on-surface-variant transition-colors" data-path="history" href="#"><span class="material-symbols-outlined text-[24px]">schedule</span><span class="font-label-sm text-label-sm">History</span></a><a class="flex flex-col items-center justify-center gap-1 min-w-[64px] h-touch-target-primary text-on-surface-variant transition-colors" data-path="profile" href="#"><span class="material-symbols-outlined text-[24px]">manage_accounts</span><span class="font-label-sm text-label-sm">Profile</span></a></div></nav></body></html>

@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;}body{overscroll-behavior:none;font-family:'Inter',sans-serif;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"on-secondary-fixed-variant":"#005236","on-primary-container":"#dad7ff","inverse-on-surface":"#eaf1ff","outline-variant":"#c7c4d8","on-tertiary-fixed-variant":"#930013","surface-bright":"#f8f9ff","on-error-container":"#93000a","on-tertiary-fixed":"#410004","surface-container-high":"#dce9ff","on-tertiary":"#ffffff","tertiary-container":"#bc1d25","inverse-primary":"#c3c0ff","on-secondary-fixed":"#002113","on-surface":"#0b1c30","secondary-fixed-dim":"#4edea3","primary-container":"#4f46e5","on-secondary-container":"#00714d","surface-dim":"#cbdbf5","surface":"#f8f9ff","secondary":"#006c49","on-tertiary-container":"#ffd0cc","on-secondary":"#ffffff","tertiary":"#960014","outline":"#777587","on-background":"#0b1c30","surface-variant":"#d3e4fe","surface-container-lowest":"#ffffff","on-primary-fixed":"#0f0069","surface-container-highest":"#d3e4fe","surface-container":"#e5eeff","primary-fixed":"#e2dfff","background":"#f8f9ff","on-error":"#ffffff","tertiary-fixed-dim":"#ffb3ad","error-container":"#ffdad6","surface-tint":"#4d44e3","on-primary-fixed-variant":"#3323cc","inverse-surface":"#213145","secondary-fixed":"#6ffbbe","error":"#ba1a1a","secondary-container":"#6cf8bb","primary-fixed-dim":"#c3c0ff","tertiary-fixed":"#ffdad7","on-primary":"#ffffff","primary":"#3525cd","on-surface-variant":"#464555","surface-container-low":"#eff4ff"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"space-xl":"1.5rem","space-lg":"1.25rem","space-3xl":"2.5rem","touch-target-primary":"3.5rem","space-2xs":"0.25rem","space-2xl":"2rem","margin-screen":"1rem","touch-target-min":"3rem","space-xs":"0.5rem","space-md":"1rem","gutter-kiosk":"0.75rem","space-sm":"0.75rem"},"fontFamily":{"body-md":["Inter"],"display-lg":["Inter"],"body-lg":["Inter"],"headline-md":["Inter"],"headline-lg":["Inter"],"headline-sm":["Inter"],"label-lg":["Inter"],"body-sm":["Inter"],"label-md":["Inter"],"label-sm":["Inter"],"code-plate":["Inter"]},"fontSize":{"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"display-lg":["32px",{"lineHeight":"40px","letterSpacing":"-0.02em","fontWeight":"700"}],"body-lg":["16px",{"lineHeight":"24px","fontWeight":"500"}],"headline-md":["20px",{"lineHeight":"28px","letterSpacing":"-0.005em","fontWeight":"600"}],"headline-lg":["24px",{"lineHeight":"32px","letterSpacing":"-0.01em","fontWeight":"700"}],"headline-sm":["18px",{"lineHeight":"24px","fontWeight":"600"}],"label-lg":["16px",{"lineHeight":"20px","letterSpacing":"0.01em","fontWeight":"600"}],"body-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}],"label-md":["14px",{"lineHeight":"18px","letterSpacing":"0.01em","fontWeight":"600"}],"label-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.04em","fontWeight":"700"}],"code-plate":["22px",{"lineHeight":"28px","letterSpacing":"0.08em","fontWeight":"700"}]}}}};</script></head><body class="bg-surface text-on-surface flex flex-col min-h-screen"><header class="fixed top-0 inset-x-0 z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe"><div class="h-28 px-space-md flex flex-col justify-center"><div class="h-6 flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm mb-space-2xs"><div class="flex items-center gap-space-xs"><span class="font-label-md text-label-md font-bold text-on-surface">10:45 AM</span><span class="material-symbols-outlined text-[14px] text-primary">lock</span><span class="bg-surface-container-high text-on-surface px-space-2xs py-[1px] rounded-full text-[10px] font-semibold tracking-wider uppercase">Kiosk Mode</span></div><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-[15px]">wifi</span><span class="material-symbols-outlined text-[15px]">signal_cellular_alt</span><span class="text-[11px] font-semibold">92%</span><span class="material-symbols-outlined text-[15px]">battery_5_bar</span></div></div><div class="flex items-center justify-between gap-space-xs"><div class="flex items-center gap-space-sm min-w-0"><img alt="GreenGate Guard Logo" class="h-8 w-auto object-contain flex-shrink-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAuhJ636Mkg3Oi2p3Q5vwNxZxt3EDj2HwIvS1Bhj8uCXDQZI3cz302yYhI958fdVn8VZsb1bgBDAmdzckmyapwUr9z9mudlw1k-HEIFV2UW9nst2zf9f60o5lKrBPAxxr94qgFFYuolPnj28M86IaLfUH4lCGcC9ZXusRuP1fX8Tpo2_OZ1aqTVebhV7oTegK9eD4YKpE_x1LlYlCtzXEX_BsCmKyCLFkYg2SkqZ6MTa4x9m0e0ZCBc"/><div class="flex flex-col min-w-0"><div class="flex items-center gap-space-xs"><span class="font-headline-sm text-headline-sm font-bold text-on-surface truncate">History</span><div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-fixed/30 text-on-secondary-fixed-variant text-[11px] font-semibold flex-shrink-0"><span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span><span>Active</span></div></div><div class="flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant truncate"><span class="truncate font-medium">Green Valley Heights</span><span class="text-outline-variant">•</span><span class="truncate text-primary font-semibold">Gate 01</span></div></div></div><div class="flex items-center gap-space-xs flex-shrink-0"><button aria-label="Guard Profile" class="w-touch-target-min h-touch-target-min flex items-center justify-center" type="button"><img alt="Profile" class="w-8 h-8 rounded-full object-cover shadow-[0_1px_4px_rgba(0,0,0,0.08)]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3ue6rwaG4Bm8stFz2jkI2w4tLolDyQtPovpkvFxzQwvvjR_l-CZtGnHxwJV0JHFzqQQaQgHtmycGRmFBlwdNObpOiR6x6foNIH73pLiS_dSRt8czJyb8SsES4gMiH2cZKZuayAb8rs4StIw7tGu3YN9P3tjHYj-k1zQrVifkmwYePeEhhYg2sZqj_BXguE4pmB46XzIrfny0qaGd01Ue6YDFhQjYE-f1zZ-WeubS6ujDk8ym5gH5Y"/></button></div></div></div></header><main class="flex-1 flex flex-col relative w-full px-space-md pt-28 pb-28 bg-surface"><div class="flex flex-col w-full gap-space-md">
+<!-- Interactive Navigation Tab Sync -->
+<script>
+    (function () {
+      const historyTab = document.querySelector('nav [data-path="history"]');
+      if (historyTab) {
+        document.querySelectorAll('nav a').forEach(link => {
+          link.classList.remove('text-primary', 'font-bold');
+          link.classList.add('text-on-surface-variant');
+        });
+        historyTab.classList.remove('text-on-surface-variant');
+        historyTab.classList.add('text-primary', 'font-bold');
+        const icon = historyTab.querySelector('.material-symbols-outlined');
+        if (icon) icon.style.fontVariationSettings = "'FILL' 1";
+      }
+    })();
+  </script>
+<!-- Screen Header & Context Card -->
+<div class="flex flex-col bg-surface-container-low rounded-xl p-space-md shadow-sm">
+<div class="flex items-start justify-between">
+<div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Visitor History &amp; Logs</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-space-2xs flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary">pin_drop</span>
+<span>Gate 01</span>
+<span class="text-outline-variant font-bold">•</span>
+<span>Today, 24 Oct 2024</span>
+</p>
+</div>
+<div class="flex items-center gap-1.5 bg-surface-container-highest/60 px-space-xs py-1 rounded-full text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] text-secondary">sync</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider">Live Feed</span>
+</div>
+</div>
+<!-- Quick Search Input -->
+<div class="relative mt-space-md">
+<div class="absolute inset-y-0 left-0 pl-space-sm flex items-center pointer-events-none text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</div>
+<input class="w-full h-[52px] pl-11 pr-10 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md placeholder:text-on-surface-variant/70 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" id="visitor-search-input" placeholder="Search by visitor name, flat, or vehicle..." type="text"/>
+<button aria-label="Clear Search" class="absolute inset-y-0 right-0 pr-space-sm flex items-center text-on-surface-variant opacity-0 pointer-events-none transition-opacity hover:text-on-surface" id="clear-search-btn" type="button">
+<span class="material-symbols-outlined text-[18px]">cancel</span>
+</button>
+</div>
+<!-- Category Filter Chips -->
+<div class="flex items-center gap-2 overflow-x-auto pb-1 mt-space-md" id="filter-chips-container">
+<button class="filter-chip active flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary text-on-primary font-label-md text-label-md shadow-sm transition-all" data-filter="all" type="button">
+<span>All</span>
+<span class="bg-surface-container-lowest/20 px-1.5 py-0.5 rounded-full text-[11px] font-bold">84</span>
+</button>
+<button class="filter-chip flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-surface-container-highest/70 text-on-surface-variant hover:bg-surface-container-highest font-label-md text-label-md transition-all" data-filter="approved" type="button">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span>Approved</span>
+<span class="text-on-surface-variant/70 text-[11px] font-semibold">(76)</span>
+</button>
+<button class="filter-chip flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-surface-container-highest/70 text-on-surface-variant hover:bg-surface-container-highest font-label-md text-label-md transition-all" data-filter="pending" type="button">
+<span class="w-2 h-2 rounded-full bg-amber-500"></span>
+<span>Pending</span>
+<span class="text-on-surface-variant/70 text-[11px] font-semibold">(3)</span>
+</button>
+<button class="filter-chip flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-surface-container-highest/70 text-on-surface-variant hover:bg-surface-container-highest font-label-md text-label-md transition-all" data-filter="rejected" type="button">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+<span>Rejected</span>
+<span class="text-on-surface-variant/70 text-[11px] font-semibold">(5)</span>
+</button>
+</div>
+</div>
+<!-- Real-time Activity Stats Quick Summary -->
+<div class="grid grid-cols-3 gap-space-xs">
+<div class="flex flex-col bg-surface-container-lowest rounded-xl p-3 shadow-sm text-center">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Checked In</span>
+<span class="font-headline-md text-headline-md font-bold text-secondary mt-0.5">72</span>
+</div>
+<div class="flex flex-col bg-surface-container-lowest rounded-xl p-3 shadow-sm text-center">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Checked Out</span>
+<span class="font-headline-md text-headline-md font-bold text-on-surface mt-0.5">58</span>
+</div>
+<div class="flex flex-col bg-surface-container-lowest rounded-xl p-3 shadow-sm text-center">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Flagged/Denied</span>
+<span class="font-headline-md text-headline-md font-bold text-error mt-0.5">05</span>
+</div>
+</div>
+<!-- Visitor Log Feed List -->
+<div class="flex flex-col gap-space-sm" id="log-list">
+<!-- Card 1: Suresh Kumar -->
+<article class="visitor-entry-card bg-surface-container-lowest rounded-xl p-space-md shadow-sm transition-all relative overflow-hidden" data-query="suresh kumar delivery zomato flat b-402 dr. amit sharma entered" data-status="approved">
+<div class="flex items-start gap-space-sm">
+<div class="relative flex-shrink-0">
+<img alt="Suresh Kumar" class="w-14 h-14 rounded-xl object-cover shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDu-XgoNNEdpA2mpla6hefY8gKEgIz0wN7209JkWzwY_wO2_KxJ3G-0BUlskXP1n615atxjwIaJ_9WwR1hbqrLvmvzbKd0RtluIL-scC2hlsm_y-Rv8nmxHv73dZrbsb0O5lHmeMVF-Ln_XGwUURUhIOh1h2qmpuU-i3Uv2Vgr_P1IqcWB5OunU_0Ow4rjXnm7Jgwyjo6fLzkLfi9zti8kt7l1W6cs7xv4IdmX--THbC2TBTIbI0LSE"/>
+<div class="absolute -bottom-1 -right-1 bg-secondary-fixed text-on-secondary-fixed-variant rounded-full p-0.5 shadow-sm">
+<span class="material-symbols-outlined text-[14px] block">moped</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-start justify-between gap-1">
+<div class="min-w-0">
+<h2 class="font-headline-sm text-headline-sm font-bold text-on-surface truncate">Suresh Kumar</h2>
+<div class="inline-flex items-center gap-1 px-2 py-0.5 mt-0.5 rounded-md bg-secondary-container/40 text-on-secondary-fixed-variant font-label-sm text-label-sm font-semibold">
+<span>Delivery</span>
+<span>•</span>
+<span class="text-primary font-bold">Zomato</span>
+</div>
+</div>
+<!-- Status Badge: Entered (Green) -->
+<div class="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-fixed/40 text-on-secondary-fixed-variant font-label-sm text-label-sm font-bold">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span>Entered</span>
+</div>
+</div>
+<!-- Destination & Resident Details -->
+<div class="mt-2.5 flex items-center gap-2 text-on-surface-variant font-body-md text-body-md">
+<span class="material-symbols-outlined text-[18px] text-primary flex-shrink-0">apartment</span>
+<span class="truncate font-semibold text-on-surface">Flat B-402 <span class="font-normal text-on-surface-variant">(Dr. Amit Sharma)</span></span>
+</div>
+<!-- Metadata & Action Row -->
+<div class="mt-3 pt-2.5 flex items-center justify-between border-t-0 text-on-surface-variant font-body-sm text-body-sm bg-surface-container-low/50 -mx-space-md -mb-space-md px-space-md py-2">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+<span class="font-semibold text-on-surface">10:49 AM</span>
+<span class="text-outline-variant">•</span>
+<span class="text-[11px] font-mono bg-surface-container-highest px-1 rounded">DL-8C-4192</span>
+</div>
+<button aria-label="Details for Suresh Kumar" class="text-primary font-label-md text-label-md font-bold flex items-center gap-0.5 hover:underline" type="button">
+<span>Details</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+<!-- Card 2: Manish Rawat -->
+<article class="visitor-entry-card bg-surface-container-lowest rounded-xl p-space-md shadow-sm transition-all relative overflow-hidden" data-query="manish rawat guest flat c-102 mrs. neha gupta rejected denied" data-status="rejected">
+<div class="flex items-start gap-space-sm">
+<div class="relative flex-shrink-0">
+<img alt="Manish Rawat" class="w-14 h-14 rounded-xl object-cover shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBM5wxHIac9P7rKICodoWlPiNsOWoQUNmuP9a9L8H49kURb1ptPmoUblv6zBfO_P3nmjdXsrNwx5fN0YZeWOJqUOQu7M5cQlRDUmeTqildS0uZwiUK-9uhpQjravJ0kXU94FlUiGsSLyyiBJqJnVpHaIo3IP3yVJCrF8tCbiJr3zQzjrb1GTqgMaA0UFyOBJxvEuD0PdBJ2NqUakZVmO5ezxBOjMiYh89tKn_VmnXua5w_D5ux67HDP"/>
+<div class="absolute -bottom-1 -right-1 bg-error-container text-on-error-container rounded-full p-0.5 shadow-sm">
+<span class="material-symbols-outlined text-[14px] block">person_off</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-start justify-between gap-1">
+<div class="min-w-0">
+<h2 class="font-headline-sm text-headline-sm font-bold text-on-surface truncate">Manish Rawat</h2>
+<div class="inline-flex items-center gap-1 px-2 py-0.5 mt-0.5 rounded-md bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm font-semibold">
+<span>Guest</span>
+</div>
+</div>
+<!-- Status Badge: Rejected (Red) -->
+<div class="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-error-container text-on-error-container font-label-sm text-label-sm font-bold">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+<span>Rejected</span>
+</div>
+</div>
+<!-- Destination & Resident Details -->
+<div class="mt-2.5 flex items-center gap-2 text-on-surface-variant font-body-md text-body-md">
+<span class="material-symbols-outlined text-[18px] text-error flex-shrink-0">apartment</span>
+<span class="truncate font-semibold text-on-surface">Flat C-102 <span class="font-normal text-on-surface-variant">(Mrs. Neha Gupta)</span></span>
+</div>
+<!-- Metadata & Action Row -->
+<div class="mt-3 pt-2.5 flex items-center justify-between text-on-surface-variant font-body-sm text-body-sm bg-error-container/20 -mx-space-md -mb-space-md px-space-md py-2">
+<div class="flex items-center gap-1.5 text-on-error-container">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+<span class="font-semibold">10:52 AM</span>
+<span class="text-outline-variant">•</span>
+<span class="text-[11px] font-semibold">Declined by Resident</span>
+</div>
+<button aria-label="Review rejection details" class="text-error font-label-md text-label-md font-bold flex items-center gap-0.5 hover:underline" type="button">
+<span>Log Note</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+<!-- Card 3: Amazon Delivery Courier -->
+<article class="visitor-entry-card bg-surface-container-lowest rounded-xl p-space-md shadow-sm transition-all relative overflow-hidden" data-query="amazon delivery courier flat d-901 kavita iyer approved parcel" data-status="approved">
+<div class="flex items-start gap-space-sm">
+<div class="relative flex-shrink-0">
+<div class="w-14 h-14 rounded-xl bg-primary-fixed flex items-center justify-center text-on-primary-fixed shadow-sm">
+<span class="material-symbols-outlined text-[30px]">local_shipping</span>
+</div>
+<div class="absolute -bottom-1 -right-1 bg-secondary-fixed text-on-secondary-fixed-variant rounded-full p-0.5 shadow-sm">
+<span class="material-symbols-outlined text-[14px] block">inventory_2</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-start justify-between gap-1">
+<div class="min-w-0">
+<h2 class="font-headline-sm text-headline-sm font-bold text-on-surface truncate">Amazon Delivery Courier</h2>
+<div class="inline-flex items-center gap-1 px-2 py-0.5 mt-0.5 rounded-md bg-secondary-container/40 text-on-secondary-fixed-variant font-label-sm text-label-sm font-semibold">
+<span>Delivery</span>
+</div>
+</div>
+<!-- Status Badge: Approved (Green) -->
+<div class="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-fixed/40 text-on-secondary-fixed-variant font-label-sm text-label-sm font-bold">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span>Approved</span>
+</div>
+</div>
+<!-- Destination & Resident Details -->
+<div class="mt-2.5 flex items-center gap-2 text-on-surface-variant font-body-md text-body-md">
+<span class="material-symbols-outlined text-[18px] text-primary flex-shrink-0">apartment</span>
+<span class="truncate font-semibold text-on-surface">Flat D-901 <span class="font-normal text-on-surface-variant">(Kavita Iyer)</span></span>
+</div>
+<!-- Metadata & Action Row -->
+<div class="mt-3 pt-2.5 flex items-center justify-between text-on-surface-variant font-body-sm text-body-sm bg-surface-container-low/50 -mx-space-md -mb-space-md px-space-md py-2">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+<span class="font-semibold text-on-surface">10:44 AM</span>
+<span class="text-outline-variant">•</span>
+<span class="text-[11px] font-semibold text-secondary">Gate Pass #4402</span>
+</div>
+<button aria-label="Details for Amazon Delivery" class="text-primary font-label-md text-label-md font-bold flex items-center gap-0.5 hover:underline" type="button">
+<span>Details</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+<!-- Card 4: Uber Cab #DL01-AB-4920 -->
+<article class="visitor-entry-card bg-surface-container-lowest rounded-xl p-space-md shadow-sm transition-all relative overflow-hidden" data-query="uber cab #dl01-ab-4920 taxi cab flat a-305 rajesh rao entered" data-status="approved">
+<div class="flex items-start gap-space-sm">
+<div class="relative flex-shrink-0">
+<div class="w-14 h-14 rounded-xl bg-inverse-surface flex items-center justify-center text-inverse-on-surface shadow-sm">
+<span class="material-symbols-outlined text-[30px]">local_taxi</span>
+</div>
+<div class="absolute -bottom-1 -right-1 bg-secondary-fixed text-on-secondary-fixed-variant rounded-full p-0.5 shadow-sm">
+<span class="material-symbols-outlined text-[14px] block">directions_car</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-start justify-between gap-1">
+<div class="min-w-0">
+<h2 class="font-headline-sm text-headline-sm font-bold text-on-surface truncate">Uber Cab #DL01-AB-4920</h2>
+<div class="inline-flex items-center gap-1 px-2 py-0.5 mt-0.5 rounded-md bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm font-semibold">
+<span>Cab / Taxi</span>
+</div>
+</div>
+<!-- Status Badge: Entered (Blue/Green) -->
+<div class="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-fixed/40 text-on-secondary-fixed-variant font-label-sm text-label-sm font-bold">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span>Entered</span>
+</div>
+</div>
+<!-- Destination & Resident Details -->
+<div class="mt-2.5 flex items-center gap-2 text-on-surface-variant font-body-md text-body-md">
+<span class="material-symbols-outlined text-[18px] text-primary flex-shrink-0">apartment</span>
+<span class="truncate font-semibold text-on-surface">Flat A-305 <span class="font-normal text-on-surface-variant">(Rajesh Rao)</span></span>
+</div>
+<!-- Metadata & Action Row -->
+<div class="mt-3 pt-2.5 flex items-center justify-between text-on-surface-variant font-body-sm text-body-sm bg-surface-container-low/50 -mx-space-md -mb-space-md px-space-md py-2">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+<span class="font-semibold text-on-surface">10:35 AM</span>
+<span class="text-outline-variant">•</span>
+<span class="text-[11px] font-mono uppercase bg-surface-container-highest px-1 rounded">Auto-ANPR</span>
+</div>
+<button aria-label="Details for Uber Cab" class="text-primary font-label-md text-label-md font-bold flex items-center gap-0.5 hover:underline" type="button">
+<span>Details</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+<!-- Card 5: Urban Company Electrician -->
+<article class="visitor-entry-card bg-surface-container-lowest rounded-xl p-space-md shadow-sm transition-all relative overflow-hidden" data-query="urban company electrician maintenance flat b-110 sunil mehta approved" data-status="approved">
+<div class="flex items-start gap-space-sm">
+<div class="relative flex-shrink-0">
+<div class="w-14 h-14 rounded-xl bg-surface-container-highest flex items-center justify-center text-primary shadow-sm">
+<span class="material-symbols-outlined text-[30px]">home_repair_service</span>
+</div>
+<div class="absolute -bottom-1 -right-1 bg-secondary-fixed text-on-secondary-fixed-variant rounded-full p-0.5 shadow-sm">
+<span class="material-symbols-outlined text-[14px] block">verified</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-start justify-between gap-1">
+<div class="min-w-0">
+<h2 class="font-headline-sm text-headline-sm font-bold text-on-surface truncate">Urban Company Electrician</h2>
+<div class="inline-flex items-center gap-1 px-2 py-0.5 mt-0.5 rounded-md bg-surface-container-high text-on-primary-fixed-variant font-label-sm text-label-sm font-semibold">
+<span>Maintenance</span>
+</div>
+</div>
+<!-- Status Badge: Approved (Green) -->
+<div class="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-fixed/40 text-on-secondary-fixed-variant font-label-sm text-label-sm font-bold">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span>Approved</span>
+</div>
+</div>
+<!-- Destination & Resident Details -->
+<div class="mt-2.5 flex items-center gap-2 text-on-surface-variant font-body-md text-body-md">
+<span class="material-symbols-outlined text-[18px] text-primary flex-shrink-0">apartment</span>
+<span class="truncate font-semibold text-on-surface">Flat B-110 <span class="font-normal text-on-surface-variant">(Sunil Mehta)</span></span>
+</div>
+<!-- Metadata & Action Row -->
+<div class="mt-3 pt-2.5 flex items-center justify-between text-on-surface-variant font-body-sm text-body-sm bg-surface-container-low/50 -mx-space-md -mb-space-md px-space-md py-2">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+<span class="font-semibold text-on-surface">10:15 AM</span>
+<span class="text-outline-variant">•</span>
+<span class="text-[11px] font-semibold text-on-surface-variant">Pre-verified OTP</span>
+</div>
+<button aria-label="Details for Electrician" class="text-primary font-label-md text-label-md font-bold flex items-center gap-0.5 hover:underline" type="button">
+<span>Details</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+<!-- Empty State for Filter or Empty Search -->
+<div class="hidden flex-col items-center justify-center p-space-2xl text-center bg-surface-container-lowest rounded-xl shadow-sm" id="no-results-state">
+<div class="w-14 h-14 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant mb-space-sm">
+<span class="material-symbols-outlined text-[32px]">folder_off</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm font-bold text-on-surface">No logs match criteria</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1 max-w-[240px]">Try adjusting your search terms or selecting another status filter.</p>
+<button class="mt-space-md px-4 py-2 rounded-xl bg-primary text-on-primary font-label-md text-label-md font-semibold" id="reset-filter-btn" type="button">
+        Show All 84 Records
+      </button>
+</div>
+</div>
+<!-- Client-side Interactive Filter & Search Script -->
+<script>
+    (function () {
+      const searchInput = document.getElementById('visitor-search-input');
+      const clearBtn = document.getElementById('clear-search-btn');
+      const filterChips = document.querySelectorAll('#filter-chips-container .filter-chip');
+      const cards = document.querySelectorAll('#log-list .visitor-entry-card');
+      const noResults = document.getElementById('no-results-state');
+      const resetBtn = document.getElementById('reset-filter-btn');
+
+      let currentFilter = 'all';
+
+      function applyFilters() {
+        const query = searchInput.value.toLowerCase().trim();
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+          const cardStatus = card.getAttribute('data-status');
+          const cardData = card.getAttribute('data-query');
+
+          const matchesStatus = (currentFilter === 'all') || (cardStatus === currentFilter);
+          const matchesQuery = !query || cardData.includes(query);
+
+          if (matchesStatus && matchesQuery) {
+            card.classList.remove('hidden');
+            visibleCount++;
+          } else {
+            card.classList.add('hidden');
+          }
+        });
+
+        if (visibleCount === 0) {
+          noResults.classList.remove('hidden');
+          noResults.classList.add('flex');
+        } else {
+          noResults.classList.add('hidden');
+          noResults.classList.remove('flex');
+        }
+
+        if (query.length > 0) {
+          clearBtn.classList.remove('opacity-0', 'pointer-events-none');
+        } else {
+          clearBtn.classList.add('opacity-0', 'pointer-events-none');
+        }
+      }
+
+      filterChips.forEach(chip => {
+        chip.addEventListener('click', () => {
+          filterChips.forEach(c => {
+            c.classList.remove('bg-primary', 'text-on-primary', 'shadow-sm');
+            c.classList.add('bg-surface-container-highest/70', 'text-on-surface-variant');
+          });
+          chip.classList.add('bg-primary', 'text-on-primary', 'shadow-sm');
+          chip.classList.remove('bg-surface-container-highest/70', 'text-on-surface-variant');
+
+          currentFilter = chip.getAttribute('data-filter');
+          applyFilters();
+        });
+      });
+
+      searchInput.addEventListener('input', applyFilters);
+
+      clearBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        applyFilters();
+        searchInput.focus();
+      });
+
+      if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+          searchInput.value = '';
+          const allChip = document.querySelector('#filter-chips-container [data-filter="all"]');
+          if (allChip) allChip.click();
+        });
+      }
+    })();
+  </script>
+</div></main><nav class="fixed bottom-0 inset-x-0 z-50 pb-safe bg-surface/90 backdrop-blur-xl shadow-[0_-2px_12px_rgba(15,23,42,0.06)]" data-active-classes="text-primary font-bold"><div class="flex justify-around items-center h-20 px-space-sm"><a class="flex flex-col items-center justify-center gap-1 min-w-[64px] h-touch-target-primary text-on-surface-variant transition-colors" data-path="home" href="#"><span class="material-symbols-outlined text-[24px]">shield</span><span class="font-label-sm text-label-sm">Home</span></a><a class="flex flex-col items-center justify-center gap-1 min-w-[64px] h-touch-target-primary text-on-surface-variant transition-colors" data-path="visitors" href="#"><span class="material-symbols-outlined text-[24px]">badge</span><span class="font-label-sm text-label-sm">Visitors</span></a><a aria-current="page" class="flex flex-col items-center justify-center gap-1 min-w-[64px] h-touch-target-primary transition-colors text-primary font-bold" data-path="history" href="#"><span class="material-symbols-outlined text-[24px]">schedule</span><span class="font-label-sm text-label-sm">History</span></a><a class="flex flex-col items-center justify-center gap-1 min-w-[64px] h-touch-target-primary text-on-surface-variant transition-colors" data-path="profile" href="#"><span class="material-symbols-outlined text-[24px]">manage_accounts</span><span class="font-label-sm text-label-sm">Profile</span></a></div></nav></body></html>
