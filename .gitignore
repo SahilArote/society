@@ -1,0 +1,31 @@
+# Dependencies - ignore all node_modules
+node_modules/
+**/node_modules/
+
+# Production build outputs
+dist/
+**/dist/
+build/
+**/build/
+
+# Local databases & logs
+*.db
+*.log
+.tmp/
+data/*.db
+
+# Flutter & Dart build files
+.dart_tool/
+.pub-cache/
+.pub/
+build/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Explicitly KEEP all .env files (do NOT ignore env per user request)
+!.env
+!.env.*
+!**/.env
+!**/.env.*

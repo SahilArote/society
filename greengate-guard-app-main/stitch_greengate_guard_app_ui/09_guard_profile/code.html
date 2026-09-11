@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;}body{overscroll-behavior:none;font-family:'Inter',sans-serif;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"on-secondary-fixed-variant":"#005236","on-primary-container":"#dad7ff","inverse-on-surface":"#eaf1ff","outline-variant":"#c7c4d8","on-tertiary-fixed-variant":"#930013","surface-bright":"#f8f9ff","on-error-container":"#93000a","on-tertiary-fixed":"#410004","surface-container-high":"#dce9ff","on-tertiary":"#ffffff","tertiary-container":"#bc1d25","inverse-primary":"#c3c0ff","on-secondary-fixed":"#002113","on-surface":"#0b1c30","secondary-fixed-dim":"#4edea3","primary-container":"#4f46e5","on-secondary-container":"#00714d","surface-dim":"#cbdbf5","surface":"#f8f9ff","secondary":"#006c49","on-tertiary-container":"#ffd0cc","on-secondary":"#ffffff","tertiary":"#960014","outline":"#777587","on-background":"#0b1c30","surface-variant":"#d3e4fe","surface-container-lowest":"#ffffff","on-primary-fixed":"#0f0069","surface-container-highest":"#d3e4fe","surface-container":"#e5eeff","primary-fixed":"#e2dfff","background":"#f8f9ff","on-error":"#ffffff","tertiary-fixed-dim":"#ffb3ad","error-container":"#ffdad6","surface-tint":"#4d44e3","on-primary-fixed-variant":"#3323cc","inverse-surface":"#213145","secondary-fixed":"#6ffbbe","error":"#ba1a1a","secondary-container":"#6cf8bb","primary-fixed-dim":"#c3c0ff","tertiary-fixed":"#ffdad7","on-primary":"#ffffff","primary":"#3525cd","on-surface-variant":"#464555","surface-container-low":"#eff4ff"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"space-xl":"1.5rem","space-lg":"1.25rem","space-3xl":"2.5rem","touch-target-primary":"3.5rem","space-2xs":"0.25rem","space-2xl":"2rem","margin-screen":"1rem","touch-target-min":"3rem","space-xs":"0.5rem","space-md":"1rem","gutter-kiosk":"0.75rem","space-sm":"0.75rem"},"fontFamily":{"body-md":["Inter"],"display-lg":["Inter"],"body-lg":["Inter"],"headline-md":["Inter"],"headline-lg":["Inter"],"headline-sm":["Inter"],"label-lg":["Inter"],"body-sm":["Inter"],"label-md":["Inter"],"label-sm":["Inter"],"code-plate":["Inter"]},"fontSize":{"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"display-lg":["32px",{"lineHeight":"40px","letterSpacing":"-0.02em","fontWeight":"700"}],"body-lg":["16px",{"lineHeight":"24px","fontWeight":"500"}],"headline-md":["20px",{"lineHeight":"28px","letterSpacing":"-0.005em","fontWeight":"600"}],"headline-lg":["24px",{"lineHeight":"32px","letterSpacing":"-0.01em","fontWeight":"700"}],"headline-sm":["18px",{"lineHeight":"24px","fontWeight":"600"}],"label-lg":["16px",{"lineHeight":"20px","letterSpacing":"0.01em","fontWeight":"600"}],"body-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}],"label-md":["14px",{"lineHeight":"18px","letterSpacing":"0.01em","fontWeight":"600"}],"label-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.04em","fontWeight":"700"}],"code-plate":["22px",{"lineHeight":"28px","letterSpacing":"0.08em","fontWeight":"700"}]}}}};</script></head><body class="bg-surface text-on-surface flex flex-col min-h-screen"><header class="fixed top-0 inset-x-0 z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe"><div class="h-28 px-space-md flex flex-col justify-center"><div class="h-6 flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm mb-space-2xs"><div class="flex items-center gap-space-xs"><span class="font-label-md text-label-md font-bold text-on-surface">10:45 AM</span><span class="material-symbols-outlined text-[14px] text-primary">lock</span><span class="bg-surface-container-high text-on-surface px-space-2xs py-[1px] rounded-full text-[10px] font-semibold tracking-wider uppercase">Kiosk Mode</span></div><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-[15px]">wifi</span><span class="material-symbols-outlined text-[15px]">signal_cellular_alt</span><span class="text-[11px] font-semibold">92%</span><span class="material-symbols-outlined text-[15px]">battery_5_bar</span></div></div><div class="flex items-center justify-between gap-space-xs"><div class="flex items-center gap-space-sm min-w-0"><img alt="GreenGate Guard Logo" class="h-8 w-auto object-contain flex-shrink-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAuhJ636Mkg3Oi2p3Q5vwNxZxt3EDj2HwIvS1Bhj8uCXDQZI3cz302yYhI958fdVn8VZsb1bgBDAmdzckmyapwUr9z9mudlw1k-HEIFV2UW9nst2zf9f60o5lKrBPAxxr94qgFFYuolPnj28M86IaLfUH4lCGcC9ZXusRuP1fX8Tpo2_OZ1aqTVebhV7oTegK9eD4YKpE_x1LlYlCtzXEX_BsCmKyCLFkYg2SkqZ6MTa4x9m0e0ZCBc"/><div class="flex flex-col min-w-0"><div class="flex items-center gap-space-xs"><span class="font-headline-sm text-headline-sm font-bold text-on-surface truncate">Profile</span><div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-fixed/30 text-on-secondary-fixed-variant text-[11px] font-semibold flex-shrink-0"><span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span><span>Active</span></div></div><div class="flex items-center gap-1 font-body-sm text-body-sm text-on-surface-variant truncate"><span class="truncate font-medium">Green Valley Heights</span><span class="text-outline-variant">•</span><span class="truncate text-primary font-semibold">Gate 01</span></div></div></div><div class="flex items-center gap-space-xs flex-shrink-0"><button aria-label="Guard Profile" class="w-touch-target-min h-touch-target-min flex items-center justify-center" type="button"><img alt="Profile" class="w-8 h-8 rounded-full object-cover shadow-[0_1px_4px_rgba(0,0,0,0.08)]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3ue6rwaG4Bm8stFz2jkI2w4tLolDyQtPovpkvFxzQwvvjR_l-CZtGnHxwJV0JHFzqQQaQgHtmycGRmFBlwdNObpOiR6x6foNIH73pLiS_dSRt8czJyb8SsES4gMiH2cZKZuayAb8rs4StIw7tGu3YN9P3tjHYj-k1zQrVifkmwYePeEhhYg2sZqj_BXguE4pmB46XzIrfny0qaGd01Ue6YDFhQjYE-f1zZ-WeubS6ujDk8ym5gH5Y"/></button></div></div></div></header><main class="flex-1 flex flex-col relative w-full px-space-md pt-28 pb-28 bg-surface"><div class="flex flex-col w-full gap-space-md">
+<!-- Officer Profile Hero Card -->
+<div class="relative overflow-hidden rounded-xl bg-surface-container-lowest p-space-md shadow-sm">
+<div class="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-primary-fixed/20 pointer-events-none blur-2xl"></div>
+<div class="flex items-start gap-space-md relative z-10">
+<div class="relative flex-shrink-0">
+<img alt="Officer Vikram Singh" class="w-20 h-20 rounded-xl object-cover shadow-sm shadow-slate-900/10" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3ue6rwaG4Bm8stFz2jkI2w4tLolDyQtPovpkvFxzQwvvjR_l-CZtGnHxwJV0JHFzqQQaQgHtmycGRmFBlwdNObpOiR6x6foNIH73pLiS_dSRt8czJyb8SsES4gMiH2cZKZuayAb8rs4StIw7tGu3YN9P3tjHYj-k1zQrVifkmwYePeEhhYg2sZqj_BXguE4pmB46XzIrfny0qaGd01Ue6YDFhQjYE-f1zZ-WeubS6ujDk8ym5gH5Y"/>
+<span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-secondary ring-2 ring-surface-container-lowest flex items-center justify-center">
+<span class="w-2 h-2 rounded-full bg-surface-container-lowest animate-ping"></span>
+</span>
+</div>
+<div class="flex flex-col min-w-0 flex-1">
+<div class="flex items-center justify-between gap-space-2xs mb-1">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-secondary-fixed/40 text-on-secondary-fixed-variant font-label-sm text-label-sm">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+            Active On Duty
+          </span>
+<span class="font-code-plate text-label-sm text-outline tracking-wider bg-surface-container-low px-2 py-0.5 rounded">
+            GG-SEC-8821
+          </span>
+</div>
+<h1 class="font-headline-md text-headline-md text-on-surface truncate">
+          Officer Vikram Singh
+        </h1>
+<p class="font-body-md text-body-md text-on-surface-variant truncate">
+          Senior Security Guard Officer
+        </p>
+<!-- Shift Quick Metric Pill -->
+<div class="mt-2.5 flex items-center gap-2 pt-2 bg-surface-container-low/60 rounded-lg px-2.5 py-1.5">
+<span class="material-symbols-outlined text-primary text-[18px]">verified_user</span>
+<span class="font-label-sm text-label-sm text-on-surface truncate">Shift 07:00 - 15:30 • Gate 01 Lead</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Gate & Society Assignment Details Card -->
+<div class="rounded-xl bg-surface-container-lowest p-space-md shadow-sm flex flex-col gap-space-sm">
+<div class="flex items-center justify-between pb-1">
+<div class="flex items-center gap-space-xs text-on-surface">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">apartment</span>
+</div>
+<span class="font-headline-sm text-headline-sm">Assignment Details</span>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-semibold">Live Post</span>
+</div>
+<!-- Details List -->
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-start gap-space-sm p-space-xs rounded-lg bg-surface-container-low">
+<span class="material-symbols-outlined text-[20px] text-primary mt-0.5">domain</span>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Residential Society</span>
+<span class="font-body-lg text-body-lg text-on-surface truncate">Green Valley Heights Co-op Housing</span>
+</div>
+</div>
+<div class="flex items-start gap-space-sm p-space-xs rounded-lg bg-surface-container-low">
+<span class="material-symbols-outlined text-[20px] text-secondary mt-0.5">sensor_door</span>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Assigned Entry Terminal</span>
+<span class="font-body-lg text-body-lg text-on-surface font-semibold truncate">Gate 01 - Main North Entrance</span>
+</div>
+</div>
+<div class="grid grid-cols-1 gap-space-xs">
+<div class="flex items-start gap-space-sm p-space-xs rounded-lg bg-surface-container-low">
+<span class="material-symbols-outlined text-[20px] text-on-surface-variant mt-0.5">schedule</span>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Current Shift Roster</span>
+<span class="font-body-md text-body-md text-on-surface font-medium">Morning Shift A (07:00 AM - 03:30 PM)</span>
+</div>
+</div>
+<div class="flex items-start gap-space-sm p-space-xs rounded-lg bg-surface-container-low">
+<span class="material-symbols-outlined text-[20px] text-on-surface-variant mt-0.5">chevron_backward</span>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Relieving Officer</span>
+<div class="flex items-center gap-1.5 flex-wrap">
+<span class="font-body-md text-body-md text-on-surface font-semibold">Officer Ramesh Patel</span>
+<span class="font-label-sm text-label-sm text-secondary bg-secondary-fixed/40 px-1.5 py-0.2 rounded font-medium">ETA 03:15 PM</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Device & Kiosk Health Card -->
+<div class="rounded-xl bg-surface-container-lowest p-space-md shadow-sm flex flex-col gap-space-sm">
+<div class="flex items-center justify-between pb-1">
+<div class="flex items-center gap-space-xs text-on-surface">
+<div class="w-8 h-8 rounded-lg bg-secondary-container/40 flex items-center justify-center text-on-secondary-container">
+<span class="material-symbols-outlined text-[20px]">monitor_heart</span>
+</div>
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm">Kiosk &amp; Device Diagnostics</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Hardware ID: KIOSK-GVH-G01-A</span>
+</div>
+</div>
+<button aria-label="Refresh Diagnostics" class="w-9 h-9 flex items-center justify-center rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high transition-transform active:rotate-180 duration-300" id="refresh-diag" type="button">
+<span class="material-symbols-outlined text-[20px]">autorenew</span>
+</button>
+</div>
+<!-- Diagnostic Bento Grid -->
+<div class="grid grid-cols-2 gap-space-xs">
+<!-- OS Lock Mode -->
+<div class="flex flex-col p-space-xs rounded-lg bg-surface-container-low">
+<div class="flex items-center justify-between mb-1">
+<span class="material-symbols-outlined text-[18px] text-primary">phonelink_lock</span>
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">OS Security Mode</span>
+<span class="font-label-md text-label-md text-on-surface font-semibold truncate">Lock Task Active</span>
+</div>
+<!-- Network -->
+<div class="flex flex-col p-space-xs rounded-lg bg-surface-container-low">
+<div class="flex items-center justify-between mb-1">
+<span class="material-symbols-outlined text-[18px] text-secondary">wifi</span>
+<span class="font-label-sm text-label-sm font-bold text-secondary">5 GHz</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Wi-Fi Connection</span>
+<span class="font-label-md text-label-md text-on-surface font-semibold truncate">Society Secure (Strong)</span>
+</div>
+<!-- Battery Status -->
+<div class="flex flex-col p-space-xs rounded-lg bg-surface-container-low">
+<div class="flex items-center justify-between mb-1">
+<span class="material-symbols-outlined text-[18px] text-secondary">battery_charging_90</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-bold">94%</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Power State</span>
+<span class="font-label-md text-label-md text-on-surface font-semibold truncate">Dock Connected</span>
+</div>
+<!-- Cloud Sync -->
+<div class="flex flex-col p-space-xs rounded-lg bg-surface-container-low">
+<div class="flex items-center justify-between mb-1">
+<span class="material-symbols-outlined text-[18px] text-primary">cloud_done</span>
+<span class="font-label-sm text-label-sm font-bold text-secondary">0s delay</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Cloud Sync</span>
+<span class="font-label-md text-label-md text-on-surface font-semibold truncate">Realtime Synced</span>
+</div>
+<!-- Slip Printer Status (Full width span) -->
+<div class="col-span-2 flex items-center justify-between p-space-xs rounded-lg bg-surface-container-low">
+<div class="flex items-center gap-space-xs">
+<div class="w-7 h-7 rounded bg-surface-container flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[18px]">print</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Thermal Slip Printer</span>
+<span class="font-label-md text-label-md text-on-surface font-semibold">BT-PRINTER-G01 (Paper 88%)</span>
+</div>
+</div>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-fixed/40 text-on-secondary-fixed-variant font-label-sm text-label-sm font-bold">
+          Online
+        </span>
+</div>
+</div>
+</div>
+<!-- Shift & Operational Actions Deck -->
+<div class="flex flex-col gap-space-sm pt-1">
+<!-- Shift Handover Primary Button -->
+<button class="w-full h-touch-target-primary rounded-xl bg-primary text-on-primary font-label-lg text-label-lg flex items-center justify-center gap-space-xs shadow-md shadow-primary/25 hover:bg-primary-container active:scale-[0.99] transition-all" id="btn-handover" type="button">
+<span class="material-symbols-outlined text-[22px]">swap_horizontal_circle</span>
+<span>Handover Shift &amp; Sync Logs</span>
+</button>
+<!-- Supervisor Hotline Secondary Button -->
+<a class="w-full h-touch-target-min rounded-xl bg-surface-container-lowest text-on-surface font-label-md text-label-md flex items-center justify-center gap-space-xs shadow-sm hover:bg-surface-container active:scale-[0.99] transition-all" href="tel:1800555019">
+<span class="material-symbols-outlined text-primary text-[20px]">support_agent</span>
+<span>Supervisor Emergency Hotline (Ext. 09)</span>
+</a>
+<!-- Soft Red Card Logout Button with Confirmation Hook -->
+<div class="rounded-xl bg-error-container/40 p-space-md flex flex-col gap-space-xs shadow-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2 text-on-error-container">
+<span class="material-symbols-outlined text-[20px]">warning</span>
+<span class="font-label-md text-label-md font-bold">Kiosk Lockout Warning</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-error-container">Supervisor Pin Req.</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-error-container/90">
+        Logging out unlinks this terminal from Gate 01 and switches to standby. Ensure ongoing visitor passes are closed.
+      </p>
+<button class="mt-1 w-full h-touch-target-min rounded-lg bg-surface-container-lowest text-error font-label-md text-label-md font-bold flex items-center justify-center gap-2 hover:bg-error-container active:bg-error-container transition-colors shadow-sm" id="btn-logout" type="button">
+<span class="material-symbols-outlined text-[20px]">logout</span>
+<span>Logout from Kiosk Terminal</span>
+</button>
+</div>
+</div>
+<!-- Handover Modal Overlay (Hidden by Default) -->
+<div class="fixed inset-0 z-50 bg-inverse-surface/60 backdrop-blur-sm hidden flex-col justify-end p-space-md pb-safe" id="modal-handover">
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-xl flex flex-col gap-space-md max-w-lg mx-auto w-full">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[24px]">verified</span>
+<h2 class="font-headline-md text-headline-md text-on-surface">Confirm Handover</h2>
+</div>
+<button class="w-8 h-8 flex items-center justify-center rounded-full bg-surface-container text-on-surface" id="close-modal" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">
+        All entries (142 visits, 3 denied) are synchronized with the central cloud. Shift A summary will be printed for Officer Ramesh Patel.
+      </p>
+<div class="p-space-xs bg-surface-container-low rounded-lg flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-secondary text-[20px]">check_circle</span>
+<span class="font-label-sm text-label-sm text-on-surface font-semibold">Logs verified &amp; ready for signature token</span>
+</div>
+<div class="flex gap-space-xs pt-1">
+<button class="flex-1 h-touch-target-min rounded-xl bg-surface-container text-on-surface font-label-md text-label-md" id="cancel-handover" type="button">
+          Cancel
+        </button>
+<button class="flex-1 h-touch-target-min rounded-xl bg-primary text-on-primary font-label-md text-label-md font-bold flex items-center justify-center gap-1.5" id="complete-handover" type="button">
+<span class="material-symbols-outlined text-[18px]">done_all</span>
+          Complete
+        </button>
+</div>
+</div>
+</div>
+</div>
+<script>
+  (function() {
+    // Update bottom nav active state to Profile
+    try {
+      const navLinks = document.querySelectorAll('nav a[data-path]');
+      navLinks.forEach(link => {
+        if (link.getAttribute('data-path') === 'profile') {
+          link.classList.remove('text-on-surface-variant');
+          link.classList.add('text-primary', 'font-bold');
+        } else {
+          link.classList.remove('text-primary', 'font-bold');
+          link.classList.add('text-on-surface-variant');
+        }
+      });
+    } catch(e) {}
+
+    // Modal Interaction
+    const btnHandover = document.getElementById('btn-handover');
+    const modalHandover = document.getElementById('modal-handover');
+    const closeModal = document.getElementById('close-modal');
+    const cancelHandover = document.getElementById('cancel-handover');
+    const completeHandover = document.getElementById('complete-handover');
+    const refreshDiag = document.getElementById('refresh-diag');
+    const btnLogout = document.getElementById('btn-logout');
+
+    if (btnHandover && modalHandover) {
+      btnHandover.addEventListener('click', () => {
+        modalHandover.classList.remove('hidden');
+        modalHandover.classList.add('flex');
+      });
+    }
+
+    const hideModal = () => {
+      if (modalHandover) {
+        modalHandover.classList.add('hidden');
+        modalHandover.classList.remove('flex');
+      }
+    };
+
+    if (closeModal) closeModal.addEventListener('click', hideModal);
+    if (cancelHandover) cancelHandover.addEventListener('click', hideModal);
+
+    if (completeHandover) {
+      completeHandover.addEventListener('click', () => {
+        completeHandover.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">sync</span> Finalizing...';
+        setTimeout(() => {
+          hideModal();
+          completeHandover.innerHTML = '<span class="material-symbols-outlined text-[18px]">done_all</span> Complete';
+          alert('Shift successfully handed over to Officer Ramesh Patel. Logs printed and archived.');
+        }, 900);
+      });
+    }
+
+    if (refreshDiag) {
+      refreshDiag.addEventListener('click', () => {
+        refreshDiag.classList.add('rotate-180');
+        setTimeout(() => refreshDiag.classList.remove('rotate-180'), 400);
+      });
+    }
+
+    if (btnLogout) {
+      btnLogout.addEventListener('click', () => {
+        const confirmed = confirm('Security Notice: You are about to sign out of the Kiosk Terminal. Require Supervisor Master PIN to reactivate. Proceed?');
+        if (confirmed) {
+          alert('Kiosk locked. Please scan master badge to unlock.');
+        }
+      });
+    }
+  })();
+</script></main><nav class="fixed bottom-0 inset-x-0 z-50 pb-safe bg-surface/90 backdrop-blur-xl shadow-[0_-2px_12px_rgba(15,23,42,0.06)]" data-active-classes="text-primary font-bold"><div class="flex justify-around items-center h-20 px-space-sm"><a class="flex flex-col items-center justify-center gap-1 min-w-[64px] h-touch-target-primary text-on-surface-variant transition-colors" data-path="home" href="#"><span class="material-symbols-outlined text-[24px]">shield</span><span class="font-label-sm text-label-sm">Home</span></a><a class="flex flex-col items-center justify-center gap-1 min-w-[64px] h-touch-target-primary text-on-surface-variant transition-colors" data-path="visitors" href="#"><span class="material-symbols-outlined text-[24px]">badge</span><span class="font-label-sm text-label-sm">Visitors</span></a><a class="flex flex-col items-center justify-center gap-1 min-w-[64px] h-touch-target-primary text-on-surface-variant transition-colors" data-path="history" href="#"><span class="material-symbols-outlined text-[24px]">schedule</span><span class="font-label-sm text-label-sm">History</span></a><a aria-current="page" class="flex flex-col items-center justify-center gap-1 min-w-[64px] h-touch-target-primary transition-colors text-primary font-bold" data-path="profile" href="#"><span class="material-symbols-outlined text-[24px]">manage_accounts</span><span class="font-label-sm text-label-sm">Profile</span></a></div></nav></body></html>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;}body{overscroll-behavior:none;font-family:'Inter',sans-serif;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"on-secondary-fixed-variant":"#005236","on-primary-container":"#dad7ff","inverse-on-surface":"#eaf1ff","outline-variant":"#c7c4d8","on-tertiary-fixed-variant":"#930013","surface-bright":"#f8f9ff","on-error-container":"#93000a","on-tertiary-fixed":"#410004","surface-container-high":"#dce9ff","on-tertiary":"#ffffff","tertiary-container":"#bc1d25","inverse-primary":"#c3c0ff","on-secondary-fixed":"#002113","on-surface":"#0b1c30","secondary-fixed-dim":"#4edea3","primary-container":"#4f46e5","on-secondary-container":"#00714d","surface-dim":"#cbdbf5","surface":"#f8f9ff","secondary":"#006c49","on-tertiary-container":"#ffd0cc","on-secondary":"#ffffff","tertiary":"#960014","outline":"#777587","on-background":"#0b1c30","surface-variant":"#d3e4fe","surface-container-lowest":"#ffffff","on-primary-fixed":"#0f0069","surface-container-highest":"#d3e4fe","surface-container":"#e5eeff","primary-fixed":"#e2dfff","background":"#f8f9ff","on-error":"#ffffff","tertiary-fixed-dim":"#ffb3ad","error-container":"#ffdad6","surface-tint":"#4d44e3","on-primary-fixed-variant":"#3323cc","inverse-surface":"#213145","secondary-fixed":"#6ffbbe","error":"#ba1a1a","secondary-container":"#6cf8bb","primary-fixed-dim":"#c3c0ff","tertiary-fixed":"#ffdad7","on-primary":"#ffffff","primary":"#3525cd","on-surface-variant":"#464555","surface-container-low":"#eff4ff"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"space-xl":"1.5rem","space-lg":"1.25rem","space-3xl":"2.5rem","touch-target-primary":"3.5rem","space-2xs":"0.25rem","space-2xl":"2rem","margin-screen":"1rem","touch-target-min":"3rem","space-xs":"0.5rem","space-md":"1rem","gutter-kiosk":"0.75rem","space-sm":"0.75rem"},"fontFamily":{"body-md":["Inter"],"display-lg":["Inter"],"body-lg":["Inter"],"headline-md":["Inter"],"headline-lg":["Inter"],"headline-sm":["Inter"],"label-lg":["Inter"],"body-sm":["Inter"],"label-md":["Inter"],"label-sm":["Inter"],"code-plate":["Inter"]},"fontSize":{"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"display-lg":["32px",{"lineHeight":"40px","letterSpacing":"-0.02em","fontWeight":"700"}],"body-lg":["16px",{"lineHeight":"24px","fontWeight":"500"}],"headline-md":["20px",{"lineHeight":"28px","letterSpacing":"-0.005em","fontWeight":"600"}],"headline-lg":["24px",{"lineHeight":"32px","letterSpacing":"-0.01em","fontWeight":"700"}],"headline-sm":["18px",{"lineHeight":"24px","fontWeight":"600"}],"label-lg":["16px",{"lineHeight":"20px","letterSpacing":"0.01em","fontWeight":"600"}],"body-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}],"label-md":["14px",{"lineHeight":"18px","letterSpacing":"0.01em","fontWeight":"600"}],"label-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.04em","fontWeight":"700"}],"code-plate":["22px",{"lineHeight":"28px","letterSpacing":"0.08em","fontWeight":"700"}]}}}};</script></head><body class="bg-surface text-on-surface flex flex-col min-h-screen"><main class="flex-1 flex flex-col relative w-full pt-safe pb-safe bg-surface"><div class="flex flex-col w-full px-space-md py-space-md max-w-md mx-auto relative select-none">
+<!-- Subtle Ambient Glow -->
+<div class="absolute -top-10 left-1/2 -translate-x-1/2 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none -z-10"></div>
+<!-- Kiosk Security Badge -->
+<div class="flex items-center justify-center mb-space-md">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-low shadow-sm">
+<span class="material-symbols-outlined text-secondary text-[16px]" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+<span class="font-label-sm text-on-surface-variant uppercase tracking-wider">Secure Device Enrolled</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="font-label-sm text-secondary font-bold truncate max-w-[140px]">Green Valley Heights</span>
+</div>
+</div>
+<!-- Branding & Header Section -->
+<div class="flex flex-col items-center text-center mb-space-lg">
+<div class="relative w-20 h-20 mb-space-xs rounded-2xl bg-surface-container-lowest shadow-md flex items-center justify-center p-2.5">
+<img alt="GreenGate Guard Logo" class="w-full h-full object-contain drop-shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAuhJ636Mkg3Oi2p3Q5vwNxZxt3EDj2HwIvS1Bhj8uCXDQZI3cz302yYhI958fdVn8VZsb1bgBDAmdzckmyapwUr9z9mudlw1k-HEIFV2UW9nst2zf9f60o5lKrBPAxxr94qgFFYuolPnj28M86IaLfUH4lCGcC9ZXusRuP1fX8Tpo2_OZ1aqTVebhV7oTegK9eD4YKpE_x1LlYlCtzXEX_BsCmKyCLFkYg2SkqZ6MTa4x9m0e0ZCBc"/>
+<span class="absolute -bottom-1 -right-1 flex h-4 w-4">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-4 w-4 bg-secondary"></span>
+</span>
+</div>
+<h1 class="font-headline-lg text-on-surface tracking-tight">GreenGate Guard</h1>
+<p class="font-body-sm text-on-surface-variant mt-0.5">Official Gate Security Terminal • Kiosk v2.4</p>
+<!-- Gate Location Chip Selector -->
+<div class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container text-on-surface shadow-sm cursor-pointer active:scale-95 transition-transform" id="gate-selector-pill">
+<span class="material-symbols-outlined text-primary text-[18px]">meeting_room</span>
+<span class="font-label-md text-on-surface font-semibold">Gate 01 - Main Entrance (Default)</span>
+<span class="material-symbols-outlined text-outline text-[18px]">expand_more</span>
+</div>
+</div>
+<!-- Interactive Terminal Card -->
+<div class="w-full bg-surface-container-lowest rounded-2xl p-space-md shadow-md flex flex-col gap-space-md mb-space-md">
+<!-- Input 1: Guard ID / Phone -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-sm text-on-surface-variant ml-1 flex items-center justify-between">
+<span>GUARD ID OR MOBILE</span>
+<span class="text-secondary font-medium flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> Ready
+        </span>
+</label>
+<div class="relative flex items-center">
+<div class="absolute left-3.5 flex items-center pointer-events-none text-primary">
+<span class="material-symbols-outlined text-[20px]">badge</span>
+</div>
+<input class="w-full h-[52px] pl-11 pr-10 rounded-xl bg-surface-container-low text-on-surface font-body-lg focus:outline-none focus:bg-surface-container-lowest focus:shadow-md transition-all placeholder:text-outline/60" id="guard-id-input" placeholder="GRD-8821 or 98765 43210" type="text" value="GRD-8821"/>
+<button class="absolute right-2.5 p-1 rounded-full text-outline-variant hover:text-on-surface active:scale-90 transition-transform" onclick="document.getElementById('guard-id-input').value=''; document.getElementById('guard-id-input').focus();" type="button">
+<span class="material-symbols-outlined text-[18px]">cancel</span>
+</button>
+</div>
+</div>
+<!-- Input 2: 4-Digit Guard PIN with Masked Indicator -->
+<div class="flex flex-col gap-1.5">
+<div class="flex items-center justify-between ml-1">
+<label class="font-label-sm text-on-surface-variant">4-DIGIT GUARD SECURITY PIN</label>
+<button class="text-primary font-label-sm hover:underline flex items-center gap-1" id="toggle-pin-peek" type="button">
+<span class="material-symbols-outlined text-[16px]" id="peek-icon">visibility</span>
+<span id="peek-label">Peek</span>
+</button>
+</div>
+<!-- PIN Display Dots / Preview Area -->
+<div class="h-[52px] w-full px-4 rounded-xl bg-surface-container-low flex items-center justify-between shadow-inner">
+<div class="flex items-center gap-3" id="pin-dots-container">
+<span class="w-3.5 h-3.5 rounded-full bg-primary ring-4 ring-primary/20 shadow-sm transition-all" id="pin-dot-1"></span>
+<span class="w-3.5 h-3.5 rounded-full bg-primary ring-4 ring-primary/20 shadow-sm transition-all" id="pin-dot-2"></span>
+<span class="w-3.5 h-3.5 rounded-full bg-outline-variant transition-all" id="pin-dot-3"></span>
+<span class="w-3.5 h-3.5 rounded-full bg-outline-variant transition-all" id="pin-dot-4"></span>
+</div>
+<div class="font-code-plate text-primary tracking-widest hidden" id="pin-plain-preview">48••</div>
+<div class="flex items-center gap-1.5 text-on-surface-variant font-label-sm">
+<span class="material-symbols-outlined text-[18px] text-outline">dialpad</span>
+<span>Fast Pad</span>
+</div>
+</div>
+</div>
+<!-- Quick Touch Keypad for 1-Handed Guard Entry -->
+<div class="grid grid-cols-3 gap-2 pt-1" id="kiosk-keypad">
+<button class="h-12 rounded-xl bg-surface-container hover:bg-surface-container-high active:bg-primary-fixed active:text-on-primary-fixed text-on-surface font-headline-sm flex items-center justify-center transition-all" type="button">1</button>
+<button class="h-12 rounded-xl bg-surface-container hover:bg-surface-container-high active:bg-primary-fixed active:text-on-primary-fixed text-on-surface font-headline-sm flex items-center justify-center transition-all" type="button">2</button>
+<button class="h-12 rounded-xl bg-surface-container hover:bg-surface-container-high active:bg-primary-fixed active:text-on-primary-fixed text-on-surface font-headline-sm flex items-center justify-center transition-all" type="button">3</button>
+<button class="h-12 rounded-xl bg-surface-container hover:bg-surface-container-high active:bg-primary-fixed active:text-on-primary-fixed text-on-surface font-headline-sm flex items-center justify-center transition-all" type="button">4</button>
+<button class="h-12 rounded-xl bg-surface-container hover:bg-surface-container-high active:bg-primary-fixed active:text-on-primary-fixed text-on-surface font-headline-sm flex items-center justify-center transition-all" type="button">5</button>
+<button class="h-12 rounded-xl bg-surface-container hover:bg-surface-container-high active:bg-primary-fixed active:text-on-primary-fixed text-on-surface font-headline-sm flex items-center justify-center transition-all" type="button">6</button>
+<button class="h-12 rounded-xl bg-surface-container hover:bg-surface-container-high active:bg-primary-fixed active:text-on-primary-fixed text-on-surface font-headline-sm flex items-center justify-center transition-all" type="button">7</button>
+<button class="h-12 rounded-xl bg-surface-container hover:bg-surface-container-high active:bg-primary-fixed active:text-on-primary-fixed text-on-surface font-headline-sm flex items-center justify-center transition-all" type="button">8</button>
+<button class="h-12 rounded-xl bg-surface-container hover:bg-surface-container-high active:bg-primary-fixed active:text-on-primary-fixed text-on-surface font-headline-sm flex items-center justify-center transition-all" type="button">9</button>
+<button class="h-12 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant font-label-md flex items-center justify-center active:scale-95 transition-transform" id="key-clear" type="button">CLR</button>
+<button class="h-12 rounded-xl bg-surface-container hover:bg-surface-container-high active:bg-primary-fixed active:text-on-primary-fixed text-on-surface font-headline-sm flex items-center justify-center transition-all" type="button">0</button>
+<button class="h-12 rounded-xl bg-surface-container-low hover:bg-surface-container text-tertiary font-headline-sm flex items-center justify-center active:scale-95 transition-transform" id="key-backspace" type="button">
+<span class="material-symbols-outlined text-[22px]">backspace</span>
+</button>
+</div>
+<!-- Login Button -->
+<button class="w-full h-14 mt-1 rounded-2xl bg-primary hover:bg-primary-container active:scale-[0.98] text-on-primary font-label-lg font-bold shadow-lg flex items-center justify-center gap-3 transition-all" id="login-submit-btn" type="button">
+<span>LOGIN TO GATE KIOSK</span>
+<span class="material-symbols-outlined text-[22px]">arrow_forward</span>
+</button>
+</div>
+<!-- Secondary Support Link -->
+<div class="text-center mb-space-lg">
+<a class="inline-flex items-center gap-1.5 text-primary hover:text-on-primary-fixed-variant font-label-md transition-colors py-1 px-2 rounded-lg active:bg-surface-container" href="tel:08044552211">
+<span class="material-symbols-outlined text-[18px]">support_agent</span>
+<span>Forgot Guard PIN? Contact Chief Security Admin</span>
+</a>
+</div>
+<!-- Guard Shift Micro-Status Widget -->
+<div class="w-full bg-surface-container-low rounded-xl p-3 shadow-sm mb-space-md flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-surface-container-lowest flex items-center justify-center text-primary shadow-xs">
+<span class="material-symbols-outlined text-[20px]">schedule</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-on-surface font-semibold">Shift: Morning Duty (A)</span>
+<span class="font-body-sm text-on-surface-variant">07:00 AM - 03:30 PM • 3 Guards Active</span>
+</div>
+</div>
+<div class="h-2 w-2 rounded-full bg-secondary"></div>
+</div>
+<!-- Footer Kiosk Security Status -->
+<div class="mt-auto pt-2 pb-2 flex flex-col items-center text-center gap-1 text-on-surface-variant">
+<div class="inline-flex items-center gap-1.5 font-label-sm text-outline">
+<span class="material-symbols-outlined text-[15px]">lock</span>
+<span>GreenGate Security OS • Lock Task Mode Active</span>
+</div>
+<p class="font-body-sm text-outline/80 text-[11px]">Hardware Bound: Terminal #G01-KV2 • Network: Secured Guard WLAN</p>
+</div>
+</div>
+<script>
+  (function() {
+    let pin = '48';
+    const maxLen = 4;
+    const dots = [
+      document.getElementById('pin-dot-1'),
+      document.getElementById('pin-dot-2'),
+      document.getElementById('pin-dot-3'),
+      document.getElementById('pin-dot-4')
+    ];
+    const plainPreview = document.getElementById('pin-plain-preview');
+    const dotsContainer = document.getElementById('pin-dots-container');
+    const peekToggle = document.getElementById('toggle-pin-peek');
+    const peekLabel = document.getElementById('peek-label');
+    const peekIcon = document.getElementById('peek-icon');
+    let isPeeking = false;
+
+    function renderPin() {
+      dots.forEach((dot, idx) => {
+        if (idx < pin.length) {
+          dot.className = "w-3.5 h-3.5 rounded-full bg-primary ring-4 ring-primary/20 shadow-sm transition-all scale-110";
+        } else {
+          dot.className = "w-3.5 h-3.5 rounded-full bg-outline-variant transition-all scale-100";
+        }
+      });
+      if (isPeeking) {
+        plainPreview.textContent = pin ? pin.padEnd(maxLen, '•') : '••••';
+      }
+    }
+
+    // Keypad digits
+    const keypad = document.getElementById('kiosk-keypad');
+    if (keypad) {
+      keypad.querySelectorAll('button').forEach(btn => {
+        const text = btn.textContent.trim();
+        if (/^[0-9]$/.test(text)) {
+          btn.addEventListener('click', () => {
+            if (pin.length < maxLen) {
+              pin += text;
+              renderPin();
+            }
+          });
+        }
+      });
+    }
+
+    // Clear
+    const clearBtn = document.getElementById('key-clear');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        pin = '';
+        renderPin();
+      });
+    }
+
+    // Backspace
+    const backBtn = document.getElementById('key-backspace');
+    if (backBtn) {
+      backBtn.addEventListener('click', () => {
+        if (pin.length > 0) {
+          pin = pin.slice(0, -1);
+          renderPin();
+        }
+      });
+    }
+
+    // Peek toggle
+    if (peekToggle) {
+      peekToggle.addEventListener('click', () => {
+        isPeeking = !isPeeking;
+        if (isPeeking) {
+          dotsContainer.classList.add('hidden');
+          plainPreview.classList.remove('hidden');
+          peekLabel.textContent = 'Hide';
+          peekIcon.textContent = 'visibility_off';
+        } else {
+          dotsContainer.classList.remove('hidden');
+          plainPreview.classList.add('hidden');
+          peekLabel.textContent = 'Peek';
+          peekIcon.textContent = 'visibility';
+        }
+        renderPin();
+      });
+    }
+
+    // Login feedback simulation
+    const loginBtn = document.getElementById('login-submit-btn');
+    if (loginBtn) {
+      loginBtn.addEventListener('click', () => {
+        loginBtn.innerHTML = `
+          <span class="animate-spin inline-block w-5 h-5 border-2 border-on-primary border-t-transparent rounded-full"></span>
+          <span>AUTHORIZING KIOSK...</span>
+        `;
+        loginBtn.classList.add('opacity-90');
+        setTimeout(() => {
+          loginBtn.innerHTML = `
+            <span class="material-symbols-outlined text-[22px]">check_circle</span>
+            <span>GATE TERMINAL READY</span>
+          `;
+          loginBtn.classList.remove('bg-primary');
+          loginBtn.classList.add('bg-secondary');
+        }, 800);
+      });
+    }
+  })();
+</script></main></body></html>
