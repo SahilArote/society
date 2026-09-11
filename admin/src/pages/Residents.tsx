@@ -6,7 +6,7 @@ import {
   UserPlus, MessageSquare, CreditCard, ShieldCheck, Plus
 } from 'lucide-react';
 import { mockFlats } from '../data/mockData';
-import type { Flat, Resident } from '../types';
+import type { Flat, FlatResident as Resident } from '../types';
 import StatCard, { CircularGauge } from '../components/StatCard';
 
 /* ── Badges ──────────────────────────────────────────────── */
@@ -236,7 +236,7 @@ export default function Residents() {
       number: newNumber.toUpperCase(),
       wing: newWing,
       floor: parseInt(newNumber.slice(1, 2)) || 1,
-      type: newType,
+      type: newType as any,
       status: 'occupied',
       residents: [
         {

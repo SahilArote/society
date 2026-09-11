@@ -16,6 +16,7 @@ export interface StatCardProps {
   footer?: React.ReactNode;
   accentColor?: string;
   bgColor?: string;
+  borderColor?: string;
   delay?: number;
   onClick?: () => void;
   // Optional legacy props kept for seamless compatibility

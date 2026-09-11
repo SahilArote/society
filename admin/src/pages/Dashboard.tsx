@@ -82,11 +82,69 @@ function GateDot({ status }: { status: string }) {
 }
 
 /* ── Main Dashboard ───────────────────────────────────────── */
+import { useEffect } from 'react';
+import { fetchAdminActivity } from '../services/api';
+import { initAdminSocket } from '../services/socket';
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const s = mockDashboardStats;
   const [visitorsList, setVisitorsList] = useState(mockVisitors);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    // 1. Initial Activity Fetch
+    fetchAdminActivity().then((apiActivity) => {
+      if (apiActivity && apiActivity.length > 0) {
+        const mapped = apiActivity.map((item: any) => ({
+          id: item.id,
+          name: item.visitorName,
+          purpose: (item.purpose || 'guest') as any,
+          status: (item.status || 'pending').toLowerCase() as any,
+          flatNumber: item.flatNumber,
+          residentName: item.residentName,
+          gate: item.gateName || 'Main Gate',
+          guardName: 'Ramesh Singh',
+          requestedAt: new Date(item.requestedAt),
+        }));
+        setVisitorsList((prev) => [...mapped, ...prev]);
+      }
+    });
+
+    // 2. Real-time Activity Listener via Socket.IO
+    const socket = initAdminSocket((activityEvent) => {
+      showToast(`⚡ Realtime Event: ${activityEvent.visitorName || 'Visitor'} is ${activityEvent.status || activityEvent.type}`);
+
+      setVisitorsList((prev) => {
+        const existingIdx = prev.findIndex((v) => v.id === activityEvent.requestId);
+        if (existingIdx !== -1) {
+          const updated = [...prev];
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            status: (activityEvent.status || 'pending').toLowerCase() as any,
+          };
+          return updated;
+        }
+
+        const newVisitor: any = {
+          id: activityEvent.requestId || `REQ-${Date.now()}`,
+          name: activityEvent.visitorName || 'New Visitor',
+          purpose: (activityEvent.purpose || 'guest') as any,
+          status: (activityEvent.status || 'pending').toLowerCase() as any,
+          flatNumber: activityEvent.flatNumber || 'A-402',
+          residentName: 'Sahil Arote',
+          gate: 'Main Gate',
+          guardName: 'Ramesh Singh',
+          requestedAt: new Date(),
+        };
+        return [newVisitor, ...prev];
+      });
+    });
+
+    return () => {
+      // keep connection active
+    };
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);

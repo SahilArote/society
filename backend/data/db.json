@@ -1,0 +1,249 @@
+{
+  "societies": [
+    {
+      "id": "soc_greengate",
+      "name": "GreenGate Heights",
+      "address": "Plot 42, Security Enclave, Cyber City",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-10T14:04:00.808Z"
+    }
+  ],
+  "gates": [
+    {
+      "id": "gate_main",
+      "societyId": "soc_greengate",
+      "name": "Main Gate",
+      "location": "North Entrance",
+      "status": "OPERATIONAL"
+    },
+    {
+      "id": "gate_back",
+      "societyId": "soc_greengate",
+      "name": "Back Gate",
+      "location": "South Entrance",
+      "status": "OPERATIONAL"
+    }
+  ],
+  "users": [
+    {
+      "id": "res_sahil",
+      "name": "Sahil Arote",
+      "mobile": "9876543210",
+      "email": "sahil@greengate.com",
+      "role": "RESIDENT",
+      "societyId": "soc_greengate",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-10T14:04:00.808Z",
+      "updatedAt": "2026-09-10T14:04:00.808Z"
+    },
+    {
+      "id": "res_amit",
+      "name": "Dr. Amit Sharma",
+      "mobile": "9820044821",
+      "email": "amit@greengate.com",
+      "role": "RESIDENT",
+      "societyId": "soc_greengate",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-10T14:04:00.808Z",
+      "updatedAt": "2026-09-10T14:04:00.808Z"
+    },
+    {
+      "id": "res_priya",
+      "name": "Priya Sharma",
+      "mobile": "9810122334",
+      "email": "priya@greengate.com",
+      "role": "RESIDENT",
+      "societyId": "soc_greengate",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-10T14:04:00.808Z",
+      "updatedAt": "2026-09-10T14:04:00.808Z"
+    },
+    {
+      "id": "res_rajesh",
+      "name": "Rajesh Rao",
+      "mobile": "9822144556",
+      "email": "rajesh@greengate.com",
+      "role": "RESIDENT",
+      "societyId": "soc_greengate",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-10T14:04:00.808Z",
+      "updatedAt": "2026-09-10T14:04:00.808Z"
+    },
+    {
+      "id": "guard_ramesh",
+      "name": "Ramesh Singh",
+      "mobile": "9800011122",
+      "email": "ramesh@greengate.com",
+      "role": "GUARD",
+      "societyId": "soc_greengate",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-10T14:04:00.808Z",
+      "updatedAt": "2026-09-10T14:04:00.808Z"
+    },
+    {
+      "id": "admin_user",
+      "name": "Admin Secretary",
+      "mobile": "9999988888",
+      "email": "admin@greengate.com",
+      "role": "ADMIN",
+      "societyId": "soc_greengate",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-10T14:04:00.808Z",
+      "updatedAt": "2026-09-10T14:04:00.808Z"
+    }
+  ],
+  "flats": [
+    {
+      "id": "flat_a402",
+      "societyId": "soc_greengate",
+      "flatNumber": "A-402",
+      "wing": "Tower A",
+      "floor": 4,
+      "residentId": "res_sahil"
+    },
+    {
+      "id": "flat_b402",
+      "societyId": "soc_greengate",
+      "flatNumber": "B-402",
+      "wing": "Tower B",
+      "floor": 4,
+      "residentId": "res_amit"
+    },
+    {
+      "id": "flat_a101",
+      "societyId": "soc_greengate",
+      "flatNumber": "A-101",
+      "wing": "Tower A",
+      "floor": 1,
+      "residentId": "res_priya"
+    },
+    {
+      "id": "flat_a104",
+      "societyId": "soc_greengate",
+      "flatNumber": "A-104",
+      "wing": "Tower A",
+      "floor": 1,
+      "residentId": "res_rajesh"
+    }
+  ],
+  "guards": [
+    {
+      "id": "g_record_1",
+      "userId": "guard_ramesh",
+      "gateId": "gate_main",
+      "shift": "morning",
+      "status": "ON_DUTY"
+    }
+  ],
+  "visitors": [
+    {
+      "id": "vis_8f6a5bdc",
+      "name": "Raj Sharma",
+      "mobile": "9876543210",
+      "purpose": "personal",
+      "visitorType": "guest",
+      "photoUrl": "/api/uploads/visitor-photos/visitor_740eb810-8f8f-4c22-a9b8-b461595a784b.jpg",
+      "createdAt": "2026-09-10T14:09:12.726Z"
+    },
+    {
+      "id": "vis_c96e073b",
+      "name": "Raj Sharma",
+      "mobile": "9876543210",
+      "purpose": "personal",
+      "visitorType": "guest",
+      "photoUrl": "/api/uploads/visitor-photos/visitor_b8499a82-c2a7-4ae0-b502-fbbfccd32a10.jpg",
+      "createdAt": "2026-09-10T14:19:13.949Z"
+    }
+  ],
+  "visitorRequests": [
+    {
+      "id": "REQ-3967",
+      "societyId": "soc_greengate",
+      "visitorId": "vis_8f6a5bdc",
+      "residentId": "res_sahil",
+      "flatId": "flat_a402",
+      "guardId": "guard_ramesh",
+      "gateId": "gate_main",
+      "status": "APPROVED",
+      "requestedAt": "2026-09-10T14:09:12.726Z",
+      "respondedAt": "2026-09-10T14:09:12.735Z",
+      "responseBy": "Sahil Arote"
+    },
+    {
+      "id": "REQ-7675",
+      "societyId": "soc_greengate",
+      "visitorId": "vis_c96e073b",
+      "residentId": "res_sahil",
+      "flatId": "flat_a402",
+      "guardId": "guard_ramesh",
+      "gateId": "gate_main",
+      "status": "APPROVED",
+      "requestedAt": "2026-09-10T14:19:13.949Z",
+      "respondedAt": "2026-09-10T14:19:13.956Z",
+      "responseBy": "Sahil Arote"
+    }
+  ],
+  "notifications": [
+    {
+      "id": "notif_33882e28",
+      "recipientId": "res_sahil",
+      "type": "visitor",
+      "title": "Visitor Approval Required",
+      "message": "Raj Sharma is waiting at Main Gate for Flat A-402",
+      "relatedEntityId": "REQ-3967",
+      "read": false,
+      "createdAt": "2026-09-10T14:09:12.726Z"
+    },
+    {
+      "id": "notif_9fbcdd43",
+      "recipientId": "res_sahil",
+      "type": "visitor",
+      "title": "Visitor Approval Required",
+      "message": "Raj Sharma is waiting at Main Gate for Flat A-402",
+      "relatedEntityId": "REQ-7675",
+      "read": false,
+      "createdAt": "2026-09-10T14:19:13.949Z"
+    }
+  ],
+  "auditLogs": [
+    {
+      "id": "audit_81edac21",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_REQUEST_CREATED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-3967",
+      "metadata": "{\"visitorName\":\"Raj Sharma\",\"flatNumber\":\"A-402\"}",
+      "timestamp": "2026-09-10T14:09:12.726Z"
+    },
+    {
+      "id": "audit_0ca9db2a",
+      "actorId": "res_sahil",
+      "actorRole": "RESIDENT",
+      "action": "VISITOR_APPROVED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-3967",
+      "timestamp": "2026-09-10T14:09:12.735Z"
+    },
+    {
+      "id": "audit_0432c01c",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_REQUEST_CREATED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-7675",
+      "metadata": "{\"visitorName\":\"Raj Sharma\",\"flatNumber\":\"A-402\"}",
+      "timestamp": "2026-09-10T14:19:13.949Z"
+    },
+    {
+      "id": "audit_c307a332",
+      "actorId": "res_sahil",
+      "actorRole": "RESIDENT",
+      "action": "VISITOR_APPROVED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-7675",
+      "timestamp": "2026-09-10T14:19:13.956Z"
+    }
+  ],
+  "announcements": []
+}

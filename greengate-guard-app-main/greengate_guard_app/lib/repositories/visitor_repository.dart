@@ -1,17 +1,83 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/flat.dart';
 import '../models/resident.dart';
 import '../models/visitor.dart';
 import '../models/visitor_request.dart';
 import '../services/storage_service.dart';
+import '../services/api_service.dart';
 
 class VisitorRepository extends ChangeNotifier {
   final StorageService _storage;
+  Timer? _pollingTimer;
 
   List<VisitorRequest> _requests = [];
 
   VisitorRepository(this._storage) {
     _loadRequests();
+    _startStatusPolling();
+  }
+
+  void _startStatusPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      _pollBackendStatus();
+    });
+  }
+
+  Future<void> _pollBackendStatus() async {
+    final pending = pendingRequests;
+    if (pending.isEmpty) return;
+
+    final apiData = await ApiService.fetchVisitorRequests();
+    if (apiData == null || apiData.isEmpty) return;
+
+    bool updated = false;
+    for (var item in apiData) {
+      final String id = item['id'];
+      final String statusStr = (item['status'] ?? '').toString().toLowerCase();
+
+      final index = _requests.indexWhere((r) => r.id == id);
+      if (index != -1) {
+        final currentReq = _requests[index];
+        VisitorStatus newStatus = currentReq.status;
+
+        if (statusStr == 'approved') {
+          newStatus = VisitorStatus.approved;
+        } else if (statusStr == 'rejected') {
+          newStatus = VisitorStatus.rejected;
+        }
+
+        if (newStatus != currentReq.status) {
+          _requests[index] = VisitorRequest(
+            id: currentReq.id,
+            visitor: currentReq.visitor,
+            flatNumber: currentReq.flatNumber,
+            buildingWing: currentReq.buildingWing,
+            residentName: currentReq.residentName,
+            residentPhone: currentReq.residentPhone,
+            purpose: currentReq.purpose,
+            status: newStatus,
+            requestTime: currentReq.requestTime,
+            decisionTime: DateTime.now(),
+            decisionBy: currentReq.residentName,
+            rejectionReason: item['rejectionReason'] ?? (newStatus == VisitorStatus.rejected ? 'Entry denied by resident' : null),
+          );
+          updated = true;
+        }
+      }
+    }
+
+    if (updated) {
+      await _storage.saveRequests(_requests);
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
   }
 
   // Directory Data
@@ -57,6 +123,20 @@ class VisitorRepository extends ChangeNotifier {
             name: 'Kavita Patel',
             phoneNumber: '+91 98332 55667',
             flatNumber: 'A-201',
+            buildingWing: 'Tower A',
+          ),
+        ],
+      ),
+      Flat(
+        flatNumber: 'A-402',
+        buildingWing: 'Tower A',
+        floor: '4th Floor',
+        residents: [
+          Resident(
+            id: 'res_sahil',
+            name: 'Sahil Arote',
+            phoneNumber: '+91 98765 43210',
+            flatNumber: 'A-402',
             buildingWing: 'Tower A',
           ),
         ],
@@ -185,61 +265,6 @@ class VisitorRepository extends ChangeNotifier {
         decisionTime: now.subtract(const Duration(minutes: 23)),
         decisionBy: 'Dr. Amit Sharma',
       ),
-      VisitorRequest(
-        id: 'REQ-1002',
-        visitor: const Visitor(
-          name: 'Swiggy Delivery',
-          phoneNumber: '+91 98123 45678',
-          type: VisitorType.delivery,
-          deliveryCompany: 'Swiggy',
-          vehicleNumber: 'DL08-SK-9011',
-        ),
-        flatNumber: 'A-104',
-        buildingWing: 'Tower A',
-        residentName: 'Rajesh Rao',
-        residentPhone: '+91 98221 44556',
-        purpose: 'Food Order Package',
-        status: VisitorStatus.pending,
-        requestTime: now.subtract(const Duration(minutes: 4)),
-      ),
-      VisitorRequest(
-        id: 'REQ-1003',
-        visitor: const Visitor(
-          name: 'Amazon Courier',
-          phoneNumber: '+91 98234 56789',
-          type: VisitorType.delivery,
-          deliveryCompany: 'Amazon',
-          vehicleNumber: 'MH01-BK-8299',
-        ),
-        flatNumber: 'C-201',
-        buildingWing: 'Tower C',
-        residentName: 'Vikas Malhotra',
-        residentPhone: '+91 98776 88990',
-        purpose: 'Parcel Box Delivery',
-        status: VisitorStatus.completed,
-        requestTime: now.subtract(const Duration(minutes: 45)),
-        decisionTime: now.subtract(const Duration(minutes: 42)),
-        decisionBy: 'Vikas Malhotra',
-      ),
-      VisitorRequest(
-        id: 'REQ-1004',
-        visitor: const Visitor(
-          name: 'Manish Rawat',
-          phoneNumber: '+91 98345 67890',
-          type: VisitorType.other,
-          vehicleNumber: 'DL 3C AB 9102',
-        ),
-        flatNumber: 'C-102',
-        buildingWing: 'Tower C',
-        residentName: 'Mrs. Neha Gupta',
-        residentPhone: '+91 98110 33921',
-        purpose: 'Sales Consultation',
-        status: VisitorStatus.rejected,
-        requestTime: now.subtract(const Duration(hours: 1, minutes: 10)),
-        decisionTime: now.subtract(const Duration(hours: 1, minutes: 8)),
-        decisionBy: 'Mrs. Neha Gupta',
-        rejectionReason: 'Unknown person / Not expected',
-      ),
     ];
   }
 
@@ -258,7 +283,7 @@ class VisitorRepository extends ChangeNotifier {
   List<VisitorRequest> get completedRequests =>
       _requests.where((r) => r.status == VisitorStatus.completed).toList();
 
-  List<VisitorRequest> get enteredRequests => completedRequests; // For backwards compatibility
+  List<VisitorRequest> get enteredRequests => completedRequests;
 
   int get pendingCount => pendingRequests.length;
   int get approvedTodayCount =>
@@ -273,7 +298,7 @@ class VisitorRepository extends ChangeNotifier {
     return list.take(10).toList();
   }
 
-  // Create new visitor request
+  // Create new visitor request with API submission
   Future<VisitorRequest> createVisitorRequest({
     required String name,
     String? phoneNumber,
@@ -287,7 +312,23 @@ class VisitorRepository extends ChangeNotifier {
     required String residentPhone,
     required String purpose,
   }) async {
-    final newId = 'REQ-${1000 + _requests.length + 1}';
+    // 1. Submit to Backend API with photo file upload
+    final apiResult = await ApiService.submitVisitorRequest(
+      name: name,
+      phoneNumber: phoneNumber,
+      photoPath: photoPath,
+      purpose: purpose,
+      visitorType: type.name,
+      buildingWing: buildingWing,
+      flatNumber: flatNumber,
+      residentName: residentName,
+      residentPhone: residentPhone,
+      vehicleNumber: vehicleNumber,
+      deliveryCompany: deliveryCompany,
+    );
+
+    final newId = apiResult != null ? apiResult['id'] : 'REQ-${1000 + _requests.length + 1}';
+
     final request = VisitorRequest(
       id: newId,
       visitor: Visitor(
@@ -331,7 +372,7 @@ class VisitorRepository extends ChangeNotifier {
     }
   }
 
-  // Complete Entry (Guard confirms visitor has completed entry)
+  // Complete Entry
   Future<void> completeEntry(String requestId) async {
     final index = _requests.indexWhere((r) => r.id == requestId);
     if (index != -1) {
@@ -341,10 +382,9 @@ class VisitorRepository extends ChangeNotifier {
     }
   }
 
-  // Alias for backward compatibility
   Future<void> allowEntry(String requestId) => completeEntry(requestId);
 
-  // Cancel pending request (Visitor left)
+  // Cancel pending request
   Future<void> cancelRequest(String requestId) async {
     final index = _requests.indexWhere((r) => r.id == requestId);
     if (index != -1) {
@@ -355,14 +395,14 @@ class VisitorRepository extends ChangeNotifier {
     }
   }
 
-  // Reset to seed requests (Dev / Test utility)
+  // Reset to seed requests
   Future<void> resetToSeedData() async {
     _requests = _getSeedRequests();
     await _storage.saveRequests(_requests);
     notifyListeners();
   }
 
-  // Search & Filter for History (Search by visitor name and flat number only)
+  // Search & Filter
   List<VisitorRequest> filterHistory({
     String query = '',
     VisitorStatus? status,

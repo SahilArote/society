@@ -103,12 +103,12 @@ export function AdminHeader() {
   const q = cmdSearch.toLowerCase().trim();
   const searchResults = [
     // Navigation items
-    { type: 'Page', title: 'Dashboard', icon: Shield, link: '/dashboard' },
-    { type: 'Page', title: 'Residents Management', icon: Users, link: '/residents' },
-    { type: 'Page', title: 'Visitors Log', icon: UserCheck, link: '/visitors' },
-    { type: 'Page', title: 'Gates & CCTV Guard Roster', icon: DoorOpen, link: '/gates' },
-    { type: 'Page', title: 'Announcements', icon: Megaphone, link: '/announcements' },
-    { type: 'Page', title: 'Society Settings', icon: Settings, link: '/settings' },
+    { type: 'Page', title: 'Dashboard', sub: '', icon: Shield, link: '/dashboard' },
+    { type: 'Page', title: 'Residents Management', sub: '', icon: Users, link: '/residents' },
+    { type: 'Page', title: 'Visitors Log', sub: '', icon: UserCheck, link: '/visitors' },
+    { type: 'Page', title: 'Gates & CCTV Guard Roster', sub: '', icon: DoorOpen, link: '/gates' },
+    { type: 'Page', title: 'Announcements', sub: '', icon: Megaphone, link: '/announcements' },
+    { type: 'Page', title: 'Society Settings', sub: '', icon: Settings, link: '/settings' },
     // Flats
     ...mockFlats.map(f => ({
       type: 'Flat',
