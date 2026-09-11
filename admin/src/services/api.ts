@@ -84,6 +84,20 @@ export async function fetchAdminActivity() {
   }
 }
 
+export async function fetchAdminVisitors() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/admin/visitors`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    const json = await res.json();
+    return json.data || [];
+  } catch (err) {
+    console.error('Failed to fetch admin visitors:', err);
+    return [];
+  }
+}
+
 export async function fetchDirectoryFlats() {
   try {
     const res = await fetch(`${API_BASE_URL}/directory/flats`, {

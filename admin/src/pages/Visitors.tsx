@@ -6,7 +6,7 @@ import {
   Building, LogOut, X, Share2, Printer
 } from 'lucide-react';
 import { mockVisitors } from '../data/mockData';
-import { fetchAdminActivity } from '../services/api';
+import { fetchAdminActivity, fetchAdminVisitors } from '../services/api';
 import { initAdminSocket } from '../services/socket';
 import type { AdminVisitor } from '../types';
 import StatCard, { CircularGauge } from '../components/StatCard';
@@ -55,36 +55,59 @@ export default function Visitors() {
   };
 
   useEffect(() => {
-    fetchAdminActivity().then((apiActivity) => {
-      if (apiActivity && apiActivity.length > 0) {
-        const mapped: AdminVisitor[] = apiActivity.map((item: any) => ({
-          id: item.id,
-          name: item.visitorName,
-          phone: item.visitorPhone || '',
-          purpose: (item.purpose || 'guest') as any,
-          status: (item.status === 'COMPLETED' ? 'inside' : item.status || 'pending').toLowerCase() as any,
-          flatNumber: item.flatNumber,
-          residentName: item.residentName,
-          gate: item.gateName || 'Main Gate',
-          guardName: 'Ramesh Singh',
-          requestedAt: new Date(item.requestedAt || Date.now()),
-          enteredAt: item.enteredAt ? new Date(item.enteredAt) : (item.status === 'COMPLETED' ? new Date(item.requestedAt) : undefined),
-          exitedAt: item.exitedAt ? new Date(item.exitedAt) : undefined,
-        }));
-        setVisitors((prev) => [...mapped, ...prev]);
+    const loadRealVisitors = async () => {
+      try {
+        const apiVisitors = await fetchAdminVisitors();
+        if (apiVisitors && apiVisitors.length > 0) {
+          const mapped: AdminVisitor[] = apiVisitors.map((item: any) => {
+            let status = (item.status || 'pending').toLowerCase();
+            if (status === 'rejected') status = 'denied';
+            return {
+              id: item.id,
+              name: item.name,
+              phone: item.phone || '',
+              photo: item.photoUrl || item.photo,
+              purpose: (item.purpose || 'guest') as any,
+              status: status as any,
+              flatNumber: item.flatNumber,
+              residentName: item.residentName,
+              gate: item.gate || 'Main Gate',
+              guardName: item.guardName || 'Ramesh Singh',
+              vehicleNumber: item.vehicleNumber,
+              requestedAt: new Date(item.requestedAt || Date.now()),
+              enteredAt: item.enteredAt ? new Date(item.enteredAt) : (status === 'inside' ? new Date(item.requestedAt) : undefined),
+              exitedAt: item.exitedAt ? new Date(item.exitedAt) : undefined,
+            };
+          });
+
+          mapped.sort((a, b) => {
+            const tA = a.requestedAt instanceof Date ? a.requestedAt.getTime() : new Date(a.requestedAt).getTime();
+            const tB = b.requestedAt instanceof Date ? b.requestedAt.getTime() : new Date(b.requestedAt).getTime();
+            return tB - tA;
+          });
+
+          setVisitors(mapped);
+        }
+      } catch (err) {
+        console.error('Error loading real visitors:', err);
       }
-    });
+    };
+
+    loadRealVisitors();
+    const interval = setInterval(loadRealVisitors, 3000);
 
     const socket = initAdminSocket((activityEvent) => {
       showToast(`⚡ Realtime Event: ${activityEvent.visitorName || 'Visitor'} is ${activityEvent.status || activityEvent.type}`);
       setVisitors((prev) => {
         const existingIdx = prev.findIndex((v) => v.id === activityEvent.requestId);
-        const resolvedStatus = (activityEvent.status === 'COMPLETED' ? 'inside' : activityEvent.status || 'pending').toLowerCase() as any;
+        let resolvedStatus = (activityEvent.status === 'COMPLETED' ? 'inside' : activityEvent.status || 'pending').toLowerCase() as any;
+        if (resolvedStatus === 'rejected') resolvedStatus = 'denied';
         if (existingIdx !== -1) {
           const updated = [...prev];
           updated[existingIdx] = {
             ...updated[existingIdx],
             status: resolvedStatus,
+            photo: activityEvent.photoUrl || updated[existingIdx].photo,
             enteredAt: resolvedStatus === 'inside' ? (updated[existingIdx].enteredAt || new Date()) : updated[existingIdx].enteredAt,
           };
           return updated;
@@ -94,7 +117,8 @@ export default function Visitors() {
           id: activityEvent.requestId || `REQ-${Date.now()}`,
           name: activityEvent.visitorName || 'New Visitor',
           phone: activityEvent.visitorPhone || '',
-          purpose: (activityEvent.purpose || 'guest') as any,
+          photo: activityEvent.photoUrl,
+          purpose: (activityEvent.purpose || 'guest').toLowerCase() as any,
           status: resolvedStatus,
           flatNumber: activityEvent.flatNumber || 'A-101',
           residentName: activityEvent.residentName || 'Resident',
@@ -106,6 +130,10 @@ export default function Visitors() {
         return [newV, ...prev];
       });
     });
+
+    return () => {
+      clearInterval(interval);
+    };
   }, []);
 
   const handleApprove = (id: string, e?: React.MouseEvent) => {
@@ -345,9 +373,27 @@ export default function Visitors() {
                   >
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div className="avatar avatar-sm" style={{ background: `linear-gradient(135deg, ${pCol}80, ${pCol}30)` }}>
-                          {v.name[0]}
-                        </div>
+                        {v.photo ? (
+                          <img
+                            src={v.photo.startsWith('http') ? v.photo : `http://localhost:5000${v.photo}`}
+                            alt={v.name}
+                            style={{
+                              width: 34,
+                              height: 34,
+                              borderRadius: '50%',
+                              objectFit: 'cover',
+                              border: '1.5px solid var(--border-accent, #6366f1)',
+                              flexShrink: 0,
+                            }}
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div className="avatar avatar-sm" style={{ background: `linear-gradient(135deg, ${pCol}80, ${pCol}30)` }}>
+                            {v.name[0]}
+                          </div>
+                        )}
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{v.name}</span>
@@ -415,47 +461,13 @@ export default function Visitors() {
                     </td>
 
                     <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        {v.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={(e) => handleApprove(v.id, e)}
-                              id={`approve-${v.id}`}
-                              className="btn-icon btn-icon-green"
-                              title="Approve Entry"
-                              style={{ width: 28, height: 28 }}
-                            >
-                              <CheckCircle2 size={13} />
-                            </button>
-                            <button
-                              onClick={(e) => handleDeny(v.id, e)}
-                              id={`deny-${v.id}`}
-                              className="btn-icon btn-icon-red"
-                              title="Deny Entry"
-                              style={{ width: 28, height: 28 }}
-                            >
-                              <XCircle size={13} />
-                            </button>
-                          </>
-                        )}
-                        {v.status === 'inside' && (
-                          <button
-                            onClick={(e) => handleMarkExited(v.id, e)}
-                            className="btn-secondary"
-                            style={{ padding: '4px 8px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
-                          >
-                            <LogOut size={11} /> Exit
-                          </button>
-                        )}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setSelectedVisitor(v); }}
-                          className="btn-icon"
-                          title="View Digital Pass"
-                          style={{ width: 28, height: 28 }}
-                        >
-                          <QrCode size={13} />
-                        </button>
-                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setSelectedVisitor(v); }}
+                        className="btn-secondary"
+                        style={{ padding: '4px 10px', fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <Eye size={12} /> View Pass
+                      </button>
                     </td>
                   </tr>
                 );
@@ -536,39 +548,59 @@ export default function Visitors() {
 
               {/* Pass Body */}
               <div style={{ padding: '24px' }}>
-                {/* QR Code preview block */}
+                {/* Photo or QR Code preview block */}
                 <div style={{
                   background: 'var(--bg-elevated)',
                   borderRadius: 'var(--r-lg)',
                   padding: 18,
-                  border: '1px dashed var(--border-accent)',
+                  border: '1px solid var(--border-accent)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 16,
                   marginBottom: 20
                 }}>
-                  <div style={{
-                    width: 80, height: 80,
-                    background: '#fff',
-                    borderRadius: 10,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
-                  }}>
-                    {/* Simulated visual QR Code matrix */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 3, width: 62, height: 62 }}>
-                      {Array.from({ length: 25 }).map((_, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            background: [0,1,2,4,5,6,10,12,14,18,20,21,22,24].includes(idx) ? '#0B0F19' : 'transparent',
-                            borderRadius: 2
-                          }}
-                        />
-                      ))}
+                  {selectedVisitor.photo ? (
+                    <img
+                      src={selectedVisitor.photo.startsWith('http') ? selectedVisitor.photo : `http://localhost:5000${selectedVisitor.photo}`}
+                      alt={selectedVisitor.name}
+                      style={{
+                        width: 84,
+                        height: 84,
+                        borderRadius: 12,
+                        objectFit: 'cover',
+                        border: '2px solid var(--accent)',
+                        boxShadow: '0 4px 14px rgba(0,0,0,0.3)',
+                        flexShrink: 0,
+                      }}
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: 80, height: 80,
+                      background: '#fff',
+                      borderRadius: 10,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                      flexShrink: 0,
+                    }}>
+                      {/* Simulated visual QR Code matrix */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 3, width: 62, height: 62 }}>
+                        {Array.from({ length: 25 }).map((_, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              background: [0,1,2,4,5,6,10,12,14,18,20,21,22,24].includes(idx) ? '#0B0F19' : 'transparent',
+                              borderRadius: 2
+                            }}
+                          />
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
                       {selectedVisitor.name}
@@ -625,39 +657,46 @@ export default function Visitors() {
                 {/* Actions bottom bar */}
                 <div style={{ display: 'flex', gap: 10 }}>
                   {selectedVisitor.status === 'pending' ? (
-                    <>
-                      <button
-                        onClick={() => handleApprove(selectedVisitor.id)}
-                        className="btn-success"
-                        style={{ flex: 1, justifyContent: 'center' }}
-                      >
-                        <CheckCircle2 size={15} /> Grant Entry
-                      </button>
-                      <button
-                        onClick={() => handleDeny(selectedVisitor.id)}
-                        className="btn-secondary"
-                        style={{ flex: 1, justifyContent: 'center', borderColor: 'var(--red)', color: 'var(--red)' }}
-                      >
-                        <XCircle size={15} /> Deny Entry
-                      </button>
-                    </>
-                  ) : selectedVisitor.status === 'inside' ? (
-                    <button
-                      onClick={() => handleMarkExited(selectedVisitor.id)}
-                      className="btn-secondary"
-                      style={{ flex: 1, justifyContent: 'center' }}
-                    >
-                      <LogOut size={15} /> Mark Exited at Barrier
-                    </button>
+                    <div style={{
+                      flex: 1,
+                      padding: '10px 14px',
+                      borderRadius: 'var(--r-md)',
+                      background: 'rgba(245,158,11,0.1)',
+                      border: '1px solid rgba(245,158,11,0.3)',
+                      color: 'var(--amber)',
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                    }}>
+                      <Clock size={15} /> Awaiting Resident Approval (Flat {selectedVisitor.flatNumber})
+                    </div>
                   ) : (
-                    <button
-                      onClick={() => setSelectedVisitor(null)}
-                      className="btn-secondary"
-                      style={{ flex: 1, justifyContent: 'center' }}
-                    >
-                      Close Pass
-                    </button>
+                    <div style={{
+                      flex: 1,
+                      padding: '10px 14px',
+                      borderRadius: 'var(--r-md)',
+                      background: 'var(--bg-elevated)',
+                      color: 'var(--text-secondary)',
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                    }}>
+                      Access Status: <b style={{ textTransform: 'capitalize', color: 'var(--text-primary)' }}>{selectedVisitor.status}</b>
+                    </div>
                   )}
+                  <button
+                    onClick={() => setSelectedVisitor(null)}
+                    className="btn-secondary"
+                    style={{ minWidth: 100, justifyContent: 'center' }}
+                  >
+                    Close
+                  </button>
                   <button
                     onClick={() => showToast('Pass link copied to clipboard')}
                     className="btn-icon"

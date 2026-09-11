@@ -67,12 +67,14 @@ export function emitVisitorCreated(data: {
     flatNumber: data.flatNumber,
   });
 
-  // 2. Emit to Admin Dashboard without photo per requirements
+  // 2. Emit to Admin Dashboard
   io.to(`admin:${data.societyId}`).emit('admin:visitor_activity', {
     type: 'NEW_REQUEST',
     requestId: data.request.id,
     visitorName: data.visitor.name,
     purpose: data.visitor.purpose,
+    photoUrl: data.visitor.photoUrl,
+    photo: data.visitor.photoUrl,
     flatNumber: data.flatNumber,
     status: data.request.status,
     timestamp: data.request.requestedAt,
@@ -110,11 +112,13 @@ export function emitVisitorDecision(data: {
     status: data.status,
   });
 
-  // 3. Emit to Admin Dashboard (metadata & status change only)
+  // 3. Emit to Admin Dashboard
   io.to(`admin:${data.societyId}`).emit('admin:visitor_activity', {
     type: data.status === 'APPROVED' ? 'APPROVED' : 'REJECTED',
     requestId: data.request.id,
     visitorName: data.visitor.name,
+    photoUrl: data.visitor.photoUrl,
+    photo: data.visitor.photoUrl,
     status: data.status,
     rejectionReason: data.rejectionReason,
     timestamp: new Date().toISOString(),

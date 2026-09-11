@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
+import '../../core/widgets/safe_image.dart';
 import '../../core/widgets/status_badge.dart';
 import '../../models/visitor_request.dart';
 import '../../repositories/visitor_repository.dart';
@@ -288,10 +289,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (path == null) {
       return const Icon(Icons.person, size: 28, color: AppColors.textMuted);
     }
-    if (path.startsWith('assets/')) {
-      return Image.asset(path, fit: BoxFit.cover);
-    }
-    return Image.file(File(path), fit: BoxFit.cover);
+    return SafeImage(path: path, fit: BoxFit.cover);
   }
 
   void _showDetailsSheet(BuildContext context, VisitorRequest req) {

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io' show Platform;
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../models/flat.dart';
 import '../models/resident.dart';
@@ -363,6 +364,7 @@ class VisitorRepository extends ChangeNotifier {
     required String name,
     String? phoneNumber,
     String? photoPath,
+    Uint8List? photoBytes,
     required VisitorType type,
     String? deliveryCompany,
     String? vehicleNumber,
@@ -377,6 +379,7 @@ class VisitorRepository extends ChangeNotifier {
       name: name,
       phoneNumber: phoneNumber,
       photoPath: photoPath,
+      photoBytes: photoBytes,
       purpose: purpose,
       visitorType: type.name,
       buildingWing: buildingWing,

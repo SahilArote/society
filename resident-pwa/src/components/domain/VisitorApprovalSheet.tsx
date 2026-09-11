@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, X, CheckCircle2, XCircle, MapPin, Building, Clock } from 'lucide-react';
+import { ShieldCheck, X, CheckCircle2, XCircle, MapPin, Building, Clock, Camera, Eye } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
+import { PhotoViewerModal } from '../ui/PhotoViewerModal';
 import { formatTime } from '../../lib/utils';
 import { mockResident } from '../../data/mockResident';
 import type { Visitor } from '../../types';
@@ -23,6 +24,7 @@ export function VisitorApprovalSheet({
   onReject,
 }: VisitorApprovalSheetProps) {
   const [confirmReject, setConfirmReject] = useState(false);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
 
   if (!isOpen || !visitor) return null;
 
@@ -105,18 +107,41 @@ export function VisitorApprovalSheet({
                     : undefined;
 
                   return (
-                    <Avatar
-                      src={photoSrc}
-                      name={visitor.name}
-                      size="xl"
-                      className="w-24 h-24 text-2xl mb-3 ring-4 ring-white shadow-md rounded-2xl object-cover"
-                    />
+                    <>
+                      <div
+                        onClick={() => setShowPhotoModal(true)}
+                        className="relative cursor-pointer group mb-3 select-none"
+                        title="Tap to enlarge photo"
+                      >
+                        <Avatar
+                          src={photoSrc}
+                          name={visitor.name}
+                          size="xl"
+                          className="w-24 h-24 text-2xl ring-4 ring-white group-hover:ring-indigo-200 shadow-md rounded-2xl object-cover transition-transform group-hover:scale-105"
+                        />
+                        <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-indigo-600 group-hover:bg-indigo-700 text-white flex items-center justify-center ring-2 ring-white shadow-xs">
+                          <Camera className="w-3.5 h-3.5" />
+                        </div>
+                      </div>
+
+                      <h2 className="text-xl font-extrabold text-slate-900">{visitor.name}</h2>
+                      <div className="flex items-center justify-center gap-2 mt-0.5">
+                        <p className="text-xs font-semibold text-primary-600 capitalize">
+                          {visitor.purpose} Visit
+                        </p>
+                        {photoSrc && (
+                          <button
+                            type="button"
+                            onClick={() => setShowPhotoModal(true)}
+                            className="text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-0.5 rounded-full border border-indigo-200/80 flex items-center gap-1 transition-colors cursor-pointer"
+                          >
+                            <Eye className="w-3 h-3 text-indigo-600" /> View Photo
+                          </button>
+                        )}
+                      </div>
+                    </>
                   );
                 })()}
-                <h2 className="text-xl font-extrabold text-slate-900">{visitor.name}</h2>
-                <p className="text-xs font-semibold text-primary-600 capitalize mt-0.5">
-                  {visitor.purpose} Visit
-                </p>
 
                 {/* Metadata Row */}
                 <div className="grid grid-cols-3 gap-2 w-full mt-4 pt-3 border-t border-slate-200/70 text-left">
@@ -209,6 +234,25 @@ export function VisitorApprovalSheet({
           )}
         </AnimatePresence>
       </motion.div>
+      {/* Full-Screen Gate Photo Modal */}
+      <PhotoViewerModal
+        isOpen={showPhotoModal}
+        onClose={() => setShowPhotoModal(false)}
+        imageUrl={
+          (visitor as any).photoUrl
+            ? (visitor as any).photoUrl.startsWith('http')
+              ? (visitor as any).photoUrl
+              : `http://localhost:5000${(visitor as any).photoUrl}`
+            : visitor.photo
+            ? visitor.photo.startsWith('http')
+              ? visitor.photo
+              : `http://localhost:5000${visitor.photo}`
+            : undefined
+        }
+        name={visitor.name}
+        subtitle={`${visitor.purpose?.toUpperCase()} • Flat ${mockResident.flat.number} • ${visitor.gate || 'Main Gate'}`}
+        tag="Security Gate Photo"
+      />
     </div>
   );
 }

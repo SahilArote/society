@@ -139,3 +139,46 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
 });
+
+// 5. Push Notification Event (Web Push)
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = { title: 'Security Gate Alert', body: event.data ? event.data.text() : 'A visitor has arrived at the gate.' };
+  }
+
+  const title = data.title || '🚨 Gate Alert: Visitor Arrived';
+  const options = {
+    body: data.body || 'A visitor is waiting at the gate for entry approval.',
+    icon: data.icon || '/icons/icon-192.png',
+    badge: '/icons/favicon-32.png',
+    tag: data.tag || 'visitor-alert',
+    renotify: true,
+    vibrate: [300, 100, 300, 100, 300],
+    data: data.data || { url: '/' },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// 6. Notification Click Event: Focus or Navigate
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) ? event.notification.data.url : '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(targetUrl);
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});

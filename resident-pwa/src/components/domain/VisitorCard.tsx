@@ -19,6 +19,17 @@ export default function VisitorCard({ visitor, className }: VisitorCardProps) {
     visitor.requestedAt instanceof Date ? visitor.requestedAt : new Date(visitor.requestedAt)
   );
 
+  const backendOrigin = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  const photoSrc = (visitor as any).photoUrl
+    ? (visitor as any).photoUrl.startsWith('http')
+      ? (visitor as any).photoUrl
+      : `${backendOrigin}${(visitor as any).photoUrl}`
+    : visitor.photo
+    ? visitor.photo.startsWith('http')
+      ? visitor.photo
+      : `${backendOrigin}${visitor.photo}`
+    : undefined;
+
   return (
     <Card 
       className={cn(
@@ -31,9 +42,10 @@ export default function VisitorCard({ visitor, className }: VisitorCardProps) {
         {/* Left: Avatar & Info */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <Avatar 
+            src={photoSrc}
             name={visitor.name} 
             size="md"
-            className="bg-indigo-50 text-indigo-700 font-bold flex-shrink-0"
+            className="bg-indigo-50 text-indigo-700 font-bold flex-shrink-0 object-cover"
           />
           <div className="min-w-0 flex-1">
             <h4 className="text-xs font-extrabold text-slate-900 truncate leading-tight">

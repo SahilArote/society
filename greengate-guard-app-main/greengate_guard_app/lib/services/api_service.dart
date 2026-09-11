@@ -1,5 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
@@ -56,6 +59,7 @@ class ApiService {
     required String name,
     String? phoneNumber,
     String? photoPath,
+    Uint8List? photoBytes,
     required String purpose,
     required String visitorType,
     required String buildingWing,
@@ -82,13 +86,51 @@ class ApiService {
       if (vehicleNumber != null) request.fields['vehicleNumber'] = vehicleNumber;
       if (deliveryCompany != null) request.fields['deliveryCompany'] = deliveryCompany;
 
-      // Attach Photo File if present
-      if (photoPath != null && photoPath.isNotEmpty) {
-        final file = File(photoPath);
-        if (await file.exists()) {
-          request.files.add(
-            await http.MultipartFile.fromPath('photo', photoPath),
-          );
+      // Attach Photo: Support raw bytes, assets, web blobs and native files
+      if (photoBytes != null && photoBytes.isNotEmpty) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'photo',
+            photoBytes,
+            filename: 'visitor_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          ),
+        );
+      } else if (photoPath != null && photoPath.isNotEmpty) {
+        if (photoPath.startsWith('assets/')) {
+          try {
+            final byteData = await rootBundle.load(photoPath);
+            request.files.add(
+              http.MultipartFile.fromBytes(
+                'photo',
+                byteData.buffer.asUint8List(),
+                filename: 'visitor_${DateTime.now().millisecondsSinceEpoch}.jpg',
+              ),
+            );
+          } catch (_) {}
+        } else if (kIsWeb) {
+          if (photoPath.startsWith('blob:') || photoPath.startsWith('http')) {
+            try {
+              final res = await http.get(Uri.parse(photoPath));
+              if (res.statusCode == 200) {
+                request.files.add(
+                  http.MultipartFile.fromBytes(
+                    'photo',
+                    res.bodyBytes,
+                    filename: 'visitor_${DateTime.now().millisecondsSinceEpoch}.jpg',
+                  ),
+                );
+              }
+            } catch (_) {}
+          }
+        } else {
+          try {
+            final file = File(photoPath);
+            if (await file.exists()) {
+              request.files.add(
+                await http.MultipartFile.fromPath('photo', photoPath),
+              );
+            }
+          } catch (_) {}
         }
       }
 

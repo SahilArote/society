@@ -1,10 +1,13 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/widgets/custom_button.dart';
+import '../../core/widgets/safe_image.dart';
 import 'visitor_details_screen.dart';
 import '../../repositories/visitor_repository.dart';
 import '../../repositories/guard_repository.dart';
@@ -28,6 +31,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
   List<CameraDescription> _cameras = [];
   bool _isCameraInitialized = false;
   String? _capturedImagePath;
+  Uint8List? _capturedImageBytes;
   bool _isProcessing = false;
   final ImagePicker _picker = ImagePicker();
 
@@ -69,8 +73,21 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
       try {
         setState(() => _isProcessing = true);
         final file = await _cameraController!.takePicture();
+        Uint8List? bytes;
+        try {
+          bytes = await file.readAsBytes();
+        } catch (e) {
+          debugPrint('Error reading picture bytes: $e');
+        }
+        if (bytes == null || bytes.isEmpty) {
+          try {
+            final byteData = await rootBundle.load('assets/images/guest_portrait.png');
+            bytes = byteData.buffer.asUint8List();
+          } catch (_) {}
+        }
         setState(() {
           _capturedImagePath = file.path;
+          _capturedImageBytes = bytes;
           _isProcessing = false;
         });
         return;
@@ -84,23 +101,43 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
       setState(() => _isProcessing = true);
       final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
       if (photo != null) {
+        Uint8List? bytes;
+        try {
+          bytes = await photo.readAsBytes();
+        } catch (_) {}
+        if (bytes == null || bytes.isEmpty) {
+          try {
+            final byteData = await rootBundle.load('assets/images/guest_portrait.png');
+            bytes = byteData.buffer.asUint8List();
+          } catch (_) {}
+        }
         setState(() {
           _capturedImagePath = photo.path;
+          _capturedImageBytes = bytes;
           _isProcessing = false;
         });
       } else {
         setState(() => _isProcessing = false);
       }
     } catch (_) {
+      Uint8List? fallbackBytes;
+      try {
+        final byteData = await rootBundle.load('assets/images/guest_portrait.png');
+        fallbackBytes = byteData.buffer.asUint8List();
+      } catch (_) {}
       setState(() {
         _capturedImagePath = 'assets/images/guest_portrait.png';
+        _capturedImageBytes = fallbackBytes;
         _isProcessing = false;
       });
     }
   }
 
   void _retakePhoto() {
-    setState(() => _capturedImagePath = null);
+    setState(() {
+      _capturedImagePath = null;
+      _capturedImageBytes = null;
+    });
   }
 
   void _confirmAndProceed() {
@@ -108,6 +145,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
       MaterialPageRoute(
         builder: (_) => VisitorDetailsScreen(
           photoPath: _capturedImagePath ?? 'assets/images/guest_portrait.png',
+          photoBytes: _capturedImageBytes,
           visitorRepo: widget.visitorRepo,
           guardRepo: widget.guardRepo,
         ),
@@ -231,10 +269,13 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
   }
 
   Widget _buildPreviewImage(String path) {
-    if (path.startsWith('assets/')) {
-      return Image.asset(path, fit: BoxFit.cover, width: double.infinity, height: double.infinity);
-    }
-    return Image.file(File(path), fit: BoxFit.cover, width: double.infinity, height: double.infinity);
+    return SafeImage(
+      path: path,
+      bytes: _capturedImageBytes,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+    );
   }
 
   Widget _buildPlaceholderPreview() {

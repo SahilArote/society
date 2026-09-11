@@ -58,6 +58,20 @@ export async function fetchVisitorRequests() {
   }
 }
 
+export async function fetchVisitorRequestById(requestId: string) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/visitor-requests/${requestId}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    const json = await res.json();
+    return json.data;
+  } catch (err) {
+    console.error(`Failed to fetch visitor request ${requestId}:`, err);
+    return null;
+  }
+}
+
 export async function approveVisitorRequest(requestId: string) {
   try {
     const res = await fetch(`${API_BASE_URL}/visitor-requests/${requestId}/approve`, {

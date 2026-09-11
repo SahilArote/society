@@ -15,7 +15,14 @@ router.post(
   '/',
   authenticateToken,
   authorizeRoles('GUARD', 'ADMIN'),
-  uploadVisitorPhoto.single('photo'),
+  (req, res, next) => {
+    uploadVisitorPhoto.single('photo')(req, res, (err) => {
+      if (err) {
+        console.warn('[Upload Warning]:', err?.message || err);
+      }
+      next();
+    });
+  },
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const {
@@ -206,9 +213,61 @@ router.get('/', authenticateToken, (req: AuthenticatedRequest, res: Response) =>
     };
   });
 
+  result.sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime());
+
   return res.json({
     success: true,
     data: result,
+  });
+});
+
+// GET /api/visitor-requests/:id
+// Get single visitor request details
+router.get('/:id', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
+  const db = getDb();
+  const { id } = req.params;
+
+  const reqItem = db.visitorRequests.find((r) => r.id === id);
+  if (!reqItem) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'NOT_FOUND', message: 'Visitor request not found' },
+    });
+  }
+
+  const visitor = db.visitors.find((v) => v.id === reqItem.visitorId);
+  const flat = db.flats.find((f) => f.id === reqItem.flatId);
+  const resident = db.users.find((u) => u.id === reqItem.residentId);
+  const gate = db.gates.find((g) => g.id === reqItem.gateId);
+
+  return res.json({
+    success: true,
+    data: {
+      id: reqItem.id,
+      visitorId: reqItem.visitorId,
+      visitor: visitor
+        ? {
+            id: visitor.id,
+            name: visitor.name,
+            mobile: visitor.mobile,
+            purpose: visitor.purpose,
+            visitorType: visitor.visitorType,
+            photoUrl: visitor.photoUrl,
+            photo: visitor.photoUrl,
+            vehicleNumber: visitor.vehicleNumber,
+            deliveryCompany: visitor.deliveryCompany,
+          }
+        : null,
+      flatNumber: flat?.flatNumber || 'A-402',
+      buildingWing: flat?.wing || 'Tower A',
+      residentName: resident?.name || 'Sahil Arote',
+      gate: gate?.name || 'Main Gate',
+      status: reqItem.status,
+      requestedAt: reqItem.requestedAt,
+      respondedAt: reqItem.respondedAt,
+      responseBy: reqItem.responseBy,
+      rejectionReason: reqItem.rejectionReason,
+    },
   });
 });
 

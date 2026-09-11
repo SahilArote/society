@@ -94,39 +94,46 @@ export default function Dashboard() {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    // 0. Initial Stats Fetch
-    fetchAdminStats().then((apiStats) => {
-      if (apiStats) {
-        setStats((prev) => ({
-          ...prev,
-          totalFlats: apiStats.totalFlats ?? prev.totalFlats,
-          occupiedFlats: apiStats.occupiedFlats ?? prev.occupiedFlats,
-          vacantFlats: apiStats.vacantFlats ?? prev.vacantFlats,
-          totalResidents: apiStats.totalResidents ?? prev.totalResidents,
-          visitorsToday: apiStats.visitorsToday ?? prev.visitorsToday,
-          pendingApprovals: apiStats.pendingApprovals ?? prev.pendingApprovals,
-          activeGates: apiStats.activeGates ?? prev.activeGates,
-          guardsOnDuty: apiStats.guardsOnDuty ?? prev.guardsOnDuty,
-        }));
-      }
-    });
-    // 1. Initial Activity Fetch
-    fetchAdminActivity().then((apiActivity) => {
-      if (apiActivity && apiActivity.length > 0) {
-        const mapped = apiActivity.map((item: any) => ({
-          id: item.id,
-          name: item.visitorName,
-          purpose: (item.purpose || 'guest') as any,
-          status: (item.status || 'pending').toLowerCase() as any,
-          flatNumber: item.flatNumber,
-          residentName: item.residentName,
-          gate: item.gateName || 'Main Gate',
-          guardName: 'Ramesh Singh',
-          requestedAt: new Date(item.requestedAt),
-        }));
-        setVisitorsList((prev) => [...mapped, ...prev]);
-      }
-    });
+    // Fetch Real stats & activity
+    const loadRealData = () => {
+      fetchAdminStats().then((apiStats) => {
+        if (apiStats) {
+          setStats((prev) => ({
+            ...prev,
+            totalFlats: apiStats.totalFlats ?? prev.totalFlats,
+            occupiedFlats: apiStats.occupiedFlats ?? prev.occupiedFlats,
+            vacantFlats: apiStats.vacantFlats ?? prev.vacantFlats,
+            totalResidents: apiStats.totalResidents ?? prev.totalResidents,
+            visitorsToday: apiStats.visitorsToday ?? prev.visitorsToday,
+            pendingApprovals: apiStats.pendingApprovals ?? prev.pendingApprovals,
+            activeGates: apiStats.activeGates ?? prev.activeGates,
+            guardsOnDuty: apiStats.guardsOnDuty ?? prev.guardsOnDuty,
+          }));
+        }
+      });
+
+      fetchAdminActivity().then((apiActivity) => {
+        if (apiActivity && apiActivity.length > 0) {
+          const mapped = apiActivity.map((item: any) => ({
+            id: item.id,
+            name: item.visitorName,
+            photoUrl: item.photoUrl,
+            phone: item.visitorPhone,
+            purpose: (item.purpose || 'guest').toLowerCase() as any,
+            status: (item.status === 'REJECTED' ? 'denied' : item.status || 'pending').toLowerCase() as any,
+            flatNumber: item.flatNumber,
+            residentName: item.residentName,
+            gate: item.gateName || 'Main Gate',
+            guardName: 'Ramesh Singh',
+            requestedAt: new Date(item.requestedAt),
+          }));
+          setVisitorsList(mapped);
+        }
+      });
+    };
+
+    loadRealData();
+    const interval = setInterval(loadRealData, 3000);
 
     // 2. Real-time Activity Listener via Socket.IO
     const socket = initAdminSocket((activityEvent) => {
@@ -134,11 +141,13 @@ export default function Dashboard() {
 
       setVisitorsList((prev) => {
         const existingIdx = prev.findIndex((v) => v.id === activityEvent.requestId);
+        const resolvedStatus = (activityEvent.status === 'REJECTED' ? 'denied' : activityEvent.status || 'pending').toLowerCase() as any;
         if (existingIdx !== -1) {
           const updated = [...prev];
           updated[existingIdx] = {
             ...updated[existingIdx],
-            status: (activityEvent.status || 'pending').toLowerCase() as any,
+            status: resolvedStatus,
+            photoUrl: activityEvent.photoUrl || updated[existingIdx].photoUrl,
           };
           return updated;
         }
@@ -146,11 +155,13 @@ export default function Dashboard() {
         const newVisitor: any = {
           id: activityEvent.requestId || `REQ-${Date.now()}`,
           name: activityEvent.visitorName || 'New Visitor',
-          purpose: (activityEvent.purpose || 'guest') as any,
-          status: (activityEvent.status || 'pending').toLowerCase() as any,
+          photoUrl: activityEvent.photoUrl,
+          phone: activityEvent.visitorPhone,
+          purpose: (activityEvent.purpose || 'guest').toLowerCase() as any,
+          status: resolvedStatus,
           flatNumber: activityEvent.flatNumber || 'A-402',
-          residentName: 'Sahil Arote',
-          gate: 'Main Gate',
+          residentName: activityEvent.residentName || 'Sahil Arote',
+          gate: activityEvent.gateName || 'Main Gate',
           guardName: 'Ramesh Singh',
           requestedAt: new Date(),
         };
@@ -159,7 +170,7 @@ export default function Dashboard() {
     });
 
     return () => {
-      // keep connection active
+      clearInterval(interval);
     };
   }, []);
 
@@ -473,9 +484,27 @@ export default function Dashboard() {
                     <tr key={v.id} style={v.isFlagged ? { background: 'rgba(239,68,68,0.03)' } : {}}>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div className="avatar avatar-sm" style={{ background: `linear-gradient(135deg, ${pColor}80, ${pColor}40)` }}>
-                            {v.name[0]}
-                          </div>
+                          {(v as any).photoUrl ? (
+                            <img
+                              src={(v as any).photoUrl.startsWith('http') ? (v as any).photoUrl : `http://localhost:5000${(v as any).photoUrl}`}
+                              alt={v.name}
+                              style={{
+                                width: 34,
+                                height: 34,
+                                borderRadius: '50%',
+                                objectFit: 'cover',
+                                border: '1.5px solid var(--border-accent, #6366f1)',
+                                flexShrink: 0,
+                              }}
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="avatar avatar-sm" style={{ background: `linear-gradient(135deg, ${pColor}80, ${pColor}40)` }}>
+                              {v.name[0]}
+                            </div>
+                          )}
                           <div>
                             <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 4 }}>
                               {v.name}
@@ -502,26 +531,6 @@ export default function Dashboard() {
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <VisitorBadge status={v.status} />
-                          {v.status === 'pending' && (
-                            <div style={{ display: 'flex', gap: 4 }}>
-                              <button
-                                onClick={() => handleApprove(v.id)}
-                                className="btn-icon btn-icon-green"
-                                style={{ width: 24, height: 24 }}
-                                title="Approve Entry"
-                              >
-                                <CheckCircle2 size={12} />
-                              </button>
-                              <button
-                                onClick={() => handleDeny(v.id)}
-                                className="btn-icon btn-icon-red"
-                                style={{ width: 24, height: 24 }}
-                                title="Deny Entry"
-                              >
-                                <XCircle size={12} />
-                              </button>
-                            </div>
-                          )}
                         </div>
                       </td>
                     </tr>

@@ -10,7 +10,7 @@ interface ConfirmationDialogProps {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
-  confirmVariant?: 'primary' | 'danger';
+  confirmVariant?: 'primary' | 'danger' | 'success';
 }
 
 export function ConfirmationDialog({
@@ -31,7 +31,7 @@ export function ConfirmationDialog({
           {cancelLabel}
         </Button>
         <Button
-          variant={confirmVariant === 'danger' ? 'danger' : 'primary'}
+          variant={confirmVariant}
           onClick={() => {
             onConfirm();
             onClose();

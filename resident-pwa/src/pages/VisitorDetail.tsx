@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Phone, Calendar, Clock, MapPin, FileText, CheckCircle2, XCircle } from 'lucide-react';
+import { Phone, Calendar, Clock, MapPin, FileText, CheckCircle2, XCircle, Camera, Eye } from 'lucide-react';
 import { AppHeader } from '../components/layout/AppHeader';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card } from '../components/ui/Card';
@@ -8,30 +8,99 @@ import { Avatar } from '../components/ui/Avatar';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { ConfirmationDialog } from '../components/ui/ConfirmationDialog';
+import { PhotoViewerModal } from '../components/ui/PhotoViewerModal';
 import { VisitorTimeline } from '../components/domain';
-import { mockVisitors } from '../data/mockVisitors';
 import { formatDate, formatTime } from '../lib/utils';
 import { useToast } from '../hooks';
+import { fetchVisitorRequestById, approveVisitorRequest, rejectVisitorRequest } from '../services/api';
+import type { Visitor } from '../types';
 
 export default function VisitorDetail() {
   const { id } = useParams<{ id: string }>();
   const { showToast } = useToast();
 
-  const visitor = mockVisitors.find((v) => v.id === id) || mockVisitors[0];
-
-  const [status, setStatus] = useState(visitor.status);
+  const [visitor, setVisitor] = useState<Visitor | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<'pending' | 'approved' | 'rejected' | 'inside' | 'exited'>('pending');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
 
-  const handleAllow = () => {
-    setStatus('approved');
-    showToast('Visitor pass approved', 'success');
+  useEffect(() => {
+    if (!id) return;
+    fetchVisitorRequestById(id).then((data) => {
+      if (data) {
+        let mappedStatus = (data.status || 'PENDING').toLowerCase();
+        if (mappedStatus === 'completed') mappedStatus = 'approved';
+        const v: Visitor = {
+          id: data.id,
+          name: data.visitor?.name || 'Visitor',
+          phone: data.visitor?.mobile,
+          photoUrl: data.visitor?.photoUrl,
+          photo: data.visitor?.photoUrl || data.visitor?.photo,
+          purpose: data.visitor?.purpose || 'personal',
+          status: mappedStatus as any,
+          gate: data.gate || 'Main Gate',
+          flatNumber: data.flatNumber || 'A-402',
+          requestedAt: new Date(data.requestedAt || Date.now()),
+        };
+        setVisitor(v);
+        setStatus(v.status);
+      }
+      setLoading(false);
+    });
+  }, [id]);
+
+  const handleAllow = async () => {
+    if (!id) return;
+    try {
+      await approveVisitorRequest(id);
+      setStatus('approved');
+      showToast('Visitor pass approved', 'success');
+    } catch {
+      setStatus('approved');
+      showToast('Visitor pass approved locally', 'success');
+    }
   };
 
-  const handleRejectConfirm = () => {
-    setStatus('rejected');
-    setShowRejectModal(false);
-    showToast('Visitor access denied', 'error');
+  const handleRejectConfirm = async () => {
+    if (!id) return;
+    try {
+      await rejectVisitorRequest(id, 'Denied by resident');
+      setStatus('rejected');
+      setShowRejectModal(false);
+      showToast('Visitor access denied', 'error');
+    } catch {
+      setStatus('rejected');
+      setShowRejectModal(false);
+      showToast('Visitor access denied locally', 'error');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex flex-col bg-slate-50 min-h-0 select-none pb-24">
+        <AppHeader title="Visitor Details" showBack />
+        <PageContainer className="py-8 text-center text-slate-400 text-sm font-medium">
+          Loading visitor details...
+        </PageContainer>
+      </div>
+    );
+  }
+
+  if (!visitor) {
+    return (
+      <div className="flex-1 flex flex-col bg-slate-50 min-h-0 select-none pb-24">
+        <AppHeader title="Visitor Details" showBack />
+        <PageContainer className="py-8 text-center text-slate-400 text-sm font-medium">
+          Visitor record not found.
+        </PageContainer>
+      </div>
+    );
+  }
+
+  const photoSrc = visitor.photoUrl
+    ? (visitor.photoUrl.startsWith('http') ? visitor.photoUrl : `http://localhost:5000${visitor.photoUrl}`)
+    : undefined;
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-0 select-none pb-24">
@@ -40,21 +109,49 @@ export default function VisitorDetail() {
       <PageContainer className="py-3 space-y-3">
         {/* Top Profile Card */}
         <Card className="flex flex-col items-center text-center p-5 bg-white border border-slate-200/60 shadow-2xs">
-          <Avatar name={visitor.name} size="xl" className="mb-2 ring-4 ring-indigo-50/80 shadow-2xs font-extrabold" />
+          <div
+            onClick={() => setShowPhotoModal(true)}
+            className="relative mb-2 cursor-pointer group select-none"
+            title="Tap to view photo"
+          >
+            <Avatar
+              src={photoSrc}
+              name={visitor.name}
+              size="xl"
+              className="ring-4 ring-indigo-50/80 group-hover:ring-indigo-300 shadow-2xs font-extrabold transition-all group-hover:scale-105"
+            />
+            <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-indigo-600 group-hover:bg-indigo-700 text-white flex items-center justify-center ring-2 ring-white shadow-xs transition-transform active:scale-90">
+              <Camera className="w-3.5 h-3.5" />
+            </div>
+          </div>
+
           <h2 className="text-base font-extrabold text-slate-900 leading-tight">{visitor.name}</h2>
-          <div className="mt-1.5">
+          <div className="mt-1.5 flex items-center gap-1.5">
             <Badge status={status}>{status}</Badge>
           </div>
 
-          {visitor.phone && (
-            <a
-              href={`tel:${visitor.phone}`}
-              className="inline-flex items-center gap-2 mt-3 px-3.5 py-1.5 rounded-xl bg-indigo-50/80 border border-indigo-100 text-xs font-bold text-indigo-700 hover:bg-indigo-100 active:scale-95 transition-all tap-target focus:outline-none"
-            >
-              <Phone className="w-3.5 h-3.5 text-indigo-600" />
-              <span>{visitor.phone}</span>
-            </a>
-          )}
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
+            {photoSrc && (
+              <button
+                type="button"
+                onClick={() => setShowPhotoModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-xs font-bold text-indigo-700 hover:bg-indigo-100 active:scale-95 transition-all shadow-2xs cursor-pointer"
+              >
+                <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                <span>View Full Photo</span>
+              </button>
+            )}
+
+            {visitor.phone && (
+              <a
+                href={`tel:${visitor.phone}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 active:scale-95 transition-all tap-target focus:outline-none"
+              >
+                <Phone className="w-3.5 h-3.5 text-slate-600" />
+                <span>{visitor.phone}</span>
+              </a>
+            )}
+          </div>
         </Card>
 
         {/* Action Buttons if Pending */}
@@ -149,6 +246,16 @@ export default function VisitorDetail() {
         confirmLabel="Confirm Rejection"
         confirmVariant="danger"
         onConfirm={handleRejectConfirm}
+      />
+
+      {/* Full-Screen Gate Photo Lightbox Modal */}
+      <PhotoViewerModal
+        isOpen={showPhotoModal}
+        onClose={() => setShowPhotoModal(false)}
+        imageUrl={photoSrc}
+        name={visitor.name}
+        subtitle={`${visitor.purpose?.toUpperCase()} • Flat ${visitor.flatNumber || 'A-402'} • ${visitor.gate || 'Main Gate'}`}
+        tag="Security Gate Photo"
       />
     </div>
   );

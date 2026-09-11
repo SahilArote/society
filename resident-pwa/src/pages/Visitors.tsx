@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, UsersRound, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -6,7 +6,7 @@ import { AppHeader } from '../components/layout/AppHeader';
 import { PageContainer } from '../components/layout/PageContainer';
 import { VisitorCard, FloatingActionButton } from '../components/domain';
 import { EmptyState } from '../components/ui/EmptyState';
-import { mockVisitors } from '../data/mockVisitors';
+import { fetchVisitorRequests } from '../services/api';
 import type { Visitor } from '../types';
 
 type TabType = 'upcoming' | 'recent' | 'all';
@@ -16,15 +16,51 @@ export default function Visitors() {
   const [activeTab, setActiveTab] = useState<TabType>('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [liveVisitors, setLiveVisitors] = useState<Visitor[]>([]);
+
+  useEffect(() => {
+    const load = () => {
+      fetchVisitorRequests().then((data) => {
+        if (data && Array.isArray(data)) {
+          const mapped: Visitor[] = data.map((item: any) => ({
+            id: item.id,
+            name: item.visitor?.name || 'Visitor',
+            phone: item.visitor?.mobile,
+            photoUrl: item.visitor?.photoUrl,
+            photo: item.visitor?.photoUrl || item.visitor?.photo,
+            purpose: item.visitor?.purpose || 'personal',
+            status: (item.status === 'COMPLETED' ? 'entered' : item.status).toLowerCase(),
+            gate: item.gate || 'Main Gate',
+            flatNumber: item.flatNumber || 'A-402',
+            requestedAt: new Date(item.requestedAt),
+            vehicleNumber: item.visitor?.vehicleNumber,
+            isPreApproved: item.status === 'APPROVED',
+          }));
+
+          mapped.sort((a, b) => {
+            const tA = a.requestedAt instanceof Date ? a.requestedAt.getTime() : new Date(a.requestedAt).getTime();
+            const tB = b.requestedAt instanceof Date ? b.requestedAt.getTime() : new Date(b.requestedAt).getTime();
+            return tB - tA;
+          });
+
+          setLiveVisitors(mapped);
+        }
+      });
+    };
+
+    load();
+    const timer = setInterval(load, 3000);
+    return () => clearInterval(timer);
+  }, []);
 
   const filteredVisitors = useMemo(() => {
-    return mockVisitors.filter((visitor: Visitor) => {
+    return liveVisitors.filter((visitor: Visitor) => {
       // Tab matching
       if (activeTab === 'upcoming') {
         const isUpcoming = (visitor.isPreApproved && visitor.status === 'approved') || visitor.status === 'pending';
         if (!isUpcoming) return false;
       } else if (activeTab === 'recent') {
-        const isRecent = visitor.status === 'entered' || visitor.status === 'exited';
+        const isRecent = visitor.status === 'entered' || visitor.status === 'exited' || visitor.status === 'rejected';
         if (!isRecent) return false;
       }
 
@@ -40,7 +76,7 @@ export default function Visitors() {
 
       return true;
     });
-  }, [activeTab, searchQuery]);
+  }, [liveVisitors, activeTab, searchQuery]);
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 relative min-h-0">

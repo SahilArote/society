@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Bell } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
@@ -6,6 +6,7 @@ import { cn } from '../../lib/utils';
 import { mockResident } from '../../data/mockResident';
 import { getUnreadCount } from '../../data/mockNotifications';
 import { useGreeting } from '../../hooks';
+import { fetchVisitorRequests } from '../../services/api';
 
 interface AppHeaderProps {
   isHome?: boolean;
@@ -31,6 +32,23 @@ export function AppHeader({
   const navigate = useNavigate();
   const greeting = useGreeting();
   const unreadCount = getUnreadCount();
+  const [realPendingCount, setRealPendingCount] = useState(0);
+
+  useEffect(() => {
+    const updateCount = () => {
+      fetchVisitorRequests().then((data) => {
+        if (Array.isArray(data)) {
+          const count = data.filter((d: any) => d.status === 'PENDING').length;
+          setRealPendingCount(count);
+        }
+      });
+    };
+    updateCount();
+    const interval = setInterval(updateCount, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const totalAlerts = unreadCount + realPendingCount;
 
   const handleBack = () => {
     if (onBack) {
@@ -81,8 +99,8 @@ export function AppHeader({
               aria-label="View notifications"
             >
               <Bell className="w-4 h-4 text-slate-700" />
-              {unreadCount > 0 && (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white" />
+              {totalAlerts > 0 && (
+                <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white animate-pulse" />
               )}
             </button>
           </div>

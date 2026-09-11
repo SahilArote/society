@@ -14,3 +14,4 @@ export * from './ErrorState';
 export * from './ConfirmationDialog';
 export * from './Divider';
 export * from './Chip';
+export * from './PhotoViewerModal';

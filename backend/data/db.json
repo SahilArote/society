@@ -34,7 +34,9 @@
       "societyId": "soc_greengate",
       "status": "ACTIVE",
       "createdAt": "2026-09-10T14:04:00.808Z",
-      "updatedAt": "2026-09-10T14:04:00.808Z"
+      "updatedAt": "2026-09-10T14:04:00.808Z",
+      "otp": "123456",
+      "otpExpiresAt": "2026-09-11T15:10:26.640Z"
     },
     {
       "id": "res_amit",
@@ -212,6 +214,91 @@
       "purpose": "sales",
       "visitorType": "guest",
       "createdAt": "2026-09-11T08:25:22.866Z"
+    },
+    {
+      "id": "vis_425769e8",
+      "name": "Vikram Malhotra",
+      "mobile": "9876543210",
+      "purpose": "guest",
+      "visitorType": "guest",
+      "photoUrl": "/api/uploads/visitor-photos/visitor_b8d15a20-537d-43b9-935f-f81e54f86425.jpg",
+      "createdAt": "2026-09-11T14:03:09.185Z"
+    },
+    {
+      "id": "vis_682fac19",
+      "name": "Rahul Sharma",
+      "mobile": "9871122334",
+      "purpose": "guest",
+      "visitorType": "guest",
+      "photoUrl": "/api/uploads/visitor-photos/visitor_3afcc8c0-885d-4634-bbce-51fa2766cf46.png",
+      "createdAt": "2026-09-11T14:12:06.291Z"
+    },
+    {
+      "id": "vis_2d5a5df2",
+      "name": "avinash singh",
+      "mobile": "8596142031",
+      "purpose": "guest",
+      "visitorType": "other",
+      "photoUrl": "/api/uploads/visitor-photos/visitor_35fbd7a2-7d8a-42ba-a1d9-f85771edad66.jpg",
+      "createdAt": "2026-09-11T14:18:33.276Z"
+    },
+    {
+      "id": "vis_af08a4d5",
+      "name": "rohit pale",
+      "mobile": "+91 4512201452",
+      "purpose": "driver",
+      "visitorType": "cab",
+      "photoUrl": "/api/uploads/visitor-photos/visitor_df862577-9feb-4475-b24f-a467b90cf339.jpg",
+      "createdAt": "2026-09-11T14:22:42.232Z"
+    },
+    {
+      "id": "vis_0ec13d6c",
+      "name": "Rohit Pale",
+      "mobile": "9876501234",
+      "purpose": "driver",
+      "visitorType": "cab",
+      "photoUrl": "/api/uploads/visitor-photos/visitor_c0b4f286-5c76-4d77-95dd-ab02ec9a0821.png",
+      "createdAt": "2026-09-11T14:30:02.578Z"
+    },
+    {
+      "id": "vis_a811a897",
+      "name": "anuj varma",
+      "mobile": "+91 98765 12340",
+      "purpose": "food delivery",
+      "visitorType": "delivery",
+      "photoUrl": "/api/uploads/visitor-photos/visitor_0c3f3a02-6f45-40a2-b810-98e0562104e4.jpg",
+      "deliveryCompany": "Swiggy",
+      "createdAt": "2026-09-11T14:34:24.561Z"
+    },
+    {
+      "id": "vis_84cafc5e",
+      "name": "Suresh Kumar",
+      "mobile": "+91 98765 12340",
+      "purpose": "food delivery",
+      "visitorType": "delivery",
+      "photoUrl": "/api/uploads/visitor-photos/visitor_6d973777-83fd-473f-b9e9-586377ba4e79.jpg",
+      "deliveryCompany": "Zomato",
+      "createdAt": "2026-09-11T14:50:43.954Z"
+    },
+    {
+      "id": "vis_819cf478",
+      "name": "Suresh Kumar",
+      "mobile": "+91 98765 12340",
+      "purpose": "food delivery",
+      "visitorType": "delivery",
+      "photoUrl": "/api/uploads/visitor-photos/visitor_bac42849-707c-4b3e-84b4-9e42c0deb0db.jpg",
+      "deliveryCompany": "Zomato",
+      "createdAt": "2026-09-11T15:07:57.654Z"
+    },
+    {
+      "id": "vis_06f5a301",
+      "name": "Suresh Kumar",
+      "mobile": "+91 98765 12340",
+      "purpose": "food delivery",
+      "visitorType": "delivery",
+      "photoUrl": "/api/uploads/visitor-photos/visitor_0d994111-2c01-4944-a45d-e655122d93ea.jpg",
+      "deliveryCompany": "Zomato",
+      "createdAt": "2026-09-11T15:15:16.052Z"
     }
   ],
   "visitorRequests": [
@@ -321,6 +408,121 @@
       "respondedAt": "2026-09-11T08:25:22.874Z",
       "responseBy": "Priya Sharma",
       "rejectionReason": "Did not expect any visitors today"
+    },
+    {
+      "id": "REQ-4703",
+      "societyId": "soc_greengate",
+      "visitorId": "vis_425769e8",
+      "residentId": "res_sahil",
+      "flatId": "flat_a402",
+      "guardId": "guard_ramesh",
+      "gateId": "gate_main",
+      "status": "APPROVED",
+      "requestedAt": "2026-09-11T14:03:09.185Z",
+      "respondedAt": "2026-09-11T14:03:36.059Z",
+      "responseBy": "Sahil Arote"
+    },
+    {
+      "id": "REQ-6151",
+      "societyId": "soc_greengate",
+      "visitorId": "vis_682fac19",
+      "residentId": "res_sahil",
+      "flatId": "flat_a402",
+      "guardId": "guard_ramesh",
+      "gateId": "gate_main",
+      "status": "APPROVED",
+      "requestedAt": "2026-09-11T14:12:06.291Z",
+      "respondedAt": "2026-09-11T14:26:17.590Z",
+      "responseBy": "Sahil Arote"
+    },
+    {
+      "id": "REQ-3156",
+      "societyId": "soc_greengate",
+      "visitorId": "vis_2d5a5df2",
+      "residentId": "res_sahil",
+      "flatId": "flat_a402",
+      "guardId": "guard_ramesh",
+      "gateId": "gate_main",
+      "status": "APPROVED",
+      "requestedAt": "2026-09-11T14:18:33.276Z",
+      "respondedAt": "2026-09-11T14:26:23.389Z",
+      "responseBy": "Sahil Arote"
+    },
+    {
+      "id": "REQ-9635",
+      "societyId": "soc_greengate",
+      "visitorId": "vis_af08a4d5",
+      "residentId": "res_sahil",
+      "flatId": "flat_a402",
+      "guardId": "guard_ramesh",
+      "gateId": "gate_main",
+      "status": "COMPLETED",
+      "requestedAt": "2026-09-11T14:22:42.232Z",
+      "respondedAt": "2026-09-11T14:26:26.582Z",
+      "responseBy": "Sahil Arote"
+    },
+    {
+      "id": "REQ-9899",
+      "societyId": "soc_greengate",
+      "visitorId": "vis_0ec13d6c",
+      "residentId": "res_sahil",
+      "flatId": "flat_a402",
+      "guardId": "guard_ramesh",
+      "gateId": "gate_main",
+      "status": "APPROVED",
+      "requestedAt": "2026-09-11T14:30:02.578Z",
+      "respondedAt": "2026-09-11T14:30:17.323Z",
+      "responseBy": "Sahil Arote"
+    },
+    {
+      "id": "REQ-6741",
+      "societyId": "soc_greengate",
+      "visitorId": "vis_a811a897",
+      "residentId": "res_sahil",
+      "flatId": "flat_a402",
+      "guardId": "guard_ramesh",
+      "gateId": "gate_main",
+      "status": "APPROVED",
+      "requestedAt": "2026-09-11T14:34:24.561Z",
+      "respondedAt": "2026-09-11T15:07:31.253Z",
+      "responseBy": "Sahil Arote"
+    },
+    {
+      "id": "REQ-2871",
+      "societyId": "soc_greengate",
+      "visitorId": "vis_84cafc5e",
+      "residentId": "res_sahil",
+      "flatId": "flat_a402",
+      "guardId": "guard_ramesh",
+      "gateId": "gate_main",
+      "status": "COMPLETED",
+      "requestedAt": "2026-09-11T14:50:43.954Z",
+      "respondedAt": "2026-09-11T15:07:27.445Z",
+      "responseBy": "Sahil Arote"
+    },
+    {
+      "id": "REQ-7447",
+      "societyId": "soc_greengate",
+      "visitorId": "vis_819cf478",
+      "residentId": "res_sahil",
+      "flatId": "flat_a402",
+      "guardId": "guard_ramesh",
+      "gateId": "gate_main",
+      "status": "COMPLETED",
+      "requestedAt": "2026-09-11T15:07:57.654Z",
+      "respondedAt": "2026-09-11T15:13:43.351Z",
+      "responseBy": "Sahil Arote"
+    },
+    {
+      "id": "REQ-7516",
+      "societyId": "soc_greengate",
+      "visitorId": "vis_06f5a301",
+      "residentId": "res_priya",
+      "flatId": "flat_a101",
+      "guardId": "guard_ramesh",
+      "gateId": "gate_main",
+      "status": "PENDING",
+      "requestedAt": "2026-09-11T15:15:16.052Z"
     }
   ],
   "notifications": [
@@ -403,6 +605,96 @@
       "relatedEntityId": "REQ-9326",
       "read": false,
       "createdAt": "2026-09-11T08:25:22.866Z"
+    },
+    {
+      "id": "notif_875496e9",
+      "recipientId": "res_sahil",
+      "type": "visitor",
+      "title": "Visitor Approval Required",
+      "message": "Vikram Malhotra is waiting at Main Gate for Flat A-402",
+      "relatedEntityId": "REQ-4703",
+      "read": false,
+      "createdAt": "2026-09-11T14:03:09.185Z"
+    },
+    {
+      "id": "notif_d77b43e8",
+      "recipientId": "res_sahil",
+      "type": "visitor",
+      "title": "Visitor Approval Required",
+      "message": "Rahul Sharma is waiting at Main Gate for Flat A-402",
+      "relatedEntityId": "REQ-6151",
+      "read": false,
+      "createdAt": "2026-09-11T14:12:06.291Z"
+    },
+    {
+      "id": "notif_f64a185d",
+      "recipientId": "res_sahil",
+      "type": "visitor",
+      "title": "Visitor Approval Required",
+      "message": "avinash singh is waiting at Main Gate for Flat A-402",
+      "relatedEntityId": "REQ-3156",
+      "read": false,
+      "createdAt": "2026-09-11T14:18:33.276Z"
+    },
+    {
+      "id": "notif_7cdd5ee9",
+      "recipientId": "res_sahil",
+      "type": "visitor",
+      "title": "Visitor Approval Required",
+      "message": "rohit pale is waiting at Main Gate for Flat A-402",
+      "relatedEntityId": "REQ-9635",
+      "read": false,
+      "createdAt": "2026-09-11T14:22:42.232Z"
+    },
+    {
+      "id": "notif_6195762f",
+      "recipientId": "res_sahil",
+      "type": "visitor",
+      "title": "Visitor Approval Required",
+      "message": "Rohit Pale is waiting at Main Gate for Flat A-402",
+      "relatedEntityId": "REQ-9899",
+      "read": false,
+      "createdAt": "2026-09-11T14:30:02.578Z"
+    },
+    {
+      "id": "notif_6ca0ab66",
+      "recipientId": "res_sahil",
+      "type": "visitor",
+      "title": "Visitor Approval Required",
+      "message": "anuj varma is waiting at Main Gate for Flat A-402",
+      "relatedEntityId": "REQ-6741",
+      "read": false,
+      "createdAt": "2026-09-11T14:34:24.561Z"
+    },
+    {
+      "id": "notif_a8650e40",
+      "recipientId": "res_sahil",
+      "type": "visitor",
+      "title": "Visitor Approval Required",
+      "message": "Suresh Kumar is waiting at Main Gate for Flat A-402",
+      "relatedEntityId": "REQ-2871",
+      "read": false,
+      "createdAt": "2026-09-11T14:50:43.954Z"
+    },
+    {
+      "id": "notif_bfa090f0",
+      "recipientId": "res_sahil",
+      "type": "visitor",
+      "title": "Visitor Approval Required",
+      "message": "Suresh Kumar is waiting at Main Gate for Flat A-402",
+      "relatedEntityId": "REQ-7447",
+      "read": false,
+      "createdAt": "2026-09-11T15:07:57.654Z"
+    },
+    {
+      "id": "notif_f8639b2d",
+      "recipientId": "res_priya",
+      "type": "visitor",
+      "title": "Visitor Approval Required",
+      "message": "Suresh Kumar is waiting at Main Gate for Flat A-101",
+      "relatedEntityId": "REQ-7516",
+      "read": false,
+      "createdAt": "2026-09-11T15:15:16.052Z"
     }
   ],
   "auditLogs": [
@@ -587,6 +879,195 @@
       "entityId": "REQ-9326",
       "metadata": "{\"reason\":\"Did not expect any visitors today\"}",
       "timestamp": "2026-09-11T08:25:22.874Z"
+    },
+    {
+      "id": "audit_8ab7ec3f",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_REQUEST_CREATED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-4703",
+      "metadata": "{\"visitorName\":\"Vikram Malhotra\",\"flatNumber\":\"A-402\"}",
+      "timestamp": "2026-09-11T14:03:09.185Z"
+    },
+    {
+      "id": "audit_e8d73520",
+      "actorId": "res_sahil",
+      "actorRole": "RESIDENT",
+      "action": "VISITOR_APPROVED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-4703",
+      "timestamp": "2026-09-11T14:03:36.059Z"
+    },
+    {
+      "id": "audit_2939a531",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_REQUEST_CREATED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-6151",
+      "metadata": "{\"visitorName\":\"Rahul Sharma\",\"flatNumber\":\"A-402\"}",
+      "timestamp": "2026-09-11T14:12:06.291Z"
+    },
+    {
+      "id": "audit_cfc955c8",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_REQUEST_CREATED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-3156",
+      "metadata": "{\"visitorName\":\"avinash singh\",\"flatNumber\":\"A-402\"}",
+      "timestamp": "2026-09-11T14:18:33.276Z"
+    },
+    {
+      "id": "audit_72d4f33c",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_REQUEST_CREATED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-9635",
+      "metadata": "{\"visitorName\":\"rohit pale\",\"flatNumber\":\"A-402\"}",
+      "timestamp": "2026-09-11T14:22:42.232Z"
+    },
+    {
+      "id": "audit_57562762",
+      "actorId": "res_sahil",
+      "actorRole": "RESIDENT",
+      "action": "VISITOR_APPROVED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-6151",
+      "timestamp": "2026-09-11T14:26:17.590Z"
+    },
+    {
+      "id": "audit_cc558df0",
+      "actorId": "res_sahil",
+      "actorRole": "RESIDENT",
+      "action": "VISITOR_APPROVED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-3156",
+      "timestamp": "2026-09-11T14:26:23.389Z"
+    },
+    {
+      "id": "audit_13e609b0",
+      "actorId": "res_sahil",
+      "actorRole": "RESIDENT",
+      "action": "VISITOR_APPROVED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-9635",
+      "timestamp": "2026-09-11T14:26:26.582Z"
+    },
+    {
+      "id": "audit_aed870be",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_ENTRY_COMPLETED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-9635",
+      "timestamp": "2026-09-11T14:27:02.342Z"
+    },
+    {
+      "id": "audit_91693289",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_REQUEST_CREATED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-9899",
+      "metadata": "{\"visitorName\":\"Rohit Pale\",\"flatNumber\":\"A-402\"}",
+      "timestamp": "2026-09-11T14:30:02.578Z"
+    },
+    {
+      "id": "audit_e75eea28",
+      "actorId": "res_sahil",
+      "actorRole": "RESIDENT",
+      "action": "VISITOR_APPROVED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-9899",
+      "timestamp": "2026-09-11T14:30:17.323Z"
+    },
+    {
+      "id": "audit_8b71050c",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_REQUEST_CREATED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-6741",
+      "metadata": "{\"visitorName\":\"anuj varma\",\"flatNumber\":\"A-402\"}",
+      "timestamp": "2026-09-11T14:34:24.561Z"
+    },
+    {
+      "id": "audit_523aece3",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_REQUEST_CREATED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-2871",
+      "metadata": "{\"visitorName\":\"Suresh Kumar\",\"flatNumber\":\"A-402\"}",
+      "timestamp": "2026-09-11T14:50:43.954Z"
+    },
+    {
+      "id": "audit_79fdeab2",
+      "actorId": "res_sahil",
+      "actorRole": "RESIDENT",
+      "action": "VISITOR_APPROVED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-2871",
+      "timestamp": "2026-09-11T15:07:27.445Z"
+    },
+    {
+      "id": "audit_39916b0e",
+      "actorId": "res_sahil",
+      "actorRole": "RESIDENT",
+      "action": "VISITOR_APPROVED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-6741",
+      "timestamp": "2026-09-11T15:07:31.253Z"
+    },
+    {
+      "id": "audit_9926bda5",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_ENTRY_COMPLETED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-2871",
+      "timestamp": "2026-09-11T15:07:35.748Z"
+    },
+    {
+      "id": "audit_a76cdbd4",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_REQUEST_CREATED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-7447",
+      "metadata": "{\"visitorName\":\"Suresh Kumar\",\"flatNumber\":\"A-402\"}",
+      "timestamp": "2026-09-11T15:07:57.654Z"
+    },
+    {
+      "id": "audit_01ec1e97",
+      "actorId": "res_sahil",
+      "actorRole": "RESIDENT",
+      "action": "VISITOR_APPROVED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-7447",
+      "timestamp": "2026-09-11T15:13:43.351Z"
+    },
+    {
+      "id": "audit_a38fdb78",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_ENTRY_COMPLETED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-7447",
+      "timestamp": "2026-09-11T15:13:52.130Z"
+    },
+    {
+      "id": "audit_785687cc",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_REQUEST_CREATED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-7516",
+      "metadata": "{\"visitorName\":\"Suresh Kumar\",\"flatNumber\":\"A-101\"}",
+      "timestamp": "2026-09-11T15:15:16.052Z"
     }
   ],
   "announcements": [

@@ -47,33 +47,49 @@ export function VisitorApprovalCard({
       </div>
 
       {/* Visitor Identity Info */}
-      <div
-        onClick={onOpenDetails}
-        className={cn(
-          'flex items-center gap-3 mb-3 bg-white/80 p-2.5 rounded-xl border border-amber-100/80',
-          onOpenDetails && 'cursor-pointer hover:bg-white transition-colors'
-        )}
-      >
-        <Avatar
-          name={visitor.name}
-          size="md"
-          className="ring-2 ring-amber-200/80 shadow-xs"
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-1.5">
-            <h3 className="text-sm font-extrabold text-slate-900 truncate leading-tight">
-              {visitor.name}
-            </h3>
-            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-900 flex-shrink-0">
-              {visitor.purpose}
-            </span>
+      {(() => {
+        const backendOrigin = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+        const photoSrc = (visitor as any).photoUrl
+          ? (visitor as any).photoUrl.startsWith('http')
+            ? (visitor as any).photoUrl
+            : `${backendOrigin}${(visitor as any).photoUrl}`
+          : visitor.photo
+          ? visitor.photo.startsWith('http')
+            ? visitor.photo
+            : `${backendOrigin}${visitor.photo}`
+          : undefined;
+
+        return (
+          <div
+            onClick={onOpenDetails}
+            className={cn(
+              'flex items-center gap-3 mb-3 bg-white/80 p-2.5 rounded-xl border border-amber-100/80',
+              onOpenDetails && 'cursor-pointer hover:bg-white transition-colors'
+            )}
+          >
+            <Avatar
+              src={photoSrc}
+              name={visitor.name}
+              size="md"
+              className="ring-2 ring-amber-200/80 shadow-xs object-cover"
+            />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-1.5">
+                <h3 className="text-sm font-extrabold text-slate-900 truncate leading-tight">
+                  {visitor.name}
+                </h3>
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-900 flex-shrink-0">
+                  {visitor.purpose}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
+                <ShieldAlert className="w-3 h-3 text-amber-600 flex-shrink-0" />
+                <span>Awaiting your flat permission</span>
+              </p>
+            </div>
           </div>
-          <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
-            <ShieldAlert className="w-3 h-3 text-amber-600 flex-shrink-0" />
-            <span>Awaiting your flat permission</span>
-          </p>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Quick Action Buttons */}
       <div className="grid grid-cols-2 gap-2">

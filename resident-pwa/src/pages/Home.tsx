@@ -13,6 +13,7 @@ import {
   SecurityStatusCard,
   FloatingActionButton,
 } from '../components/domain';
+import { ConfirmationDialog } from '../components/ui/ConfirmationDialog';
 import { useToast } from '../hooks';
 import { getPendingVisitors, getRecentVisitors } from '../data/mockVisitors';
 import { mockAnnouncements } from '../data/mockAnnouncements';
@@ -28,65 +29,75 @@ export default function Home() {
   const residentId = currentUser?.id || 'res_sahil';
 
   const [pendingVisitors, setPendingVisitors] = useState<Visitor[]>([]);
+  const [realRecentVisitors, setRealRecentVisitors] = useState<Visitor[]>([]);
   const [selectedVisitorForSheet, setSelectedVisitorForSheet] = useState<Visitor | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{
+    type: 'approve' | 'reject';
+    visitor: Visitor;
+  } | null>(null);
 
   // Load from API + Real-time Socket Setup
   useEffect(() => {
-    // 1. Initial Fetch from API
-    fetchVisitorRequests().then((apiData) => {
-      if (apiData && Array.isArray(apiData)) {
-        const pending = apiData.filter((item: any) => item.status === 'PENDING').map((item: any) => ({
-          id: item.id,
-          name: item.visitor?.name || 'Visitor',
-          phone: item.visitor?.mobile,
-          photoUrl: item.visitor?.photoUrl,
-          photo: item.visitor?.photoUrl || item.visitor?.photo,
-          purpose: item.visitor?.purpose || 'personal',
-          status: 'pending' as const,
-          gate: item.gate || 'Main Gate',
-          flatNumber: item.flatNumber || currentUser?.flat || 'A-402',
-          requestedAt: new Date(item.requestedAt),
-        }));
-        setPendingVisitors(pending);
-      } else {
-        // Dev fallback only if network offline
-        setPendingVisitors(getPendingVisitors());
-      }
-    });
+    const loadRequests = () => {
+      fetchVisitorRequests().then((apiData) => {
+        if (apiData && Array.isArray(apiData)) {
+          const pending = apiData
+            .filter((item: any) => item.status === 'PENDING')
+            .map((item: any) => ({
+              id: item.id,
+              name: item.visitor?.name || 'Visitor',
+              phone: item.visitor?.mobile,
+              photoUrl: item.visitor?.photoUrl,
+              photo: item.visitor?.photoUrl || item.visitor?.photo,
+              purpose: item.visitor?.purpose || 'personal',
+              status: 'pending' as const,
+              gate: item.gate || 'Main Gate',
+              flatNumber: item.flatNumber || currentUser?.flat || 'A-402',
+              requestedAt: new Date(item.requestedAt),
+            }))
+            .sort((a: any, b: any) => b.requestedAt.getTime() - a.requestedAt.getTime());
+          setPendingVisitors(pending);
+
+          const nonPending = apiData
+            .filter((item: any) => item.status !== 'PENDING')
+            .map((item: any) => ({
+              id: item.id,
+              name: item.visitor?.name || 'Visitor',
+              phone: item.visitor?.mobile,
+              photoUrl: item.visitor?.photoUrl,
+              photo: item.visitor?.photoUrl || item.visitor?.photo,
+              purpose: item.visitor?.purpose || 'personal',
+              status: (item.status === 'COMPLETED' ? 'entered' : item.status).toLowerCase() as any,
+              gate: item.gate || 'Main Gate',
+              flatNumber: item.flatNumber || currentUser?.flat || 'A-402',
+              requestedAt: new Date(item.requestedAt),
+            }))
+            .sort((a: any, b: any) => b.requestedAt.getTime() - a.requestedAt.getTime());
+          setRealRecentVisitors(nonPending);
+        }
+      });
+    };
+
+    loadRequests();
+    const interval = setInterval(loadRequests, 3000);
 
     // 2. Real-time Socket Connection
     const socket = initResidentSocket(
       residentId,
       (newVisitorData) => {
+        loadRequests();
         const v = newVisitorData.visitor || {};
-        const req = newVisitorData.request || {};
-        const newVisitor: Visitor = {
-          id: req.id || `REQ-${Date.now()}`,
-          name: v.name || 'Visitor',
-          phone: v.mobile,
-          photoUrl: v.photoUrl,
-          photo: v.photoUrl,
-          purpose: v.purpose || 'personal',
-          status: 'pending',
-          gate: 'Main Gate',
-          flatNumber: newVisitorData.flatNumber || currentUser?.flat || 'A-402',
-          requestedAt: new Date(),
-        };
-
-        setPendingVisitors((prev) => [newVisitor, ...prev.filter((p) => p.id !== newVisitor.id)]);
-        showToast(`🔔 New Visitor at Gate: ${newVisitor.name}`, 'info');
+        showToast(`🔔 New Visitor at Gate: ${v.name || 'Visitor'}`, 'info');
       },
-      (updatedData) => {
-        if (updatedData.status !== 'PENDING') {
-          setPendingVisitors((prev) => prev.filter((v) => v.id !== updatedData.requestId));
-        }
+      () => {
+        loadRequests();
       }
     );
 
     return () => {
-      // Keep socket open or cleanup on unmount
+      clearInterval(interval);
     };
-  }, []);
+  }, [residentId]);
 
   const handleAllow = async (id: string) => {
     try {
@@ -109,7 +120,18 @@ export default function Home() {
     setPendingVisitors((prev) => prev.filter((v) => v.id !== id));
   };
 
-  const recentVisitors = getRecentVisitors();
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return;
+    const { type, visitor } = confirmAction;
+    setConfirmAction(null);
+    if (type === 'approve') {
+      await handleAllow(visitor.id);
+    } else {
+      await handleReject(visitor.id);
+    }
+  };
+
+  const recentVisitors = realRecentVisitors.length > 0 ? realRecentVisitors : getRecentVisitors();
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 relative min-h-0">
@@ -117,22 +139,54 @@ export default function Home() {
       <AppHeader isHome />
 
       <PageContainer className="space-y-4 pt-3 pb-24">
-        {/* Section 1: Urgent Visitor Approval (Highest Visual Priority) */}
+        {/* Section 1: Urgent Gate Notification & Visitor Approval */}
         <AnimatePresence>
           {pendingVisitors.length > 0 && (
             <motion.section
               layout
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.25 }}
+              className="space-y-3"
             >
-              <VisitorApprovalCard
-                visitor={pendingVisitors[0]}
-                onAllow={() => handleAllow(pendingVisitors[0].id)}
-                onReject={() => handleReject(pendingVisitors[0].id)}
-                onOpenDetails={() => setSelectedVisitorForSheet(pendingVisitors[0])}
-              />
+              {/* Prominent Live Notification Bar */}
+              <div className="bg-gradient-to-r from-rose-500 via-red-500 to-amber-500 p-0.5 rounded-2xl shadow-md">
+                <div className="bg-white/95 backdrop-blur-sm p-3 rounded-[14px] flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
+                      <span className="relative flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-slate-900 truncate">
+                        Gate Entry Alert: <span className="text-rose-600">{pendingVisitors[0].name}</span>
+                      </p>
+                      <p className="text-[11px] text-slate-500 font-medium truncate">
+                        Waiting at {pendingVisitors[0].gate} · Action Required
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 flex-shrink-0">
+                    {pendingVisitors.length} Waiting
+                  </span>
+                </div>
+              </div>
+
+              {/* Pending Approval Cards */}
+              <div className="space-y-3">
+                {pendingVisitors.map((visitor) => (
+                  <VisitorApprovalCard
+                    key={visitor.id}
+                    visitor={visitor}
+                    onAllow={() => setConfirmAction({ type: 'approve', visitor })}
+                    onReject={() => setConfirmAction({ type: 'reject', visitor })}
+                    onOpenDetails={() => setSelectedVisitorForSheet(visitor)}
+                  />
+                ))}
+              </div>
             </motion.section>
           )}
         </AnimatePresence>
@@ -223,6 +277,22 @@ export default function Home() {
           handleReject(id);
           setSelectedVisitorForSheet(null);
         }}
+      />
+
+      {/* Allow / Reject Confirmation Dialog on Home Page */}
+      <ConfirmationDialog
+        isOpen={Boolean(confirmAction)}
+        onClose={() => setConfirmAction(null)}
+        title={confirmAction?.type === 'approve' ? 'Approve Visitor Entry?' : 'Deny Visitor Entry?'}
+        message={
+          confirmAction?.type === 'approve'
+            ? `Are you sure you want to approve entry for ${confirmAction?.visitor.name}? Security will be notified to allow them through the gate.`
+            : `Are you sure you want to deny entry for ${confirmAction?.visitor.name}? Security will be instructed not to let them in.`
+        }
+        confirmLabel={confirmAction?.type === 'approve' ? 'Confirm Approval' : 'Confirm Rejection'}
+        cancelLabel="Cancel"
+        confirmVariant={confirmAction?.type === 'approve' ? 'success' : 'danger'}
+        onConfirm={handleConfirmAction}
       />
     </div>
   );

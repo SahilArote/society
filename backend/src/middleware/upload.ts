@@ -26,8 +26,11 @@ export const uploadVisitorPhoto = multer({
     fileSize: 5 * 1024 * 1024, // 5MB max
   },
   fileFilter: (_req, file, cb) => {
-    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (allowedMimeTypes.includes(file.mimetype.toLowerCase())) {
+    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/octet-stream'];
+    const allowedExts = ['.jpg', '.jpeg', '.png', '.webp'];
+    const ext = path.extname(file.originalname || '').toLowerCase();
+
+    if (allowedMimeTypes.includes((file.mimetype || '').toLowerCase()) || allowedExts.includes(ext) || !ext) {
       cb(null, true);
     } else {
       cb(new Error('Invalid file type. Only JPEG, PNG, and WebP images are allowed.'));

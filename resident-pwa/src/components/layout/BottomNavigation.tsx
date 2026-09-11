@@ -1,16 +1,31 @@
+import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { House, UsersRound, Bell, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
-import { getUnreadCount } from '../../data/mockNotifications';
+import { fetchVisitorRequests } from '../../services/api';
 
 export function BottomNavigation() {
-  const unreadCount = getUnreadCount();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    const updateCount = () => {
+      fetchVisitorRequests().then((data) => {
+        if (Array.isArray(data)) {
+          const count = data.filter((d: any) => d.status === 'PENDING').length;
+          setPendingCount(count);
+        }
+      });
+    };
+    updateCount();
+    const interval = setInterval(updateCount, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const navItems = [
     { label: 'Home', path: '/home', icon: House },
-    { label: 'Visitors', path: '/visitors', icon: UsersRound },
-    { label: 'Alerts', path: '/notifications', icon: Bell, badge: unreadCount },
+    { label: 'Visitors', path: '/visitors', icon: UsersRound, badge: pendingCount },
+    { label: 'Alerts', path: '/notifications', icon: Bell, badge: pendingCount },
     { label: 'Profile', path: '/profile', icon: User },
   ];
 

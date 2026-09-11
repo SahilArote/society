@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/widgets/custom_button.dart';
+import '../../core/widgets/safe_image.dart';
 import '../../models/visitor_request.dart';
 import '../../repositories/visitor_repository.dart';
 import '../../repositories/guard_repository.dart';
@@ -398,9 +399,6 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
     if (path == null) {
       return const Icon(Icons.person, size: 44, color: AppColors.textMuted);
     }
-    if (path.startsWith('assets/')) {
-      return Image.asset(path, fit: BoxFit.cover);
-    }
-    return Image.file(File(path), fit: BoxFit.cover);
+    return SafeImage(path: path, fit: BoxFit.cover);
   }
 }

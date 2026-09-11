@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldAlert, CheckCircle2, XCircle, MapPin, Building, Clock, ArrowLeft } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, XCircle, MapPin, Building, Clock, ArrowLeft, Camera, Eye } from 'lucide-react';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { ConfirmationDialog } from '../components/ui/ConfirmationDialog';
+import { PhotoViewerModal } from '../components/ui/PhotoViewerModal';
 import { mockVisitors } from '../data/mockVisitors';
 import { mockResident } from '../data/mockResident';
 import { formatTime } from '../lib/utils';
@@ -52,6 +53,7 @@ export default function VisitorApproval() {
   }, [id, currentUser]);
 
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [outcome, setOutcome] = useState<'allowed' | 'rejected' | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -156,22 +158,55 @@ export default function VisitorApproval() {
               </div>
 
               {/* Visitor Avatar */}
-              <div className="relative inline-block my-4">
-                <Avatar
-                  name={visitor.name}
-                  src={visitor.photoUrl || visitor.photo}
-                  size="xl"
-                  className="w-24 h-24 text-2xl mx-auto ring-4 ring-primary-500/30 shadow-lg object-cover"
-                />
-                <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-amber-500 ring-2 ring-slate-800 animate-ping" />
-              </div>
+              {(() => {
+                const backendOrigin = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+                const photoSrc = visitor.photoUrl
+                  ? (visitor.photoUrl.startsWith('http') ? visitor.photoUrl : `${backendOrigin}${visitor.photoUrl}`)
+                  : visitor.photo
+                  ? (visitor.photo.startsWith('http') ? visitor.photo : `${backendOrigin}${visitor.photo}`)
+                  : undefined;
 
-              <h2 className="text-2xl font-extrabold text-white mb-1 tracking-tight">
-                {visitor.name}
-              </h2>
-              <p className="text-xs text-indigo-300 font-medium capitalize mb-6 bg-indigo-950/60 py-1 px-3 rounded-full inline-block border border-indigo-800/50">
-                Purpose: {visitor.purpose}
-              </p>
+                return (
+                  <>
+                    <div className="relative inline-block my-3">
+                      <div
+                        onClick={() => setShowPhotoModal(true)}
+                        className="relative cursor-pointer group"
+                        title="Tap to enlarge photo"
+                      >
+                        <Avatar
+                          name={visitor.name}
+                          src={photoSrc}
+                          size="xl"
+                          className="w-24 h-24 text-2xl mx-auto ring-4 ring-indigo-500/30 group-hover:ring-indigo-400/60 shadow-lg object-cover transition-transform group-hover:scale-105"
+                        />
+                        <div className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-indigo-600 group-hover:bg-indigo-500 text-white flex items-center justify-center ring-2 ring-slate-800 shadow-md">
+                          <Camera className="w-3.5 h-3.5" />
+                        </div>
+                      </div>
+                      <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 ring-2 ring-slate-800 animate-ping pointer-events-none" />
+                    </div>
+
+                    <h2 className="text-2xl font-extrabold text-white mb-1 tracking-tight">
+                      {visitor.name}
+                    </h2>
+                    <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
+                      <p className="text-xs text-indigo-300 font-medium capitalize bg-indigo-950/60 py-1 px-3 rounded-full border border-indigo-800/50">
+                        Purpose: {visitor.purpose}
+                      </p>
+                      {photoSrc && (
+                        <button
+                          type="button"
+                          onClick={() => setShowPhotoModal(true)}
+                          className="text-xs text-emerald-300 font-bold bg-emerald-950/60 hover:bg-emerald-900/80 py-1 px-3 rounded-full border border-emerald-800/50 flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <Eye className="w-3 h-3" /> View Photo
+                        </button>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
 
               {/* Information Row */}
               <div className="grid grid-cols-3 gap-2 bg-slate-900/60 rounded-2xl p-3 mb-8 border border-slate-700/50 text-left">
@@ -246,6 +281,22 @@ export default function VisitorApproval() {
         cancelLabel="Cancel"
         confirmVariant="danger"
         onConfirm={handleRejectConfirm}
+      />
+
+      {/* Full-Screen Gate Photo Modal */}
+      <PhotoViewerModal
+        isOpen={showPhotoModal}
+        onClose={() => setShowPhotoModal(false)}
+        imageUrl={
+          visitor.photoUrl
+            ? (visitor.photoUrl.startsWith('http') ? visitor.photoUrl : `http://localhost:5000${visitor.photoUrl}`)
+            : visitor.photo
+            ? (visitor.photo.startsWith('http') ? visitor.photo : `http://localhost:5000${visitor.photo}`)
+            : undefined
+        }
+        name={visitor.name}
+        subtitle={`${visitor.purpose?.toUpperCase()} • Flat ${visitor.flatNumber || currentUser?.flat || 'A-402'} • ${visitor.gate || 'Main Gate'}`}
+        tag="Security Live Gate Cam"
       />
     </div>
   );

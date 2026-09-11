@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/widgets/custom_button.dart';
+import '../../core/widgets/safe_image.dart';
 import '../../models/visitor.dart';
 import '../../repositories/visitor_repository.dart';
 import '../../repositories/guard_repository.dart';
@@ -10,12 +12,14 @@ import 'waiting_approval_screen.dart';
 
 class VisitorDetailsScreen extends StatefulWidget {
   final String photoPath;
+  final Uint8List? photoBytes;
   final VisitorRepository visitorRepo;
   final GuardRepository guardRepo;
 
   const VisitorDetailsScreen({
     super.key,
     required this.photoPath,
+    this.photoBytes,
     required this.visitorRepo,
     required this.guardRepo,
   });
@@ -104,6 +108,7 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
       name: name,
       phoneNumber: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
       photoPath: widget.photoPath,
+      photoBytes: widget.photoBytes,
       type: _selectedType,
       deliveryCompany: _selectedType == VisitorType.delivery ? _selectedCompany : null,
       buildingWing: _selectedWing,
@@ -478,7 +483,7 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.primaryLight,
                         borderRadius: AppDimensions.roundedMd,
-                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
                       ),
                       child: Row(
                         children: [
@@ -553,9 +558,10 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
   }
 
   Widget _buildPhotoThumbnail() {
-    if (widget.photoPath.startsWith('assets/')) {
-      return Image.asset(widget.photoPath, fit: BoxFit.cover);
-    }
-    return Image.file(File(widget.photoPath), fit: BoxFit.cover);
+    return SafeImage(
+      path: widget.photoPath,
+      bytes: widget.photoBytes,
+      fit: BoxFit.cover,
+    );
   }
 }
