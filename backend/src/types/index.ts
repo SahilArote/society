@@ -1,6 +1,6 @@
 export type UserRole = 'RESIDENT' | 'GUARD' | 'ADMIN';
 
-export type VisitorStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
+export type VisitorStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED' | 'COMPLETED' | 'EXITED';
 
 export type VisitorPurpose = 'personal' | 'delivery' | 'maintenance' | 'cab' | 'guest' | 'other';
 

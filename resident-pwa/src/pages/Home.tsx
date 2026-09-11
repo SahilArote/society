@@ -18,20 +18,23 @@ import { getPendingVisitors, getRecentVisitors } from '../data/mockVisitors';
 import { mockAnnouncements } from '../data/mockAnnouncements';
 import { fetchVisitorRequests, approveVisitorRequest, rejectVisitorRequest } from '../services/api';
 import { initResidentSocket, disconnectResidentSocket } from '../services/socket';
+import { authSession } from '../services/authSession';
 import type { Visitor } from '../types';
 
 export default function Home() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const currentUser = authSession.getUser();
+  const residentId = currentUser?.id || 'res_sahil';
 
-  const [pendingVisitors, setPendingVisitors] = useState<Visitor[]>(getPendingVisitors());
+  const [pendingVisitors, setPendingVisitors] = useState<Visitor[]>([]);
   const [selectedVisitorForSheet, setSelectedVisitorForSheet] = useState<Visitor | null>(null);
 
   // Load from API + Real-time Socket Setup
   useEffect(() => {
     // 1. Initial Fetch from API
     fetchVisitorRequests().then((apiData) => {
-      if (apiData && Array.isArray(apiData) && apiData.length > 0) {
+      if (apiData && Array.isArray(apiData)) {
         const pending = apiData.filter((item: any) => item.status === 'PENDING').map((item: any) => ({
           id: item.id,
           name: item.visitor?.name || 'Visitor',
@@ -41,18 +44,19 @@ export default function Home() {
           purpose: item.visitor?.purpose || 'personal',
           status: 'pending' as const,
           gate: item.gate || 'Main Gate',
-          flatNumber: item.flatNumber || 'A-402',
+          flatNumber: item.flatNumber || currentUser?.flat || 'A-402',
           requestedAt: new Date(item.requestedAt),
         }));
-        if (pending.length > 0) {
-          setPendingVisitors(pending);
-        }
+        setPendingVisitors(pending);
+      } else {
+        // Dev fallback only if network offline
+        setPendingVisitors(getPendingVisitors());
       }
     });
 
     // 2. Real-time Socket Connection
     const socket = initResidentSocket(
-      'res_sahil',
+      residentId,
       (newVisitorData) => {
         const v = newVisitorData.visitor || {};
         const req = newVisitorData.request || {};
@@ -65,7 +69,7 @@ export default function Home() {
           purpose: v.purpose || 'personal',
           status: 'pending',
           gate: 'Main Gate',
-          flatNumber: newVisitorData.flatNumber || 'A-402',
+          flatNumber: newVisitorData.flatNumber || currentUser?.flat || 'A-402',
           requestedAt: new Date(),
         };
 

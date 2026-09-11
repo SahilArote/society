@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import '../models/flat.dart';
 import '../models/resident.dart';
@@ -19,6 +20,11 @@ class VisitorRepository extends ChangeNotifier {
   }
 
   void _startStatusPolling() {
+    if (!kIsWeb) {
+      try {
+        if (Platform.environment['FLUTTER_TEST'] == 'true') return;
+      } catch (_) {}
+    }
     _pollingTimer?.cancel();
     _pollingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _pollBackendStatus();
@@ -46,6 +52,8 @@ class VisitorRepository extends ChangeNotifier {
           newStatus = VisitorStatus.approved;
         } else if (statusStr == 'rejected') {
           newStatus = VisitorStatus.rejected;
+        } else if (statusStr == 'completed') {
+          newStatus = VisitorStatus.completed;
         }
 
         if (newStatus != currentReq.status) {
@@ -265,6 +273,58 @@ class VisitorRepository extends ChangeNotifier {
         decisionTime: now.subtract(const Duration(minutes: 23)),
         decisionBy: 'Dr. Amit Sharma',
       ),
+      VisitorRequest(
+        id: 'REQ-1002',
+        visitor: const Visitor(
+          name: 'Pooja Patil',
+          phoneNumber: '+91 98233 11223',
+          type: VisitorType.delivery,
+          deliveryCompany: 'Swiggy',
+        ),
+        flatNumber: 'A-101',
+        buildingWing: 'Tower A',
+        residentName: 'Priya Sharma',
+        residentPhone: '+91 98101 22334',
+        purpose: 'Food Delivery',
+        status: VisitorStatus.pending,
+        requestTime: now.subtract(const Duration(minutes: 5)),
+      ),
+      VisitorRequest(
+        id: 'REQ-1003',
+        visitor: const Visitor(
+          name: 'Suresh Raina',
+          phoneNumber: '+91 98112 33445',
+          type: VisitorType.cab,
+          vehicleNumber: 'DL01-AB-1234',
+        ),
+        flatNumber: 'C-102',
+        buildingWing: 'Tower C',
+        residentName: 'Mrs. Neha Gupta',
+        residentPhone: '+91 98110 33921',
+        purpose: 'Cab Pickup',
+        status: VisitorStatus.approved,
+        requestTime: now.subtract(const Duration(minutes: 15)),
+        decisionTime: now.subtract(const Duration(minutes: 12)),
+        decisionBy: 'Mrs. Neha Gupta',
+      ),
+      VisitorRequest(
+        id: 'REQ-1004',
+        visitor: const Visitor(
+          name: 'Karan Mehra',
+          phoneNumber: '+91 98990 01122',
+          type: VisitorType.other,
+        ),
+        flatNumber: 'D-101',
+        buildingWing: 'Tower D',
+        residentName: 'Rohan Verma',
+        residentPhone: '+91 98887 99001',
+        purpose: 'Courier',
+        status: VisitorStatus.rejected,
+        rejectionReason: 'Not at home',
+        requestTime: now.subtract(const Duration(minutes: 40)),
+        decisionTime: now.subtract(const Duration(minutes: 38)),
+        decisionBy: 'Rohan Verma',
+      ),
     ];
   }
 
@@ -374,6 +434,9 @@ class VisitorRepository extends ChangeNotifier {
 
   // Complete Entry
   Future<void> completeEntry(String requestId) async {
+    // Sync with Central Backend
+    await ApiService.completeVisitorRequest(requestId);
+
     final index = _requests.indexWhere((r) => r.id == requestId);
     if (index != -1) {
       _requests[index].status = VisitorStatus.completed;

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Shield, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { loginAdmin } from '../services/api';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -16,12 +17,19 @@ export default function AdminLogin() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    await new Promise(r => setTimeout(r, 900));
+
+    const res = await loginAdmin(email, password);
+    if (res.success) {
+      navigate('/dashboard');
+      return;
+    }
+
+    // Fallback for offline demo mode
     if (email === 'admin@greengate.in' && password === 'admin123') {
       localStorage.setItem('gg_admin_auth', 'true');
       navigate('/dashboard');
     } else {
-      setError('Invalid email or password. Try admin@greengate.in / admin123');
+      setError(res.error || 'Invalid email or password. Try admin@greengate.in / admin123');
       setLoading(false);
     }
   };

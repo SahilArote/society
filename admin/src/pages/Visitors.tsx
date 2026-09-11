@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, AlertTriangle, Users, Package, Wrench, Car, Eye,
@@ -6,6 +6,8 @@ import {
   Building, LogOut, X, Share2, Printer
 } from 'lucide-react';
 import { mockVisitors } from '../data/mockData';
+import { fetchAdminActivity } from '../services/api';
+import { initAdminSocket } from '../services/socket';
 import type { AdminVisitor } from '../types';
 import StatCard, { CircularGauge } from '../components/StatCard';
 
@@ -51,6 +53,60 @@ export default function Visitors() {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 2500);
   };
+
+  useEffect(() => {
+    fetchAdminActivity().then((apiActivity) => {
+      if (apiActivity && apiActivity.length > 0) {
+        const mapped: AdminVisitor[] = apiActivity.map((item: any) => ({
+          id: item.id,
+          name: item.visitorName,
+          phone: item.visitorPhone || '',
+          purpose: (item.purpose || 'guest') as any,
+          status: (item.status === 'COMPLETED' ? 'inside' : item.status || 'pending').toLowerCase() as any,
+          flatNumber: item.flatNumber,
+          residentName: item.residentName,
+          gate: item.gateName || 'Main Gate',
+          guardName: 'Ramesh Singh',
+          requestedAt: new Date(item.requestedAt || Date.now()),
+          enteredAt: item.enteredAt ? new Date(item.enteredAt) : (item.status === 'COMPLETED' ? new Date(item.requestedAt) : undefined),
+          exitedAt: item.exitedAt ? new Date(item.exitedAt) : undefined,
+        }));
+        setVisitors((prev) => [...mapped, ...prev]);
+      }
+    });
+
+    const socket = initAdminSocket((activityEvent) => {
+      showToast(`⚡ Realtime Event: ${activityEvent.visitorName || 'Visitor'} is ${activityEvent.status || activityEvent.type}`);
+      setVisitors((prev) => {
+        const existingIdx = prev.findIndex((v) => v.id === activityEvent.requestId);
+        const resolvedStatus = (activityEvent.status === 'COMPLETED' ? 'inside' : activityEvent.status || 'pending').toLowerCase() as any;
+        if (existingIdx !== -1) {
+          const updated = [...prev];
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            status: resolvedStatus,
+            enteredAt: resolvedStatus === 'inside' ? (updated[existingIdx].enteredAt || new Date()) : updated[existingIdx].enteredAt,
+          };
+          return updated;
+        }
+
+        const newV: AdminVisitor = {
+          id: activityEvent.requestId || `REQ-${Date.now()}`,
+          name: activityEvent.visitorName || 'New Visitor',
+          phone: activityEvent.visitorPhone || '',
+          purpose: (activityEvent.purpose || 'guest') as any,
+          status: resolvedStatus,
+          flatNumber: activityEvent.flatNumber || 'A-101',
+          residentName: activityEvent.residentName || 'Resident',
+          gate: activityEvent.gateName || 'Main Gate',
+          guardName: 'Ramesh Singh',
+          requestedAt: new Date(),
+          enteredAt: resolvedStatus === 'inside' ? new Date() : undefined,
+        };
+        return [newV, ...prev];
+      });
+    });
+  }, []);
 
   const handleApprove = (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();

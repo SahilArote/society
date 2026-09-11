@@ -5,10 +5,50 @@ import 'package:http/http.dart' as http;
 class ApiService {
   // Base URL configuration (Supports Localhost, Android Emulator 10.0.2.2, or LAN IP)
   static String baseUrl = 'http://localhost:5000/api';
-  static const String authToken = 'guard_token';
+  static String? _authToken;
 
   static void setBaseUrl(String url) {
     baseUrl = url;
+  }
+
+  static void setAuthToken(String token) {
+    _authToken = token;
+  }
+
+  static String get authToken => _authToken ?? 'demo_guard_token';
+
+  // Guard Login with Guard ID / Mobile and 4-digit PIN
+  static Future<Map<String, dynamic>?> login({
+    required String guardIdOrPhone,
+    required String pin,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/auth/login');
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'guardId': guardIdOrPhone,
+          'pin': pin,
+          'role': 'GUARD',
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body);
+        final data = json['data'];
+        if (data != null && data['token'] != null) {
+          setAuthToken(data['token']);
+        }
+        return data;
+      } else {
+        print('Guard Login Error [${response.statusCode}]: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Network exception during guard login: $e');
+      return null;
+    }
   }
 
   // Submit Visitor Entry with Photo Upload
@@ -82,6 +122,47 @@ class ApiService {
       }
     } catch (e) {
       print('Error fetching requests: $e');
+    }
+    return null;
+  }
+
+  // Complete Visitor Entry (Mark as COMPLETED after resident approval)
+  static Future<bool> completeVisitorRequest(String requestId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/visitor-requests/$requestId/complete'),
+        headers: {
+          'Authorization': 'Bearer $authToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        print('Complete Entry Error [${response.statusCode}]: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('Network exception during complete entry: $e');
+      return false;
+    }
+  }
+
+  // Fetch Society Wings and Flats Directory
+  static Future<Map<String, dynamic>?> fetchDirectory() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/directory/wings-flats'),
+        headers: {'Authorization': 'Bearer $authToken'},
+      );
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body);
+        return json['data'];
+      }
+    } catch (e) {
+      print('Error fetching directory: $e');
     }
     return null;
   }

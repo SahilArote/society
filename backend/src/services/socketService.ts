@@ -120,3 +120,39 @@ export function emitVisitorDecision(data: {
     timestamp: new Date().toISOString(),
   });
 }
+
+export function emitVisitorCompleted(data: {
+  request: any;
+  visitor: any;
+  residentId: string;
+  societyId: string;
+}) {
+  if (!io) return;
+
+  // 1. Emit to Guard App
+  io.to(`guard:${data.societyId}`).emit('visitor:completed', {
+    requestId: data.request.id,
+    status: 'COMPLETED',
+    visitorName: data.visitor?.name,
+  });
+
+  io.to(`guard:${data.societyId}`).emit('visitor:request_updated', {
+    requestId: data.request.id,
+    status: 'COMPLETED',
+  });
+
+  // 2. Emit to Resident PWA
+  io.to(`resident:${data.residentId}`).emit('visitor:request_updated', {
+    requestId: data.request.id,
+    status: 'COMPLETED',
+  });
+
+  // 3. Emit to Admin Dashboard
+  io.to(`admin:${data.societyId}`).emit('admin:visitor_activity', {
+    type: 'COMPLETED',
+    requestId: data.request.id,
+    visitorName: data.visitor?.name,
+    status: 'COMPLETED',
+    timestamp: new Date().toISOString(),
+  });
+}

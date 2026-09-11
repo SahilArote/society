@@ -56,7 +56,9 @@
       "societyId": "soc_greengate",
       "status": "ACTIVE",
       "createdAt": "2026-09-10T14:04:00.808Z",
-      "updatedAt": "2026-09-10T14:04:00.808Z"
+      "updatedAt": "2026-09-10T14:04:00.808Z",
+      "otp": "123456",
+      "otpExpiresAt": "2026-09-11T08:30:22.775Z"
     },
     {
       "id": "res_rajesh",
@@ -78,18 +80,21 @@
       "societyId": "soc_greengate",
       "status": "ACTIVE",
       "createdAt": "2026-09-10T14:04:00.808Z",
-      "updatedAt": "2026-09-10T14:04:00.808Z"
+      "updatedAt": "2026-09-10T14:04:00.808Z",
+      "pin": "1234",
+      "guardBadgeNumber": "GG-SEC-8821"
     },
     {
       "id": "admin_user",
       "name": "Admin Secretary",
       "mobile": "9999988888",
-      "email": "admin@greengate.com",
+      "email": "admin@greengate.in",
       "role": "ADMIN",
       "societyId": "soc_greengate",
       "status": "ACTIVE",
       "createdAt": "2026-09-10T14:04:00.808Z",
-      "updatedAt": "2026-09-10T14:04:00.808Z"
+      "updatedAt": "2026-09-10T14:04:00.808Z",
+      "password": "admin123"
     }
   ],
   "flats": [
@@ -153,6 +158,60 @@
       "visitorType": "guest",
       "photoUrl": "/api/uploads/visitor-photos/visitor_b8499a82-c2a7-4ae0-b502-fbbfccd32a10.jpg",
       "createdAt": "2026-09-10T14:19:13.949Z"
+    },
+    {
+      "id": "vis_4f7fc1c3",
+      "name": "Rahul",
+      "mobile": "9876543210",
+      "purpose": "delivery",
+      "visitorType": "delivery",
+      "photoUrl": "/api/uploads/visitor-photos/visitor_11a62661-b819-4d6e-aafe-dfe8e517ecae.jpg",
+      "deliveryCompany": "Zomato",
+      "createdAt": "2026-09-11T08:09:19.358Z"
+    },
+    {
+      "id": "vis_9e0836ee",
+      "name": "Unwanted Visitor",
+      "mobile": "+91 98765 00000",
+      "purpose": "sales",
+      "visitorType": "guest",
+      "createdAt": "2026-09-11T08:09:19.435Z"
+    },
+    {
+      "id": "vis_dee0889d",
+      "name": "Rahul",
+      "mobile": "9876543210",
+      "purpose": "delivery",
+      "visitorType": "delivery",
+      "photoUrl": "/api/uploads/visitor-photos/visitor_1a248c34-55f6-498f-8cbb-f0a0863feec3.jpg",
+      "deliveryCompany": "Zomato",
+      "createdAt": "2026-09-11T08:24:52.855Z"
+    },
+    {
+      "id": "vis_dfe7268d",
+      "name": "Unwanted Visitor",
+      "mobile": "+91 98765 00000",
+      "purpose": "sales",
+      "visitorType": "guest",
+      "createdAt": "2026-09-11T08:24:52.907Z"
+    },
+    {
+      "id": "vis_eabdf927",
+      "name": "Rahul",
+      "mobile": "9876543210",
+      "purpose": "delivery",
+      "visitorType": "delivery",
+      "photoUrl": "/api/uploads/visitor-photos/visitor_feb285b2-6a5b-4469-a8e1-802b63ff99a3.jpg",
+      "deliveryCompany": "Zomato",
+      "createdAt": "2026-09-11T08:25:22.810Z"
+    },
+    {
+      "id": "vis_7e2434ee",
+      "name": "Unwanted Visitor",
+      "mobile": "+91 98765 00000",
+      "purpose": "sales",
+      "visitorType": "guest",
+      "createdAt": "2026-09-11T08:25:22.866Z"
     }
   ],
   "visitorRequests": [
@@ -181,6 +240,87 @@
       "requestedAt": "2026-09-10T14:19:13.949Z",
       "respondedAt": "2026-09-10T14:19:13.956Z",
       "responseBy": "Sahil Arote"
+    },
+    {
+      "id": "REQ-8605",
+      "societyId": "soc_greengate",
+      "visitorId": "vis_4f7fc1c3",
+      "residentId": "res_priya",
+      "flatId": "flat_a101",
+      "guardId": "guard_ramesh",
+      "gateId": "gate_main",
+      "status": "COMPLETED",
+      "requestedAt": "2026-09-11T08:09:19.358Z",
+      "respondedAt": "2026-09-11T08:09:19.377Z",
+      "responseBy": "Priya Sharma"
+    },
+    {
+      "id": "REQ-8569",
+      "societyId": "soc_greengate",
+      "visitorId": "vis_9e0836ee",
+      "residentId": "res_priya",
+      "flatId": "flat_a101",
+      "guardId": "guard_ramesh",
+      "gateId": "gate_main",
+      "status": "REJECTED",
+      "requestedAt": "2026-09-11T08:09:19.435Z",
+      "respondedAt": "2026-09-11T08:09:19.441Z",
+      "responseBy": "Priya Sharma",
+      "rejectionReason": "Did not expect any visitors today"
+    },
+    {
+      "id": "REQ-4567",
+      "societyId": "soc_greengate",
+      "visitorId": "vis_dee0889d",
+      "residentId": "res_priya",
+      "flatId": "flat_a101",
+      "guardId": "guard_ramesh",
+      "gateId": "gate_main",
+      "status": "COMPLETED",
+      "requestedAt": "2026-09-11T08:24:52.855Z",
+      "respondedAt": "2026-09-11T08:24:52.871Z",
+      "responseBy": "Priya Sharma"
+    },
+    {
+      "id": "REQ-3286",
+      "societyId": "soc_greengate",
+      "visitorId": "vis_dfe7268d",
+      "residentId": "res_priya",
+      "flatId": "flat_a101",
+      "guardId": "guard_ramesh",
+      "gateId": "gate_main",
+      "status": "REJECTED",
+      "requestedAt": "2026-09-11T08:24:52.907Z",
+      "respondedAt": "2026-09-11T08:24:52.912Z",
+      "responseBy": "Priya Sharma",
+      "rejectionReason": "Did not expect any visitors today"
+    },
+    {
+      "id": "REQ-7877",
+      "societyId": "soc_greengate",
+      "visitorId": "vis_eabdf927",
+      "residentId": "res_priya",
+      "flatId": "flat_a101",
+      "guardId": "guard_ramesh",
+      "gateId": "gate_main",
+      "status": "COMPLETED",
+      "requestedAt": "2026-09-11T08:25:22.810Z",
+      "respondedAt": "2026-09-11T08:25:22.825Z",
+      "responseBy": "Priya Sharma"
+    },
+    {
+      "id": "REQ-9326",
+      "societyId": "soc_greengate",
+      "visitorId": "vis_7e2434ee",
+      "residentId": "res_priya",
+      "flatId": "flat_a101",
+      "guardId": "guard_ramesh",
+      "gateId": "gate_main",
+      "status": "REJECTED",
+      "requestedAt": "2026-09-11T08:25:22.866Z",
+      "respondedAt": "2026-09-11T08:25:22.874Z",
+      "responseBy": "Priya Sharma",
+      "rejectionReason": "Did not expect any visitors today"
     }
   ],
   "notifications": [
@@ -203,6 +343,66 @@
       "relatedEntityId": "REQ-7675",
       "read": false,
       "createdAt": "2026-09-10T14:19:13.949Z"
+    },
+    {
+      "id": "notif_9a6ab902",
+      "recipientId": "res_priya",
+      "type": "visitor",
+      "title": "Visitor Approval Required",
+      "message": "Rahul is waiting at Main Gate for Flat A-101",
+      "relatedEntityId": "REQ-8605",
+      "read": false,
+      "createdAt": "2026-09-11T08:09:19.358Z"
+    },
+    {
+      "id": "notif_cd10d489",
+      "recipientId": "res_priya",
+      "type": "visitor",
+      "title": "Visitor Approval Required",
+      "message": "Unwanted Visitor is waiting at Main Gate for Flat A-101",
+      "relatedEntityId": "REQ-8569",
+      "read": false,
+      "createdAt": "2026-09-11T08:09:19.435Z"
+    },
+    {
+      "id": "notif_6d1d2aad",
+      "recipientId": "res_priya",
+      "type": "visitor",
+      "title": "Visitor Approval Required",
+      "message": "Rahul is waiting at Main Gate for Flat A-101",
+      "relatedEntityId": "REQ-4567",
+      "read": false,
+      "createdAt": "2026-09-11T08:24:52.855Z"
+    },
+    {
+      "id": "notif_1e9255dd",
+      "recipientId": "res_priya",
+      "type": "visitor",
+      "title": "Visitor Approval Required",
+      "message": "Unwanted Visitor is waiting at Main Gate for Flat A-101",
+      "relatedEntityId": "REQ-3286",
+      "read": false,
+      "createdAt": "2026-09-11T08:24:52.907Z"
+    },
+    {
+      "id": "notif_b1b476a1",
+      "recipientId": "res_priya",
+      "type": "visitor",
+      "title": "Visitor Approval Required",
+      "message": "Rahul is waiting at Main Gate for Flat A-101",
+      "relatedEntityId": "REQ-7877",
+      "read": false,
+      "createdAt": "2026-09-11T08:25:22.810Z"
+    },
+    {
+      "id": "notif_b1d1f265",
+      "recipientId": "res_priya",
+      "type": "visitor",
+      "title": "Visitor Approval Required",
+      "message": "Unwanted Visitor is waiting at Main Gate for Flat A-101",
+      "relatedEntityId": "REQ-9326",
+      "read": false,
+      "createdAt": "2026-09-11T08:25:22.866Z"
     }
   ],
   "auditLogs": [
@@ -243,7 +443,192 @@
       "entityType": "VISITOR_REQUEST",
       "entityId": "REQ-7675",
       "timestamp": "2026-09-10T14:19:13.956Z"
+    },
+    {
+      "id": "audit_aa6f908d",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_REQUEST_CREATED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-8605",
+      "metadata": "{\"visitorName\":\"Rahul\",\"flatNumber\":\"A-101\"}",
+      "timestamp": "2026-09-11T08:09:19.358Z"
+    },
+    {
+      "id": "audit_2911501f",
+      "actorId": "res_priya",
+      "actorRole": "RESIDENT",
+      "action": "VISITOR_APPROVED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-8605",
+      "timestamp": "2026-09-11T08:09:19.377Z"
+    },
+    {
+      "id": "audit_f72138da",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_ENTRY_COMPLETED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-8605",
+      "timestamp": "2026-09-11T08:09:19.390Z"
+    },
+    {
+      "id": "audit_40ce2564",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_REQUEST_CREATED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-8569",
+      "metadata": "{\"visitorName\":\"Unwanted Visitor\",\"flatNumber\":\"A-101\"}",
+      "timestamp": "2026-09-11T08:09:19.435Z"
+    },
+    {
+      "id": "audit_90d3e202",
+      "actorId": "res_priya",
+      "actorRole": "RESIDENT",
+      "action": "VISITOR_REJECTED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-8569",
+      "metadata": "{\"reason\":\"Did not expect any visitors today\"}",
+      "timestamp": "2026-09-11T08:09:19.441Z"
+    },
+    {
+      "id": "audit_5afaecb1",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_REQUEST_CREATED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-4567",
+      "metadata": "{\"visitorName\":\"Rahul\",\"flatNumber\":\"A-101\"}",
+      "timestamp": "2026-09-11T08:24:52.855Z"
+    },
+    {
+      "id": "audit_47149fa4",
+      "actorId": "res_priya",
+      "actorRole": "RESIDENT",
+      "action": "VISITOR_APPROVED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-4567",
+      "timestamp": "2026-09-11T08:24:52.871Z"
+    },
+    {
+      "id": "audit_25693200",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_ENTRY_COMPLETED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-4567",
+      "timestamp": "2026-09-11T08:24:52.889Z"
+    },
+    {
+      "id": "audit_30ef529e",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_REQUEST_CREATED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-3286",
+      "metadata": "{\"visitorName\":\"Unwanted Visitor\",\"flatNumber\":\"A-101\"}",
+      "timestamp": "2026-09-11T08:24:52.907Z"
+    },
+    {
+      "id": "audit_94218d0e",
+      "actorId": "res_priya",
+      "actorRole": "RESIDENT",
+      "action": "VISITOR_REJECTED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-3286",
+      "metadata": "{\"reason\":\"Did not expect any visitors today\"}",
+      "timestamp": "2026-09-11T08:24:52.912Z"
+    },
+    {
+      "id": "audit_066ac6ef",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_REQUEST_CREATED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-7877",
+      "metadata": "{\"visitorName\":\"Rahul\",\"flatNumber\":\"A-101\"}",
+      "timestamp": "2026-09-11T08:25:22.810Z"
+    },
+    {
+      "id": "audit_e244d52f",
+      "actorId": "res_priya",
+      "actorRole": "RESIDENT",
+      "action": "VISITOR_APPROVED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-7877",
+      "timestamp": "2026-09-11T08:25:22.825Z"
+    },
+    {
+      "id": "audit_d6789587",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_ENTRY_COMPLETED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-7877",
+      "timestamp": "2026-09-11T08:25:22.850Z"
+    },
+    {
+      "id": "audit_b96b0b4d",
+      "actorId": "guard_ramesh",
+      "actorRole": "GUARD",
+      "action": "VISITOR_REQUEST_CREATED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-9326",
+      "metadata": "{\"visitorName\":\"Unwanted Visitor\",\"flatNumber\":\"A-101\"}",
+      "timestamp": "2026-09-11T08:25:22.866Z"
+    },
+    {
+      "id": "audit_604873b5",
+      "actorId": "res_priya",
+      "actorRole": "RESIDENT",
+      "action": "VISITOR_REJECTED",
+      "entityType": "VISITOR_REQUEST",
+      "entityId": "REQ-9326",
+      "metadata": "{\"reason\":\"Did not expect any visitors today\"}",
+      "timestamp": "2026-09-11T08:25:22.874Z"
     }
   ],
-  "announcements": []
+  "announcements": [
+    {
+      "id": "ann_7055eef9",
+      "societyId": "soc_greengate",
+      "title": "Water Tank Cleaning Notice",
+      "body": "Scheduled on Saturday 10 AM to 2 PM.",
+      "priority": "urgent",
+      "target": "all",
+      "createdBy": "admin_user",
+      "createdAt": "2026-09-11T08:25:22.952Z"
+    },
+    {
+      "id": "ann_8c3f6f9a",
+      "societyId": "soc_greengate",
+      "title": "Water Tank Cleaning Notice",
+      "body": "Scheduled on Saturday 10 AM to 2 PM.",
+      "priority": "urgent",
+      "target": "all",
+      "createdBy": "admin_user",
+      "createdAt": "2026-09-11T08:24:53.036Z"
+    },
+    {
+      "id": "ann_1",
+      "societyId": "soc_greengate",
+      "title": "Clubhouse Maintenance Notice",
+      "body": "The swimming pool and gym will be closed for quarterly cleaning this Saturday from 8 AM to 2 PM.",
+      "priority": "normal",
+      "target": "all",
+      "createdBy": "admin_user",
+      "createdAt": "2026-09-11T08:09:18.475Z"
+    },
+    {
+      "id": "ann_2",
+      "societyId": "soc_greengate",
+      "title": "Visitor Pass Security Protocol",
+      "body": "All residents are advised to generate digital visitor passes in advance for faster gate clearance.",
+      "priority": "high",
+      "target": "all",
+      "createdBy": "admin_user",
+      "createdAt": "2026-09-11T08:09:18.475Z"
+    }
+  ]
 }

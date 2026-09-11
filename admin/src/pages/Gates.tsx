@@ -6,6 +6,7 @@ import {
   X, UserCheck, Eye, RefreshCw
 } from 'lucide-react';
 import { mockGates, mockGuards } from '../data/mockData';
+import { fetchDirectoryGates, fetchDirectoryGuards } from '../services/api';
 import type { GuardShift, GuardStatus, Gate, Guard } from '../types';
 
 const shiftCfg: Record<GuardShift, { label: string; icon: React.ElementType; color: string; bg: string; time: string }> = {
@@ -48,6 +49,37 @@ export default function Gates() {
     };
     update();
     const interval = setInterval(update, 1000);
+
+    fetchDirectoryGates().then((apiGates) => {
+      if (apiGates && apiGates.length > 0) {
+        const mapped: Gate[] = apiGates.map((g: any) => ({
+          id: g.id,
+          name: g.name,
+          location: g.location || 'Main Boundary',
+          status: (g.status || 'operational').toLowerCase() as any,
+          type: (g.type || 'main').toLowerCase() as any,
+          activeGuardCount: 1,
+          cctvStatus: 'live',
+        }));
+        setGates(mapped);
+      }
+    });
+
+    fetchDirectoryGuards().then((apiGuards) => {
+      if (apiGuards && apiGuards.length > 0) {
+        const mapped: Guard[] = apiGuards.map((g: any) => ({
+          id: g.id,
+          name: g.name,
+          phone: g.phone || '+91 98000 00000',
+          assignedGate: g.gateName || 'Main Gate',
+          shift: (g.shift || 'morning').toLowerCase() as any,
+          status: 'on_duty',
+          joinedDate: '2024-01-01',
+        }));
+        setGuards(mapped);
+      }
+    });
+
     return () => clearInterval(interval);
   }, []);
 

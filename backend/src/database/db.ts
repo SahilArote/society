@@ -25,6 +25,11 @@ export interface UserRow {
   role: 'RESIDENT' | 'GUARD' | 'ADMIN';
   societyId: string;
   status: string;
+  pin?: string;
+  password?: string;
+  otp?: string;
+  otpExpiresAt?: string;
+  guardBadgeNumber?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -66,7 +71,7 @@ export interface VisitorRequestRow {
   flatId: string;
   guardId: string;
   gateId: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED' | 'COMPLETED' | 'EXITED';
   requestedAt: string;
   respondedAt?: string;
   responseBy?: string;
@@ -170,9 +175,10 @@ export function initDb() {
   loadDb();
   runMysqlMigrations().catch(() => {});
 
+  const now = new Date().toISOString();
+
   if (dbData.societies.length === 0) {
     console.log('Seeding initial database records...');
-    const now = new Date().toISOString();
 
     dbData.societies.push({
       id: 'soc_greengate',
@@ -192,8 +198,8 @@ export function initDb() {
       { id: 'res_amit', name: 'Dr. Amit Sharma', mobile: '9820044821', email: 'amit@greengate.com', role: 'RESIDENT', societyId: 'soc_greengate', status: 'ACTIVE', createdAt: now, updatedAt: now },
       { id: 'res_priya', name: 'Priya Sharma', mobile: '9810122334', email: 'priya@greengate.com', role: 'RESIDENT', societyId: 'soc_greengate', status: 'ACTIVE', createdAt: now, updatedAt: now },
       { id: 'res_rajesh', name: 'Rajesh Rao', mobile: '9822144556', email: 'rajesh@greengate.com', role: 'RESIDENT', societyId: 'soc_greengate', status: 'ACTIVE', createdAt: now, updatedAt: now },
-      { id: 'guard_ramesh', name: 'Ramesh Singh', mobile: '9800011122', email: 'ramesh@greengate.com', role: 'GUARD', societyId: 'soc_greengate', status: 'ACTIVE', createdAt: now, updatedAt: now },
-      { id: 'admin_user', name: 'Admin Secretary', mobile: '9999988888', email: 'admin@greengate.com', role: 'ADMIN', societyId: 'soc_greengate', status: 'ACTIVE', createdAt: now, updatedAt: now }
+      { id: 'guard_ramesh', name: 'Ramesh Singh', mobile: '9800011122', email: 'ramesh@greengate.com', role: 'GUARD', societyId: 'soc_greengate', status: 'ACTIVE', pin: '1234', guardBadgeNumber: 'GG-SEC-8821', createdAt: now, updatedAt: now },
+      { id: 'admin_user', name: 'Admin Secretary', mobile: '9999988888', email: 'admin@greengate.in', password: 'admin123', role: 'ADMIN', societyId: 'soc_greengate', status: 'ACTIVE', createdAt: now, updatedAt: now }
     );
 
     dbData.flats.push(
@@ -213,5 +219,51 @@ export function initDb() {
 
     saveDb();
     console.log('Database initialized and saved.');
+  }
+
+  // Ensure credentials and seed updates exist even on existing db.json
+  let needsSave = false;
+  const admin = dbData.users.find((u) => u.role === 'ADMIN');
+  if (admin && (!admin.password || admin.email !== 'admin@greengate.in')) {
+    admin.password = 'admin123';
+    admin.email = 'admin@greengate.in';
+    needsSave = true;
+  }
+
+  const guard = dbData.users.find((u) => u.role === 'GUARD');
+  if (guard && (!guard.pin || !guard.guardBadgeNumber)) {
+    guard.pin = '1234';
+    guard.guardBadgeNumber = 'GG-SEC-8821';
+    needsSave = true;
+  }
+
+  if (dbData.announcements.length === 0) {
+    dbData.announcements.push(
+      {
+        id: 'ann_1',
+        societyId: 'soc_greengate',
+        title: 'Clubhouse Maintenance Notice',
+        body: 'The swimming pool and gym will be closed for quarterly cleaning this Saturday from 8 AM to 2 PM.',
+        priority: 'normal',
+        target: 'all',
+        createdBy: 'admin_user',
+        createdAt: now,
+      },
+      {
+        id: 'ann_2',
+        societyId: 'soc_greengate',
+        title: 'Visitor Pass Security Protocol',
+        body: 'All residents are advised to generate digital visitor passes in advance for faster gate clearance.',
+        priority: 'high',
+        target: 'all',
+        createdBy: 'admin_user',
+        createdAt: now,
+      }
+    );
+    needsSave = true;
+  }
+
+  if (needsSave) {
+    saveDb();
   }
 }

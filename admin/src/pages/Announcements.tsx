@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Megaphone, Plus, X, Eye, Users, AlertTriangle, CheckCircle2,
   Trash2, Pin, Calendar, Tag, Filter, Search, ArrowUpRight
 } from 'lucide-react';
 import { mockAnnouncements } from '../data/mockData';
+import { fetchAnnouncements, createAnnouncementApi } from '../services/api';
 import type { AnnouncementPriority, AnnouncementTarget, Announcement } from '../types';
 import StatCard, { CircularGauge } from '../components/StatCard';
 
@@ -29,17 +30,22 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await new Promise(r => setTimeout(r, 600));
-    setLoading(false);
-    setDone(true);
-    const newAnn: Announcement = {
-      id: `ann-${Date.now()}`,
+    const apiRes = await createAnnouncementApi({
       title,
       body,
       priority,
       target,
+    });
+    setLoading(false);
+    setDone(true);
+    const newAnn: Announcement = {
+      id: apiRes?.id || `ann-${Date.now()}`,
+      title: apiRes?.title || title,
+      body: apiRes?.body || body,
+      priority: (apiRes?.priority || priority) as any,
+      target: (apiRes?.target || target) as any,
       createdBy: 'Rajesh Sharma (Secretary)',
-      createdAt: new Date(),
+      createdAt: apiRes?.createdAt ? new Date(apiRes.createdAt) : new Date(),
       readCount: 0,
       isPublished: true,
     };
@@ -164,6 +170,25 @@ export default function Announcements() {
   const [priorityFilter, setPriorityFilter] = useState<'all' | AnnouncementPriority>('all');
   const [pinnedId, setPinnedId] = useState<string>('ann-1');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchAnnouncements().then((apiList) => {
+      if (apiList && apiList.length > 0) {
+        const mapped: Announcement[] = apiList.map((a: any) => ({
+          id: a.id,
+          title: a.title,
+          body: a.body,
+          priority: (a.priority || 'normal').toLowerCase() as any,
+          target: (a.target || 'all').toLowerCase() as any,
+          createdBy: a.createdBy || 'Society Office',
+          createdAt: new Date(a.createdAt),
+          readCount: a.readCount || 0,
+          isPublished: true,
+        }));
+        setAnnouncements(mapped);
+      }
+    });
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);

@@ -165,6 +165,8 @@ export interface DashboardStats {
   visitorsInside: number;
   pendingApprovals: number;
   maintenanceCollectionPct: number;
+  activeGates?: number;
+  guardsOnDuty?: number;
 }
 
 export interface VisitorTrendData {

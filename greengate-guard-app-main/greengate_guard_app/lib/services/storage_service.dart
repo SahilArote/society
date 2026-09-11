@@ -7,6 +7,7 @@ class StorageService {
   static const String _keyIsLoggedIn = 'guard_is_logged_in';
   static const String _keyGuardData = 'guard_data';
   static const String _keyGuardPin = 'guard_pin';
+  static const String _keyGuardToken = 'guard_auth_token';
   static const String _keyVisitorRequests = 'visitor_requests';
 
   final SharedPreferences _prefs;
@@ -24,6 +25,14 @@ class StorageService {
 
   Future<void> setLoggedIn(bool value) async {
     await _prefs.setBool(_keyIsLoggedIn, value);
+  }
+
+  String? getToken() {
+    return _prefs.getString(_keyGuardToken);
+  }
+
+  Future<void> setToken(String token) async {
+    await _prefs.setString(_keyGuardToken, token);
   }
 
   Future<void> saveGuard(Guard guard) async {

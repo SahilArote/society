@@ -1,9 +1,11 @@
 import { Router, Response } from 'express';
+import path from 'path';
+import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { getDb, saveDb } from '../database/db';
 import { authenticateToken, AuthenticatedRequest, authorizeRoles } from '../middleware/auth';
 import { uploadVisitorPhoto } from '../middleware/upload';
-import { emitVisitorCreated, emitVisitorDecision } from '../services/socketService';
+import { emitVisitorCreated, emitVisitorDecision, emitVisitorCompleted } from '../services/socketService';
 
 const router = Router();
 
@@ -337,6 +339,160 @@ router.post('/:id/reject', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN'
       status: 'REJECTED',
       rejectionReason: request.rejectionReason,
       respondedAt: now,
+    },
+  });
+});
+
+// POST /api/visitor-requests/:id/complete
+// Guard completes visitor entry after resident approval
+router.post('/:id/complete', authenticateToken, authorizeRoles('GUARD', 'ADMIN'), (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const db = getDb();
+
+  const reqIndex = db.visitorRequests.findIndex((r) => r.id === id);
+  if (reqIndex === -1) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'NOT_FOUND', message: 'Visitor request not found' },
+    });
+  }
+
+  const request = db.visitorRequests[reqIndex];
+
+  // Must be in APPROVED status to complete entry
+  if (request.status !== 'APPROVED') {
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: 'STATE_CONFLICT',
+        message: `Cannot complete entry. Request is currently in ${request.status} state. Entry must be APPROVED first.`,
+      },
+    });
+  }
+
+  const now = new Date().toISOString();
+  request.status = 'COMPLETED';
+
+  const visitor = db.visitors.find((v) => v.id === request.visitorId);
+
+  // Audit Log
+  db.auditLogs.push({
+    id: `audit_${uuidv4().slice(0, 8)}`,
+    actorId: req.user!.id,
+    actorRole: req.user!.role,
+    action: 'VISITOR_ENTRY_COMPLETED',
+    entityType: 'VISITOR_REQUEST',
+    entityId: id,
+    timestamp: now,
+  });
+
+  saveDb();
+
+  // Emit Real-time Socket Event to Guard, Resident, and Admin
+  emitVisitorCompleted({
+    request,
+    visitor,
+    residentId: request.residentId,
+    societyId: request.societyId,
+  });
+
+  return res.json({
+    success: true,
+    data: {
+      id: request.id,
+      status: 'COMPLETED',
+      completedAt: now,
+    },
+  });
+});
+
+// GET /api/visitor-requests/:id/photo
+// Secure photo streaming for authorized users
+router.get('/:id/photo', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const db = getDb();
+  const request = db.visitorRequests.find((r) => r.id === id);
+  if (!request) {
+    return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Request not found' } });
+  }
+
+  const visitor = db.visitors.find((v) => v.id === request.visitorId);
+  if (!visitor || !visitor.photoUrl) {
+    return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'No photo attached to visitor' } });
+  }
+
+  // Authorization check: User must belong to same society, and if resident, must be for their flat
+  const user = req.user!;
+  if (user.societyId !== request.societyId) {
+    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Unauthorized society' } });
+  }
+  if (user.role === 'RESIDENT' && user.id !== request.residentId && user.flatId !== request.flatId) {
+    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Unauthorized flat photo access' } });
+  }
+
+  const filename = path.basename(visitor.photoUrl);
+  const filePath = path.resolve(__dirname, '../../uploads/visitor-photos', filename);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ success: false, error: { code: 'FILE_NOT_FOUND', message: 'Photo file not found on server' } });
+  }
+
+  return res.sendFile(filePath);
+});
+
+// POST /api/visitor-requests/invite
+// Resident pre-invites a visitor (creates pre-approved pass)
+router.post('/invite', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN'), (req: AuthenticatedRequest, res: Response) => {
+  const { name, mobile, purpose, visitorType, vehicleNumber, expectedAt } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ success: false, error: { code: 'INVALID_INPUT', message: 'Visitor name is required' } });
+  }
+
+  const db = getDb();
+  const societyId = req.user!.societyId || 'soc_greengate';
+  const residentId = req.user!.id;
+  const flat = db.flats.find((f) => f.residentId === residentId) || db.flats[0];
+
+  const now = new Date().toISOString();
+  const visitorId = `vis_${uuidv4().slice(0, 8)}`;
+  const visitorRecord = {
+    id: visitorId,
+    name: name.trim(),
+    mobile: mobile || '',
+    purpose: (purpose || 'guest').toLowerCase(),
+    visitorType: (visitorType || 'guest').toLowerCase(),
+    vehicleNumber,
+    createdAt: now,
+  };
+  db.visitors.push(visitorRecord);
+
+  const requestId = `PASS-${Math.floor(1000 + Math.random() * 9000)}`;
+  const requestRecord = {
+    id: requestId,
+    societyId,
+    visitorId,
+    residentId,
+    flatId: flat.id,
+    guardId: 'pre_approved',
+    gateId: 'any',
+    status: 'APPROVED' as const,
+    requestedAt: now,
+    respondedAt: now,
+    responseBy: req.user!.name,
+  };
+  db.visitorRequests.push(requestRecord);
+  saveDb();
+
+  return res.status(201).json({
+    success: true,
+    data: {
+      id: requestId,
+      status: 'APPROVED',
+      passCode: requestId,
+      visitor: visitorRecord,
+      flatNumber: flat.flatNumber,
+      expectedAt: expectedAt || now,
     },
   });
 });

@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { mockResident } from '../data/mockResident';
 import { BRAND_CONFIG } from '../config/branding';
+import { sendOtp } from '../services/api';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -12,18 +13,25 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phone || phone.replace(/\D/g, '').length < 10) {
+    const cleanDigits = phone.replace(/\D/g, '');
+    if (!phone || cleanDigits.length < 10) {
       setError('Please enter a valid 10-digit mobile number');
       return;
     }
 
     setLoading(true);
-    setTimeout(() => {
+    setError('');
+
+    try {
+      await sendOtp(cleanDigits);
+    } catch {
+      // Continue to OTP screen even if offline fallback
+    } finally {
       setLoading(false);
       navigate('/verify-otp', { state: { phone } });
-    }, 400);
+    }
   };
 
   return (

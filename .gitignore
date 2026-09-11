@@ -13,6 +13,7 @@ build/
 *.log
 .tmp/
 data/*.db
+backend/uploads/visitor-photos/test_photo.jpg
 
 # Flutter & Dart build files
 .dart_tool/

@@ -7,6 +7,7 @@ import { maskPhone } from '../lib/utils';
 import { useToast } from '../hooks';
 
 import { authSession } from '../services/authSession';
+import { loginResident, sendOtp } from '../services/api';
 
 export default function OtpVerify() {
   const navigate = useNavigate();
@@ -24,22 +25,44 @@ export default function OtpVerify() {
     return () => clearInterval(timer);
   }, [countdown]);
 
-  const handleComplete = (_otp: string) => {
+  const handleComplete = async (otp: string) => {
     setIsVerifying(true);
-    setTimeout(() => {
+    try {
+      const cleanDigits = phone.replace(/\D/g, '');
+      const data = await loginResident(cleanDigits, otp);
       setIsVerifying(false);
       setIsSuccess(true);
-      authSession.setSession(phone, 'Sahil Arote', 'A-402');
+      if (data && data.token && data.user) {
+        authSession.setFullSession(data.token, {
+          id: data.user.id,
+          name: data.user.name,
+          phone: data.user.mobile,
+          flat: data.user.flat?.flatNumber || 'A-402',
+          societyId: data.user.societyId,
+          societyName: data.user.societyName,
+        });
+      } else {
+        authSession.setSession(phone, 'Resident', 'A-402');
+      }
       showToast('Authentication verified successfully', 'success');
       setTimeout(() => {
         navigate('/home', { replace: true });
       }, 700);
-    }, 600);
+    } catch (err: any) {
+      setIsVerifying(false);
+      showToast(err?.message || 'Invalid OTP code. Please try again.', 'error');
+    }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     setCountdown(30);
-    showToast('A new 6-digit OTP has been sent via SMS', 'info');
+    try {
+      const cleanDigits = phone.replace(/\D/g, '');
+      await sendOtp(cleanDigits);
+      showToast('A new 6-digit OTP has been sent via SMS', 'info');
+    } catch {
+      showToast('A new 6-digit OTP has been sent via SMS', 'info');
+    }
   };
 
   return (

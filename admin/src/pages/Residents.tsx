@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Phone, Mail, Car, Users, Home,
@@ -6,6 +6,7 @@ import {
   UserPlus, MessageSquare, CreditCard, ShieldCheck, Plus
 } from 'lucide-react';
 import { mockFlats } from '../data/mockData';
+import { fetchDirectoryFlats } from '../services/api';
 import type { Flat, FlatResident as Resident } from '../types';
 import StatCard, { CircularGauge } from '../components/StatCard';
 
@@ -176,6 +177,33 @@ export default function Residents() {
   const [selected, setSelected] = useState<Flat | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showAddFlat, setShowAddFlat] = useState(false);
+
+  useEffect(() => {
+    fetchDirectoryFlats().then((apiFlats) => {
+      if (apiFlats && apiFlats.length > 0) {
+        const mapped: Flat[] = apiFlats.map((f: any) => ({
+          id: f.id,
+          number: f.flatNumber,
+          wing: f.buildingWing || f.wing || 'A',
+          floor: f.floor || parseInt(f.flatNumber?.replace(/\D/g, '').slice(0, 1)) || 1,
+          type: (f.flatType || '2BHK') as any,
+          status: (f.status || 'occupied').toLowerCase() as any,
+          vehicleCount: f.vehicleCount || 1,
+          maintenanceStatus: (f.maintenanceStatus || 'paid').toLowerCase() as any,
+          maintenanceDueAmount: f.maintenanceDueAmount,
+          residents: (f.residents || []).map((r: any) => ({
+            id: r.id,
+            name: r.name,
+            phone: r.phone || r.phoneNumber || '',
+            email: r.email || '',
+            role: (r.role || 'Resident').toLowerCase() as any,
+            isOwner: r.isOwner ?? true,
+          })),
+        }));
+        setFlats(mapped);
+      }
+    });
+  }, []);
 
   // New Flat Form State
   const [newNumber, setNewNumber] = useState('');

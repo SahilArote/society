@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldAlert, CheckCircle2, XCircle, MapPin, Building, Clock, ArrowLeft } from 'lucide-react';
@@ -9,32 +9,83 @@ import { mockVisitors } from '../data/mockVisitors';
 import { mockResident } from '../data/mockResident';
 import { formatTime } from '../lib/utils';
 import { useToast } from '../hooks';
+import { fetchVisitorRequests, approveVisitorRequest, rejectVisitorRequest } from '../services/api';
+import { authSession } from '../services/authSession';
 
 export default function VisitorApproval() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const currentUser = authSession.getUser();
 
-  const visitor = mockVisitors.find((v) => v.id === id) || mockVisitors[0];
+  const [visitor, setVisitor] = useState<any>(
+    mockVisitors.find((v) => v.id === id) || {
+      id: id || 'REQ-UNKNOWN',
+      name: 'Visitor',
+      purpose: 'personal',
+      gate: 'Main Gate',
+      requestedAt: new Date(),
+    }
+  );
+
+  useEffect(() => {
+    if (!id) return;
+    fetchVisitorRequests().then((apiData) => {
+      if (apiData && Array.isArray(apiData)) {
+        const found = apiData.find((r: any) => r.id === id);
+        if (found) {
+          setVisitor({
+            id: found.id,
+            name: found.visitor?.name || 'Visitor',
+            phone: found.visitor?.mobile,
+            photoUrl: found.visitor?.photoUrl,
+            photo: found.visitor?.photoUrl || found.visitor?.photo,
+            purpose: found.visitor?.purpose || 'personal',
+            status: found.status?.toLowerCase() || 'pending',
+            gate: found.gate || 'Main Gate',
+            flatNumber: found.flatNumber || currentUser?.flat || 'A-402',
+            requestedAt: new Date(found.requestedAt),
+          });
+        }
+      }
+    });
+  }, [id, currentUser]);
 
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [outcome, setOutcome] = useState<'allowed' | 'rejected' | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleAllow = () => {
-    setOutcome('allowed');
-    showToast(`Access granted for ${visitor.name}`, 'success');
-    setTimeout(() => {
-      navigate('/home');
-    }, 1200);
+  const handleAllow = async () => {
+    setIsProcessing(true);
+    try {
+      await approveVisitorRequest(visitor.id);
+      setOutcome('allowed');
+      showToast(`Access granted for ${visitor.name}`, 'success');
+      setTimeout(() => {
+        navigate('/home');
+      }, 1200);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to approve visitor entry', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const handleRejectConfirm = () => {
+  const handleRejectConfirm = async () => {
     setShowRejectDialog(false);
-    setOutcome('rejected');
-    showToast(`Denied entry to ${visitor.name}`, 'error');
-    setTimeout(() => {
-      navigate('/home');
-    }, 1200);
+    setIsProcessing(true);
+    try {
+      await rejectVisitorRequest(visitor.id, 'Denied by resident');
+      setOutcome('rejected');
+      showToast(`Denied entry to ${visitor.name}`, 'error');
+      setTimeout(() => {
+        navigate('/home');
+      }, 1200);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to reject visitor', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -108,8 +159,9 @@ export default function VisitorApproval() {
               <div className="relative inline-block my-4">
                 <Avatar
                   name={visitor.name}
+                  src={visitor.photoUrl || visitor.photo}
                   size="xl"
-                  className="w-24 h-24 text-2xl mx-auto ring-4 ring-primary-500/30 shadow-lg"
+                  className="w-24 h-24 text-2xl mx-auto ring-4 ring-primary-500/30 shadow-lg object-cover"
                 />
                 <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-amber-500 ring-2 ring-slate-800 animate-ping" />
               </div>
@@ -128,7 +180,7 @@ export default function VisitorApproval() {
                     <Building className="w-3 h-3 text-slate-400" />
                     <span>Flat</span>
                   </div>
-                  <p className="text-xs font-bold text-white">{mockResident.flat.number}</p>
+                  <p className="text-xs font-bold text-white">{visitor.flatNumber || currentUser?.flat || 'A-402'}</p>
                 </div>
 
                 <div className="space-y-0.5">

@@ -6,6 +6,7 @@ import {
   Settings, LogOut, Building2, ChevronRight
 } from 'lucide-react';
 import { mockAdminUser } from '../../data/mockData';
+import { clearAdminSession, getAdminUser } from '../../services/api';
 
 const NAV = [
   { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard',      section: 'Management' },
@@ -26,6 +27,7 @@ const grouped = NAV.reduce((acc, item) => {
 
 export function AdminSidebar() {
   const navigate = useNavigate();
+  const adminUser = getAdminUser();
 
   return (
     <aside className="sidebar">
@@ -78,18 +80,18 @@ export function AdminSidebar() {
       <div className="sidebar-user">
         <div className="sidebar-user-card">
           <div className="sidebar-avatar">
-            {mockAdminUser.name.split(' ').map(n => n[0]).join('')}
+            {(adminUser?.name || mockAdminUser.name).split(' ').map((n: string) => n[0]).join('')}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {mockAdminUser.name}
+              {adminUser?.name || mockAdminUser.name}
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'capitalize', marginTop: 1 }}>
-              {mockAdminUser.role.replace('_', ' ')}
+              {(adminUser?.role || mockAdminUser.role).replace('_', ' ')}
             </div>
           </div>
           <button
-            onClick={() => { localStorage.removeItem('gg_admin_auth'); navigate('/login'); }}
+            onClick={() => { clearAdminSession(); navigate('/login'); }}
             id="sidebar-logout-btn"
             className="btn-icon"
             title="Logout"

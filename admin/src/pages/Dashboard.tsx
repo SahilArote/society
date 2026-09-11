@@ -83,16 +83,33 @@ function GateDot({ status }: { status: string }) {
 
 /* ── Main Dashboard ───────────────────────────────────────── */
 import { useEffect } from 'react';
-import { fetchAdminActivity } from '../services/api';
+import { fetchAdminActivity, fetchAdminStats } from '../services/api';
 import { initAdminSocket } from '../services/socket';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const s = mockDashboardStats;
+  const [stats, setStats] = useState(mockDashboardStats);
+  const s = stats;
   const [visitorsList, setVisitorsList] = useState(mockVisitors);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    // 0. Initial Stats Fetch
+    fetchAdminStats().then((apiStats) => {
+      if (apiStats) {
+        setStats((prev) => ({
+          ...prev,
+          totalFlats: apiStats.totalFlats ?? prev.totalFlats,
+          occupiedFlats: apiStats.occupiedFlats ?? prev.occupiedFlats,
+          vacantFlats: apiStats.vacantFlats ?? prev.vacantFlats,
+          totalResidents: apiStats.totalResidents ?? prev.totalResidents,
+          visitorsToday: apiStats.visitorsToday ?? prev.visitorsToday,
+          pendingApprovals: apiStats.pendingApprovals ?? prev.pendingApprovals,
+          activeGates: apiStats.activeGates ?? prev.activeGates,
+          guardsOnDuty: apiStats.guardsOnDuty ?? prev.guardsOnDuty,
+        }));
+      }
+    });
     // 1. Initial Activity Fetch
     fetchAdminActivity().then((apiActivity) => {
       if (apiActivity && apiActivity.length > 0) {
