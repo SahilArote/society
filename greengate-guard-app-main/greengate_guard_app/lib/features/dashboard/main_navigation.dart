@@ -7,6 +7,8 @@ import 'dashboard_screen.dart';
 import '../visitors/visitors_screen.dart';
 import '../history/history_screen.dart';
 import '../profile/profile_screen.dart';
+import '../../models/visitor_request.dart';
+import '../visitor_entry/entry_approved_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   final GuardRepository guardRepo;
@@ -21,6 +23,7 @@ class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
   late VisitorRepository _visitorRepo;
   bool _isInit = false;
+  final Map<String, VisitorStatus> _knownStatuses = {};
 
   @override
   void initState() {
@@ -30,10 +33,92 @@ class _MainNavigationState extends State<MainNavigation> {
 
   Future<void> _initVisitorRepo() async {
     final storage = await StorageService.init();
+    final repo = VisitorRepository(storage);
+    for (var r in repo.allRequests) {
+      _knownStatuses[r.id] = r.status;
+    }
+    repo.addListener(_onRepoChanged);
     setState(() {
-      _visitorRepo = VisitorRepository(storage);
+      _visitorRepo = repo;
       _isInit = true;
     });
+  }
+
+  void _onRepoChanged() {
+    if (!mounted) return;
+    for (var r in _visitorRepo.allRequests) {
+      final prevStatus = _knownStatuses[r.id];
+      if (prevStatus == VisitorStatus.pending) {
+        if (r.status == VisitorStatus.approved) {
+          _knownStatuses[r.id] = VisitorStatus.approved;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '🎉 Entry APPROVED for ${r.visitor.name} (Flat ${r.flatNumber})!',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 6),
+              action: SnackBarAction(
+                label: 'OPEN BARRIER',
+                textColor: Colors.white,
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => EntryApprovedScreen(
+                        request: r,
+                        visitorRepo: _visitorRepo,
+                        guardRepo: widget.guardRepo,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          );
+        } else if (r.status == VisitorStatus.rejected) {
+          _knownStatuses[r.id] = VisitorStatus.rejected;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.cancel, color: Colors.white),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '❌ Entry DENIED by resident for ${r.visitor.name} (Flat ${r.flatNumber}).',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      } else {
+        _knownStatuses[r.id] = r.status;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_isInit) {
+      _visitorRepo.removeListener(_onRepoChanged);
+    }
+    super.dispose();
   }
 
   @override

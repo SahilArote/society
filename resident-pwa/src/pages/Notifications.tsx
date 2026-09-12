@@ -10,7 +10,7 @@ import { PhotoViewerModal } from '../components/ui/PhotoViewerModal';
 import { mockNotifications } from '../data/mockNotifications';
 import { formatRelativeTime } from '../lib/utils';
 import { useToast } from '../hooks';
-import { fetchVisitorRequests, approveVisitorRequest, rejectVisitorRequest } from '../services/api';
+import { fetchVisitorRequests, approveVisitorRequest, rejectVisitorRequest, resolvePhotoUrl } from '../services/api';
 import type { Notification, NotificationType } from '../types';
 
 interface GateNotification extends Notification {
@@ -195,9 +195,7 @@ export default function Notifications() {
                     onClick={(e) => {
                       if (notif.photoUrl) {
                         e.stopPropagation();
-                        const photoSrc = notif.photoUrl.startsWith('http')
-                          ? notif.photoUrl
-                          : `http://localhost:5000${notif.photoUrl}`;
+                        const photoSrc = resolvePhotoUrl(notif.photoUrl);
                         setActivePhotoModal({
                           url: photoSrc,
                           name: notif.visitorName || notif.title,
@@ -207,7 +205,7 @@ export default function Notifications() {
                     }}
                   >
                     <Avatar
-                      src={notif.photoUrl ? (notif.photoUrl.startsWith('http') ? notif.photoUrl : `http://localhost:5000${notif.photoUrl}`) : undefined}
+                      src={resolvePhotoUrl(notif.photoUrl)}
                       name={notif.visitorName || notif.title}
                       size="md"
                       className="ring-2 ring-indigo-500/20 group-hover:ring-indigo-400/80 transition-all flex-shrink-0"

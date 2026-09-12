@@ -8,7 +8,7 @@ import {
   requestNotificationPermission,
   VisitorPushPayload,
 } from '../../services/notificationService';
-import { approveVisitorRequest, rejectVisitorRequest } from '../../services/api';
+import { approveVisitorRequest, rejectVisitorRequest, resolvePhotoUrl } from '../../services/api';
 import { useToast } from '../../hooks';
 
 export function MobilePushNotificationBanner() {
@@ -81,12 +81,7 @@ export function MobilePushNotificationBanner() {
     navigate(`/visitors/${id}`);
   };
 
-  const backendOrigin = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-  const photoSrc = activePush?.photoUrl
-    ? activePush.photoUrl.startsWith('http')
-      ? activePush.photoUrl
-      : `${backendOrigin}${activePush.photoUrl}`
-    : undefined;
+  const photoSrc = resolvePhotoUrl(activePush?.photoUrl);
 
   return (
     <>

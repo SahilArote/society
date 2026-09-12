@@ -7,6 +7,8 @@
  * - Real-time Push Notification Event Bus for in-app floating push banners
  */
 
+import { BACKEND_URL } from './api';
+
 export interface VisitorPushPayload {
   id: string;
   name: string;
@@ -115,7 +117,7 @@ export async function triggerDevicePushNotification(payload: VisitorPushPayload)
 
   // 3. Trigger OS/Device Native Notification
   if ('Notification' in window && Notification.permission === 'granted') {
-    const backendOrigin = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+    const backendOrigin = BACKEND_URL;
     const photo = payload.photoUrl
       ? payload.photoUrl.startsWith('http')
         ? payload.photoUrl

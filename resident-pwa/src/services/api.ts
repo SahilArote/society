@@ -1,6 +1,22 @@
 import { authSession } from './authSession';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+export const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  (typeof window !== 'undefined' && window.location.hostname
+    ? `${window.location.protocol}//${window.location.hostname}:5000`
+    : 'http://localhost:5000');
+
+export const API_BASE_URL =
+  import.meta.env.VITE_API_URL || `${BACKEND_URL}/api`;
+
+export function resolvePhotoUrl(photo?: string | null): string | undefined {
+  if (!photo) return undefined;
+  if (photo.startsWith('http://') || photo.startsWith('https://') || photo.startsWith('data:') || photo.startsWith('blob:')) {
+    return photo;
+  }
+  const cleanPath = photo.startsWith('/') ? photo : `/${photo}`;
+  return `${BACKEND_URL}${cleanPath}`;
+}
 
 function getAuthHeaders() {
   const token = authSession.getToken() || 'demo_resident_token';

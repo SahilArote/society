@@ -1,4 +1,10 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+export const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  (typeof window !== 'undefined' && window.location.hostname
+    ? `${window.location.protocol}//${window.location.hostname}:5000`
+    : 'http://localhost:5000');
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || `${BACKEND_URL}/api`;
 
 export function getAdminToken(): string | null {
   return localStorage.getItem('gg_admin_token') || 'admin_token';

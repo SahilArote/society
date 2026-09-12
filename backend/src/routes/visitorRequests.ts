@@ -208,6 +208,8 @@ router.get('/', authenticateToken, (req: AuthenticatedRequest, res: Response) =>
       status: reqItem.status,
       requestedAt: reqItem.requestedAt,
       respondedAt: reqItem.respondedAt,
+      enteredAt: reqItem.enteredAt || (['COMPLETED', 'EXITED'].includes(reqItem.status) ? (reqItem.respondedAt || reqItem.requestedAt) : undefined),
+      exitedAt: reqItem.exitedAt || (reqItem.status === 'EXITED' ? reqItem.respondedAt : undefined),
       responseBy: reqItem.responseBy,
       rejectionReason: reqItem.rejectionReason,
     };
@@ -265,6 +267,8 @@ router.get('/:id', authenticateToken, (req: AuthenticatedRequest, res: Response)
       status: reqItem.status,
       requestedAt: reqItem.requestedAt,
       respondedAt: reqItem.respondedAt,
+      enteredAt: reqItem.enteredAt || (['COMPLETED', 'EXITED'].includes(reqItem.status) ? (reqItem.respondedAt || reqItem.requestedAt) : undefined),
+      exitedAt: reqItem.exitedAt || (reqItem.status === 'EXITED' ? reqItem.respondedAt : undefined),
       responseBy: reqItem.responseBy,
       rejectionReason: reqItem.rejectionReason,
     },
@@ -431,6 +435,7 @@ router.post('/:id/complete', authenticateToken, authorizeRoles('GUARD', 'ADMIN')
 
   const now = new Date().toISOString();
   request.status = 'COMPLETED';
+  request.enteredAt = now;
 
   const visitor = db.visitors.find((v) => v.id === request.visitorId);
 
@@ -460,7 +465,60 @@ router.post('/:id/complete', authenticateToken, authorizeRoles('GUARD', 'ADMIN')
     data: {
       id: request.id,
       status: 'COMPLETED',
+      enteredAt: now,
       completedAt: now,
+    },
+  });
+});
+
+// POST /api/visitor-requests/:id/exit
+// Guard or Admin marks visitor exited
+router.post('/:id/exit', authenticateToken, authorizeRoles('GUARD', 'ADMIN'), (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const db = getDb();
+
+  const reqIndex = db.visitorRequests.findIndex((r) => r.id === id);
+  if (reqIndex === -1) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'NOT_FOUND', message: 'Visitor request not found' },
+    });
+  }
+
+  const request = db.visitorRequests[reqIndex];
+  const now = new Date().toISOString();
+  request.status = 'EXITED';
+  request.exitedAt = now;
+
+  const visitor = db.visitors.find((v) => v.id === request.visitorId);
+
+  // Audit Log
+  db.auditLogs.push({
+    id: `audit_${uuidv4().slice(0, 8)}`,
+    actorId: req.user!.id,
+    actorRole: req.user!.role,
+    action: 'VISITOR_EXITED',
+    entityType: 'VISITOR_REQUEST',
+    entityId: id,
+    timestamp: now,
+  });
+
+  saveDb();
+
+  emitVisitorDecision({
+    request,
+    visitor,
+    residentId: request.residentId,
+    societyId: request.societyId,
+    status: 'EXITED',
+  });
+
+  return res.json({
+    success: true,
+    data: {
+      id: request.id,
+      status: 'EXITED',
+      exitedAt: now,
     },
   });
 });

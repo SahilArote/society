@@ -21,6 +21,9 @@ router.get('/activity', authenticateToken, authorizeRoles('ADMIN'), (req: Authen
     const resident = db.users.find((u) => u.id === reqItem.residentId);
     const gate = db.gates.find((g) => g.id === reqItem.gateId);
 
+    const enteredAt = reqItem.enteredAt || (['COMPLETED', 'EXITED'].includes(reqItem.status) ? (reqItem.respondedAt || reqItem.requestedAt) : undefined);
+    const exitedAt = reqItem.exitedAt || (reqItem.status === 'EXITED' ? reqItem.respondedAt : undefined);
+
     return {
       id: reqItem.id,
       visitorName: visitor?.name || 'Visitor',
@@ -37,6 +40,8 @@ router.get('/activity', authenticateToken, authorizeRoles('ADMIN'), (req: Authen
       status: reqItem.status,
       requestedAt: reqItem.requestedAt,
       respondedAt: reqItem.respondedAt,
+      enteredAt,
+      exitedAt,
       responseBy: reqItem.responseBy,
       rejectionReason: reqItem.rejectionReason,
     };
@@ -87,6 +92,9 @@ router.get('/visitors', authenticateToken, authorizeRoles('ADMIN'), (req: Authen
     const resident = db.users.find((u) => u.id === reqItem.residentId);
     const gate = db.gates.find((g) => g.id === reqItem.gateId);
 
+    const enteredAt = reqItem.enteredAt || (['COMPLETED', 'EXITED'].includes(reqItem.status) ? (reqItem.respondedAt || reqItem.requestedAt) : undefined);
+    const exitedAt = reqItem.exitedAt || (reqItem.status === 'EXITED' ? reqItem.respondedAt : undefined);
+
     return {
       id: reqItem.id,
       visitorId: reqItem.visitorId,
@@ -107,6 +115,8 @@ router.get('/visitors', authenticateToken, authorizeRoles('ADMIN'), (req: Authen
       rawStatus: reqItem.status,
       requestedAt: reqItem.requestedAt,
       respondedAt: reqItem.respondedAt,
+      enteredAt,
+      exitedAt,
       responseBy: reqItem.responseBy,
       rejectionReason: reqItem.rejectionReason,
     };

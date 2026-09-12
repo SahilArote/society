@@ -76,6 +76,8 @@ export interface VisitorRequestRow {
   respondedAt?: string;
   responseBy?: string;
   rejectionReason?: string;
+  enteredAt?: string;
+  exitedAt?: string;
 }
 
 export interface NotificationRow {

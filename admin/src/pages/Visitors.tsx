@@ -6,7 +6,7 @@ import {
   Building, LogOut, X, Share2, Printer
 } from 'lucide-react';
 import { mockVisitors } from '../data/mockData';
-import { fetchAdminActivity, fetchAdminVisitors } from '../services/api';
+import { fetchAdminActivity, fetchAdminVisitors, BACKEND_URL } from '../services/api';
 import { initAdminSocket } from '../services/socket';
 import type { AdminVisitor } from '../types';
 import StatCard, { CircularGauge } from '../components/StatCard';
@@ -23,13 +23,22 @@ const purposeCfg: Record<string, { icon: React.ElementType; color: string; label
 
 function VBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    pending: 'badge badge-warning', inside: 'badge badge-success',
-    exited: 'badge badge-muted', approved: 'badge badge-info',
-    denied: 'badge badge-danger', expired: 'badge badge-muted',
+    pending: 'badge badge-warning',
+    inside: 'badge badge-success',
+    completed: 'badge badge-success',
+    exited: 'badge badge-muted',
+    approved: 'badge badge-info',
+    denied: 'badge badge-danger',
+    expired: 'badge badge-muted',
   };
   const labels: Record<string, string> = {
-    pending: 'Pending', inside: 'Inside', exited: 'Exited',
-    approved: 'Approved', denied: 'Denied', expired: 'Expired',
+    pending: 'Pending',
+    inside: 'Inside',
+    completed: 'Inside',
+    exited: 'Exited',
+    approved: 'Approved',
+    denied: 'Denied',
+    expired: 'Expired',
   };
   return <span className={map[status] ?? 'badge badge-muted'}>{labels[status] ?? status}</span>;
 }
@@ -37,7 +46,15 @@ function VBadge({ status }: { status: string }) {
 function fmt(d: Date | string | undefined) {
   if (!d) return '—';
   const dateObj = d instanceof Date ? d : new Date(d);
+  if (isNaN(dateObj.getTime())) return '—';
   return dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+function fmtDate(d: Date | string | undefined) {
+  if (!d) return '';
+  const dateObj = d instanceof Date ? d : new Date(d);
+  if (isNaN(dateObj.getTime())) return '';
+  return dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
 }
 
 export default function Visitors() {
@@ -62,6 +79,23 @@ export default function Visitors() {
           const mapped: AdminVisitor[] = apiVisitors.map((item: any) => {
             let status = (item.status || 'pending').toLowerCase();
             if (status === 'rejected') status = 'denied';
+
+            const reqDate = item.requestedAt ? new Date(item.requestedAt) : new Date();
+
+            let enteredDate: Date | undefined = undefined;
+            if (item.enteredAt) {
+              enteredDate = new Date(item.enteredAt);
+            } else if (status === 'inside' || status === 'completed' || status === 'exited') {
+              enteredDate = item.respondedAt ? new Date(item.respondedAt) : reqDate;
+            }
+
+            let exitedDate: Date | undefined = undefined;
+            if (item.exitedAt) {
+              exitedDate = new Date(item.exitedAt);
+            } else if (status === 'exited') {
+              exitedDate = item.respondedAt ? new Date(item.respondedAt) : new Date();
+            }
+
             return {
               id: item.id,
               name: item.name,
@@ -74,9 +108,9 @@ export default function Visitors() {
               gate: item.gate || 'Main Gate',
               guardName: item.guardName || 'Ramesh Singh',
               vehicleNumber: item.vehicleNumber,
-              requestedAt: new Date(item.requestedAt || Date.now()),
-              enteredAt: item.enteredAt ? new Date(item.enteredAt) : (status === 'inside' ? new Date(item.requestedAt) : undefined),
-              exitedAt: item.exitedAt ? new Date(item.exitedAt) : undefined,
+              requestedAt: reqDate,
+              enteredAt: enteredDate,
+              exitedAt: exitedDate,
             };
           });
 
@@ -100,19 +134,27 @@ export default function Visitors() {
       showToast(`⚡ Realtime Event: ${activityEvent.visitorName || 'Visitor'} is ${activityEvent.status || activityEvent.type}`);
       setVisitors((prev) => {
         const existingIdx = prev.findIndex((v) => v.id === activityEvent.requestId);
-        let resolvedStatus = (activityEvent.status === 'COMPLETED' ? 'inside' : activityEvent.status || 'pending').toLowerCase() as any;
+        let rawStatus = (activityEvent.status || activityEvent.type || 'pending').toLowerCase();
+        let resolvedStatus: any = rawStatus;
         if (resolvedStatus === 'rejected') resolvedStatus = 'denied';
+
         if (existingIdx !== -1) {
           const updated = [...prev];
+          const prevItem = updated[existingIdx];
+          const isEntering = resolvedStatus === 'inside' || resolvedStatus === 'completed';
+          const isExiting = resolvedStatus === 'exited';
+
           updated[existingIdx] = {
-            ...updated[existingIdx],
+            ...prevItem,
             status: resolvedStatus,
-            photo: activityEvent.photoUrl || updated[existingIdx].photo,
-            enteredAt: resolvedStatus === 'inside' ? (updated[existingIdx].enteredAt || new Date()) : updated[existingIdx].enteredAt,
+            photo: activityEvent.photoUrl || prevItem.photo,
+            enteredAt: isEntering ? (prevItem.enteredAt || new Date()) : prevItem.enteredAt,
+            exitedAt: isExiting ? (prevItem.exitedAt || new Date()) : prevItem.exitedAt,
           };
           return updated;
         }
 
+        const isEntering = resolvedStatus === 'inside' || resolvedStatus === 'completed';
         const newV: AdminVisitor = {
           id: activityEvent.requestId || `REQ-${Date.now()}`,
           name: activityEvent.visitorName || 'New Visitor',
@@ -125,7 +167,8 @@ export default function Visitors() {
           gate: activityEvent.gateName || 'Main Gate',
           guardName: 'Ramesh Singh',
           requestedAt: new Date(),
-          enteredAt: resolvedStatus === 'inside' ? new Date() : undefined,
+          enteredAt: isEntering ? new Date() : undefined,
+          exitedAt: resolvedStatus === 'exited' ? new Date() : undefined,
         };
         return [newV, ...prev];
       });
@@ -164,7 +207,7 @@ export default function Visitors() {
   };
 
   const exportCSV = () => {
-    const headers = ['Name,Phone,Flat,Resident,Purpose,Gate,Guard,EnteredAt,ExitedAt,Status,Vehicle'];
+    const headers = ['Name,Phone,Flat,Resident,Purpose,Gate,Guard,ArrivalAt,EnteredAt,ExitedAt,Status,Vehicle'];
     const rows = visitors.map(v => [
       `"${v.name}"`,
       `"${v.phone || ''}"`,
@@ -173,6 +216,7 @@ export default function Visitors() {
       `"${v.purpose}"`,
       `"${v.gate}"`,
       `"${v.guardName}"`,
+      `"${v.requestedAt ? new Date(v.requestedAt).toLocaleString() : ''}"`,
       `"${v.enteredAt ? new Date(v.enteredAt).toLocaleString() : ''}"`,
       `"${v.exitedAt ? new Date(v.exitedAt).toLocaleString() : ''}"`,
       `"${v.status}"`,
@@ -190,7 +234,7 @@ export default function Visitors() {
   };
 
   const filtered = visitors.filter(v => {
-    if (tab === 'live' && !['pending', 'inside'].includes(v.status)) return false;
+    if (tab === 'live' && !['pending', 'approved', 'inside', 'completed'].includes(v.status)) return false;
     if (tab === 'history' && !['exited', 'denied', 'expired'].includes(v.status)) return false;
     if (gate !== 'all' && v.gate !== gate) return false;
     if (purpose !== 'all' && v.purpose !== purpose) return false;
@@ -199,8 +243,8 @@ export default function Visitors() {
       v.residentName.toLowerCase().includes(search.toLowerCase());
   });
 
-  const liveCount = visitors.filter(v => ['pending', 'inside'].includes(v.status)).length;
-  const insideCount = visitors.filter(v => v.status === 'inside').length;
+  const liveCount = visitors.filter(v => ['pending', 'approved', 'inside', 'completed'].includes(v.status)).length;
+  const insideCount = visitors.filter(v => ['inside', 'completed'].includes(v.status)).length;
   const pendingCount = visitors.filter(v => v.status === 'pending').length;
   const deniedCount = visitors.filter(v => v.status === 'denied').length;
 
@@ -353,6 +397,7 @@ export default function Visitors() {
                 <th>Flat / Resident</th>
                 <th>Purpose</th>
                 <th>Gate · Guard</th>
+                <th>Arrival</th>
                 <th>Entry</th>
                 <th>Exit</th>
                 <th>Status</th>
@@ -375,7 +420,7 @@ export default function Visitors() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         {v.photo ? (
                           <img
-                            src={v.photo.startsWith('http') ? v.photo : `http://localhost:5000${v.photo}`}
+                            src={v.photo.startsWith('http') ? v.photo : `${BACKEND_URL}${v.photo}`}
                             alt={v.name}
                             style={{
                               width: 34,
@@ -436,21 +481,64 @@ export default function Visitors() {
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{v.guardName}</div>
                     </td>
 
+                    {/* Arrival Column */}
+                    <td>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {fmt(v.requestedAt)}
+                      </div>
+                      <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                        {fmtDate(v.requestedAt)}
+                      </div>
+                    </td>
+
+                    {/* Entry Column */}
                     <td>
                       {v.enteredAt ? (
-                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {fmt(v.enteredAt)}
+                        <div>
+                          <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {fmt(v.enteredAt)}
+                          </div>
+                          <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                            {fmtDate(v.enteredAt)}
+                          </div>
                         </div>
+                      ) : (v.status === 'inside' || v.status === 'completed') ? (
+                        <div>
+                          <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {fmt(v.requestedAt)}
+                          </div>
+                          <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                            {fmtDate(v.requestedAt)}
+                          </div>
+                        </div>
+                      ) : v.status === 'pending' ? (
+                        <span className="badge badge-warning" style={{ fontSize: 11 }}>Waiting</span>
+                      ) : v.status === 'approved' ? (
+                        <span className="badge badge-info" style={{ fontSize: 11 }}>Approved</span>
                       ) : (
                         <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
                       )}
                     </td>
 
+                    {/* Exit Column */}
                     <td>
                       {v.exitedAt ? (
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{fmt(v.exitedAt)}</div>
-                      ) : v.status === 'inside' ? (
-                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--green)' }}>Still inside</span>
+                        <div>
+                          <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                            {fmt(v.exitedAt)}
+                          </div>
+                          <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                            {fmtDate(v.exitedAt)}
+                          </div>
+                        </div>
+                      ) : (v.status === 'inside' || v.status === 'completed') ? (
+                        <span style={{
+                          fontSize: 11, fontWeight: 700, color: 'var(--green)',
+                          background: 'rgba(34, 197, 94, 0.1)', padding: '2px 8px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', gap: 4
+                        }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)' }} />
+                          Inside
+                        </span>
                       ) : (
                         <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
                       )}
@@ -561,7 +649,7 @@ export default function Visitors() {
                 }}>
                   {selectedVisitor.photo ? (
                     <img
-                      src={selectedVisitor.photo.startsWith('http') ? selectedVisitor.photo : `http://localhost:5000${selectedVisitor.photo}`}
+                      src={selectedVisitor.photo.startsWith('http') ? selectedVisitor.photo : `${BACKEND_URL}${selectedVisitor.photo}`}
                       alt={selectedVisitor.name}
                       style={{
                         width: 84,
@@ -640,16 +728,44 @@ export default function Visitors() {
                   </div>
 
                   <div style={{ background: 'var(--bg-elevated)', padding: '10px 14px', borderRadius: 'var(--r-md)' }}>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Entered At</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Arrival / Request Time</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginTop: 2 }}>
-                      {fmt(selectedVisitor.enteredAt)}
+                      {fmt(selectedVisitor.requestedAt)} <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>({fmtDate(selectedVisitor.requestedAt)})</span>
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'var(--bg-elevated)', padding: '10px 14px', borderRadius: 'var(--r-md)' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Gate Entry Time</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginTop: 2 }}>
+                      {selectedVisitor.enteredAt ? (
+                        <>{fmt(selectedVisitor.enteredAt)} <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>({fmtDate(selectedVisitor.enteredAt)})</span></>
+                      ) : (['inside', 'completed'].includes(selectedVisitor.status)) ? (
+                        <>{fmt(selectedVisitor.requestedAt)} <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>({fmtDate(selectedVisitor.requestedAt)})</span></>
+                      ) : selectedVisitor.status === 'pending' ? (
+                        <span style={{ color: 'var(--amber)' }}>Waiting Approval</span>
+                      ) : (
+                        '—'
+                      )}
                     </div>
                   </div>
 
                   <div style={{ background: 'var(--bg-elevated)', padding: '10px 14px', borderRadius: 'var(--r-md)' }}>
                     <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Exit Time</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginTop: 2 }}>
-                      {selectedVisitor.exitedAt ? fmt(selectedVisitor.exitedAt) : (selectedVisitor.status === 'inside' ? 'Active' : '—')}
+                      {selectedVisitor.exitedAt ? (
+                        <>{fmt(selectedVisitor.exitedAt)} <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>({fmtDate(selectedVisitor.exitedAt)})</span></>
+                      ) : (['inside', 'completed'].includes(selectedVisitor.status)) ? (
+                        <span style={{ color: 'var(--green)', fontWeight: 700 }}>● Currently Inside</span>
+                      ) : (
+                        '—'
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'var(--bg-elevated)', padding: '10px 14px', borderRadius: 'var(--r-md)' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Contact / Mobile</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginTop: 2 }}>
+                      {selectedVisitor.phone || 'N/A'}
                     </div>
                   </div>
                 </div>

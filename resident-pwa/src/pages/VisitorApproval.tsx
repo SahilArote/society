@@ -10,7 +10,7 @@ import { mockVisitors } from '../data/mockVisitors';
 import { mockResident } from '../data/mockResident';
 import { formatTime } from '../lib/utils';
 import { useToast } from '../hooks';
-import { fetchVisitorRequests, approveVisitorRequest, rejectVisitorRequest } from '../services/api';
+import { fetchVisitorRequests, approveVisitorRequest, rejectVisitorRequest, BACKEND_URL, resolvePhotoUrl } from '../services/api';
 import { authSession } from '../services/authSession';
 
 export default function VisitorApproval() {
@@ -159,12 +159,7 @@ export default function VisitorApproval() {
 
               {/* Visitor Avatar */}
               {(() => {
-                const backendOrigin = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-                const photoSrc = visitor.photoUrl
-                  ? (visitor.photoUrl.startsWith('http') ? visitor.photoUrl : `${backendOrigin}${visitor.photoUrl}`)
-                  : visitor.photo
-                  ? (visitor.photo.startsWith('http') ? visitor.photo : `${backendOrigin}${visitor.photo}`)
-                  : undefined;
+                const photoSrc = resolvePhotoUrl(visitor.photoUrl || visitor.photo);
 
                 return (
                   <>
@@ -287,13 +282,7 @@ export default function VisitorApproval() {
       <PhotoViewerModal
         isOpen={showPhotoModal}
         onClose={() => setShowPhotoModal(false)}
-        imageUrl={
-          visitor.photoUrl
-            ? (visitor.photoUrl.startsWith('http') ? visitor.photoUrl : `http://localhost:5000${visitor.photoUrl}`)
-            : visitor.photo
-            ? (visitor.photo.startsWith('http') ? visitor.photo : `http://localhost:5000${visitor.photo}`)
-            : undefined
-        }
+        imageUrl={resolvePhotoUrl(visitor.photoUrl || visitor.photo)}
         name={visitor.name}
         subtitle={`${visitor.purpose?.toUpperCase()} • Flat ${visitor.flatNumber || currentUser?.flat || 'A-402'} • ${visitor.gate || 'Main Gate'}`}
         tag="Security Live Gate Cam"

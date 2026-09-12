@@ -4,6 +4,7 @@ import { Card } from '../ui/Card';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 import { formatRelativeTime, cn } from '../../lib/utils';
+import { resolvePhotoUrl } from '../../services/api';
 
 export interface VisitorApprovalCardProps {
   visitor: Visitor;
@@ -48,16 +49,7 @@ export function VisitorApprovalCard({
 
       {/* Visitor Identity Info */}
       {(() => {
-        const backendOrigin = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-        const photoSrc = (visitor as any).photoUrl
-          ? (visitor as any).photoUrl.startsWith('http')
-            ? (visitor as any).photoUrl
-            : `${backendOrigin}${(visitor as any).photoUrl}`
-          : visitor.photo
-          ? visitor.photo.startsWith('http')
-            ? visitor.photo
-            : `${backendOrigin}${visitor.photo}`
-          : undefined;
+        const photoSrc = resolvePhotoUrl((visitor as any).photoUrl || visitor.photo);
 
         return (
           <div

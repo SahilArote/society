@@ -420,7 +420,6 @@ class _LoginScreenState extends State<LoginScreen> {
       height: 56, // 56px minimum touch target for fingers
       child: Material(
         color: isAction ? AppColors.surfaceLow : AppColors.surface,
-        borderRadius: AppDimensions.roundedMd,
         elevation: 1,
         shape: RoundedRectangleBorder(
           borderRadius: AppDimensions.roundedMd,

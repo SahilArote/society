@@ -74,13 +74,14 @@ export interface Flat {
 // ========================
 
 export type VisitorPurpose = 'guest' | 'delivery' | 'maintenance' | 'cab' | 'other';
-export type VisitorStatus = 'pending' | 'approved' | 'denied' | 'inside' | 'exited' | 'expired';
+export type VisitorStatus = 'pending' | 'approved' | 'denied' | 'inside' | 'exited' | 'expired' | 'completed';
 
 export interface AdminVisitor {
   id: string;
   name: string;
   phone?: string;
   photo?: string;
+  photoUrl?: string;
   purpose: VisitorPurpose;
   status: VisitorStatus;
   flatNumber: string;

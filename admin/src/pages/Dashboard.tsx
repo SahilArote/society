@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, Users, Eye, Clock, Shield, DoorOpen,
   AlertTriangle, CheckCircle2, XCircle, ChevronRight,
-  Activity, Megaphone, ArrowUpRight, Car, Package, Wrench, TrendingUp,
+  Activity, Megaphone, ArrowUpRight, Car, Package, Wrench,
   Sparkles, UserPlus, BellRing, BarChart2
 } from 'lucide-react';
 import {
@@ -33,23 +33,31 @@ function ChartTooltip({ active, payload, label }: any) {
   );
 }
 
-import StatCard, { CircularGauge } from '../components/StatCard';
+import StatCard from '../components/StatCard';
 
 /* ── Visitor Badge ────────────────────────────────────────── */
 function VisitorBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    pending:  'badge badge-warning',
-    inside:   'badge badge-success',
-    exited:   'badge badge-muted',
-    approved: 'badge badge-info',
-    denied:   'badge badge-danger',
-    expired:  'badge badge-muted',
+    pending:   'badge badge-warning',
+    inside:    'badge badge-success',
+    completed: 'badge badge-success',
+    exited:    'badge badge-muted',
+    approved:  'badge badge-info',
+    denied:    'badge badge-danger',
+    expired:   'badge badge-muted',
   };
   const labels: Record<string, string> = {
-    pending: 'Pending', inside: 'Inside', exited: 'Exited',
+    pending: 'Pending', inside: 'Inside', completed: 'Inside', exited: 'Exited',
     approved: 'Approved', denied: 'Denied', expired: 'Expired',
   };
   return <span className={map[status] ?? 'badge badge-muted'}>{labels[status] ?? status}</span>;
+}
+
+function fmt(d: Date | string | undefined) {
+  if (!d) return '—';
+  const dateObj = d instanceof Date ? d : new Date(d);
+  if (isNaN(dateObj.getTime())) return '—';
+  return dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
 /* ── Purpose Icon ─────────────────────────────────────────── */
@@ -83,15 +91,21 @@ function GateDot({ status }: { status: string }) {
 
 /* ── Main Dashboard ───────────────────────────────────────── */
 import { useEffect } from 'react';
-import { fetchAdminActivity, fetchAdminStats } from '../services/api';
+import { fetchAdminActivity, fetchAdminStats, BACKEND_URL } from '../services/api';
 import { initAdminSocket } from '../services/socket';
+import type { AdminVisitor } from '../types';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(mockDashboardStats);
   const s = stats;
-  const [visitorsList, setVisitorsList] = useState(mockVisitors);
+  const [visitorsList, setVisitorsList] = useState<AdminVisitor[]>(mockVisitors);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 2500);
+  };
 
   useEffect(() => {
     // Fetch Real stats & activity
@@ -114,19 +128,33 @@ export default function Dashboard() {
 
       fetchAdminActivity().then((apiActivity) => {
         if (apiActivity && apiActivity.length > 0) {
-          const mapped = apiActivity.map((item: any) => ({
-            id: item.id,
-            name: item.visitorName,
-            photoUrl: item.photoUrl,
-            phone: item.visitorPhone,
-            purpose: (item.purpose || 'guest').toLowerCase() as any,
-            status: (item.status === 'REJECTED' ? 'denied' : item.status || 'pending').toLowerCase() as any,
-            flatNumber: item.flatNumber,
-            residentName: item.residentName,
-            gate: item.gateName || 'Main Gate',
-            guardName: 'Ramesh Singh',
-            requestedAt: new Date(item.requestedAt),
-          }));
+          const mapped: AdminVisitor[] = apiActivity.map((item: any) => {
+            const reqDate = item.requestedAt ? new Date(item.requestedAt) : new Date();
+            let status = (item.status === 'REJECTED' ? 'denied' : item.status || 'pending').toLowerCase();
+            let enteredDate: Date | undefined = undefined;
+            if (item.enteredAt) {
+              enteredDate = new Date(item.enteredAt);
+            } else if (['inside', 'completed', 'exited'].includes(status)) {
+              enteredDate = item.respondedAt ? new Date(item.respondedAt) : reqDate;
+            }
+
+            return {
+              id: item.id,
+              name: item.visitorName,
+              photo: item.photoUrl || item.photo,
+              photoUrl: item.photoUrl || item.photo,
+              phone: item.visitorPhone,
+              purpose: (item.purpose || 'guest').toLowerCase() as any,
+              status: status as any,
+              flatNumber: item.flatNumber,
+              residentName: item.residentName,
+              gate: item.gateName || 'Main Gate',
+              guardName: 'Ramesh Singh',
+              requestedAt: reqDate,
+              enteredAt: enteredDate,
+              exitedAt: item.exitedAt ? new Date(item.exitedAt) : undefined,
+            };
+          });
           setVisitorsList(mapped);
         }
       });
@@ -136,26 +164,34 @@ export default function Dashboard() {
     const interval = setInterval(loadRealData, 3000);
 
     // 2. Real-time Activity Listener via Socket.IO
-    const socket = initAdminSocket((activityEvent) => {
+    initAdminSocket((activityEvent) => {
       showToast(`⚡ Realtime Event: ${activityEvent.visitorName || 'Visitor'} is ${activityEvent.status || activityEvent.type}`);
 
       setVisitorsList((prev) => {
         const existingIdx = prev.findIndex((v) => v.id === activityEvent.requestId);
         const resolvedStatus = (activityEvent.status === 'REJECTED' ? 'denied' : activityEvent.status || 'pending').toLowerCase() as any;
+        const incomingPhoto = activityEvent.photoUrl || activityEvent.photo;
+        const isEntering = resolvedStatus === 'inside' || resolvedStatus === 'completed';
+
         if (existingIdx !== -1) {
           const updated = [...prev];
+          const prevItem = updated[existingIdx];
           updated[existingIdx] = {
-            ...updated[existingIdx],
+            ...prevItem,
             status: resolvedStatus,
-            photoUrl: activityEvent.photoUrl || updated[existingIdx].photoUrl,
+            photo: incomingPhoto || prevItem.photo,
+            photoUrl: incomingPhoto || prevItem.photoUrl,
+            enteredAt: isEntering ? (prevItem.enteredAt || new Date()) : prevItem.enteredAt,
+            exitedAt: resolvedStatus === 'exited' ? (prevItem.exitedAt || new Date()) : prevItem.exitedAt,
           };
           return updated;
         }
 
-        const newVisitor: any = {
+        const newVisitor: AdminVisitor = {
           id: activityEvent.requestId || `REQ-${Date.now()}`,
           name: activityEvent.visitorName || 'New Visitor',
-          photoUrl: activityEvent.photoUrl,
+          photo: incomingPhoto,
+          photoUrl: incomingPhoto,
           phone: activityEvent.visitorPhone,
           purpose: (activityEvent.purpose || 'guest').toLowerCase() as any,
           status: resolvedStatus,
@@ -164,6 +200,8 @@ export default function Dashboard() {
           gate: activityEvent.gateName || 'Main Gate',
           guardName: 'Ramesh Singh',
           requestedAt: new Date(),
+          enteredAt: isEntering ? new Date() : undefined,
+          exitedAt: resolvedStatus === 'exited' ? new Date() : undefined,
         };
         return [newVisitor, ...prev];
       });
@@ -173,11 +211,6 @@ export default function Dashboard() {
       clearInterval(interval);
     };
   }, []);
-
-  const showToast = (msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 2500);
-  };
 
   const handleApprove = (id: string) => {
     setVisitorsList(prev => prev.map(v => v.id === id ? { ...v, status: 'inside', enteredAt: new Date() } : v));
@@ -484,9 +517,9 @@ export default function Dashboard() {
                     <tr key={v.id} style={v.isFlagged ? { background: 'rgba(239,68,68,0.03)' } : {}}>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          {(v as any).photoUrl ? (
+                          {(v.photoUrl || v.photo) ? (
                             <img
-                              src={(v as any).photoUrl.startsWith('http') ? (v as any).photoUrl : `http://localhost:5000${(v as any).photoUrl}`}
+                              src={(v.photoUrl || v.photo)!.startsWith('http') ? (v.photoUrl || v.photo)! : `${BACKEND_URL}${(v.photoUrl || v.photo)}`}
                               alt={v.name}
                               style={{
                                 width: 34,
@@ -525,8 +558,13 @@ export default function Dashboard() {
                         </div>
                       </td>
                       <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{v.gate}</td>
-                      <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        {v.requestedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                      <td>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {fmt(v.requestedAt)}
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                          {v.enteredAt ? `In: ${fmt(v.enteredAt)}` : (['inside', 'completed'].includes(v.status) ? `In: ${fmt(v.requestedAt)}` : (v.status === 'pending' ? 'At gate' : ''))}
+                        </div>
                       </td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

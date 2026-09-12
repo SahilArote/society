@@ -121,13 +121,26 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
     if (!mounted) return;
     setState(() => _isSending = false);
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => WaitingApprovalScreen(
-          request: request,
-          visitorRepo: widget.visitorRepo,
-          guardRepo: widget.guardRepo,
+    // Return straight to main dashboard so guard can take other visitors without being stuck
+    Navigator.of(context).popUntil((route) => route.isFirst);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Approval request sent to Flat ${_selectedFlat} for ${request.visitor.name}. Status: Waiting for approval.',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
         ),
+        backgroundColor: AppColors.primary,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
       ),
     );
   }

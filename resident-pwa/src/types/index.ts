@@ -50,6 +50,7 @@ export type VisitorStatus =
   | 'approved'
   | 'rejected'
   | 'entered'
+  | 'inside'
   | 'exited'
   | 'expired'
   | 'cancelled';

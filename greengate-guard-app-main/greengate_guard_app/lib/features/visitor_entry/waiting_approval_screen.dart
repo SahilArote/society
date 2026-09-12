@@ -87,6 +87,31 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
     Navigator.of(context).pop();
   }
 
+  Future<void> _showCancelConfirmDialog() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel Visitor Request?'),
+        content: Text('Are you sure you want to cancel the gate approval request for ${widget.request.visitor.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('NO, KEEP WAITING'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('YES, CANCEL', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _cancelRequest();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final reqTimeFormatted = DateFormat('hh:mm a').format(widget.request.requestTime);
@@ -97,7 +122,7 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
         title: const Text('Waiting for Resident Approval'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, size: 26),
-          onPressed: _cancelRequest,
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: SafeArea(
@@ -285,13 +310,22 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
 
               const SizedBox(height: 24),
 
+              // Back to Main Screen / Register other visitors
+              CustomButton(
+                text: 'BACK TO MAIN SCREEN',
+                icon: Icons.dashboard_outlined,
+                variant: CustomButtonVariant.primary,
+                height: 54,
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              const SizedBox(height: 12),
               // Cancel Button
               CustomButton(
                 text: 'CANCEL REQUEST',
                 icon: Icons.close,
                 variant: CustomButtonVariant.outline,
-                height: 56,
-                onPressed: _cancelRequest,
+                height: 50,
+                onPressed: _showCancelConfirmDialog,
               ),
 
               // Developer / Test Simulation Section (Resident App Decision Simulation)

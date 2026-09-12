@@ -86,7 +86,7 @@ export function emitVisitorDecision(data: {
   visitor: any;
   residentId: string;
   societyId: string;
-  status: 'APPROVED' | 'REJECTED';
+  status: 'APPROVED' | 'REJECTED' | 'EXITED';
   rejectionReason?: string;
 }) {
   if (!io) return;
@@ -95,7 +95,7 @@ export function emitVisitorDecision(data: {
   io.to(`guard:${data.societyId}`).emit(`visitor:${data.status.toLowerCase()}`, {
     requestId: data.request.id,
     status: data.status,
-    visitorName: data.visitor.name,
+    visitorName: data.visitor?.name,
     flatNumber: data.request.flatNumber,
     rejectionReason: data.rejectionReason,
   });
@@ -114,11 +114,11 @@ export function emitVisitorDecision(data: {
 
   // 3. Emit to Admin Dashboard
   io.to(`admin:${data.societyId}`).emit('admin:visitor_activity', {
-    type: data.status === 'APPROVED' ? 'APPROVED' : 'REJECTED',
+    type: data.status,
     requestId: data.request.id,
-    visitorName: data.visitor.name,
-    photoUrl: data.visitor.photoUrl,
-    photo: data.visitor.photoUrl,
+    visitorName: data.visitor?.name,
+    photoUrl: data.visitor?.photoUrl,
+    photo: data.visitor?.photoUrl,
     status: data.status,
     rejectionReason: data.rejectionReason,
     timestamp: new Date().toISOString(),

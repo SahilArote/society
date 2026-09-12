@@ -82,12 +82,10 @@ export default function Home() {
     const interval = setInterval(loadRequests, 3000);
 
     // 2. Real-time Socket Connection
-    const socket = initResidentSocket(
+    initResidentSocket(
       residentId,
-      (newVisitorData) => {
+      () => {
         loadRequests();
-        const v = newVisitorData.visitor || {};
-        showToast(`🔔 New Visitor at Gate: ${v.name || 'Visitor'}`, 'info');
       },
       () => {
         loadRequests();

@@ -12,8 +12,8 @@ import { PhotoViewerModal } from '../components/ui/PhotoViewerModal';
 import { VisitorTimeline } from '../components/domain';
 import { formatDate, formatTime } from '../lib/utils';
 import { useToast } from '../hooks';
-import { fetchVisitorRequestById, approveVisitorRequest, rejectVisitorRequest } from '../services/api';
-import type { Visitor } from '../types';
+import { fetchVisitorRequestById, approveVisitorRequest, rejectVisitorRequest, resolvePhotoUrl } from '../services/api';
+import type { Visitor, VisitorStatus } from '../types';
 
 export default function VisitorDetail() {
   const { id } = useParams<{ id: string }>();
@@ -21,7 +21,7 @@ export default function VisitorDetail() {
 
   const [visitor, setVisitor] = useState<Visitor | null>(null);
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState<'pending' | 'approved' | 'rejected' | 'inside' | 'exited'>('pending');
+  const [status, setStatus] = useState<VisitorStatus>('pending');
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
 
@@ -98,9 +98,7 @@ export default function VisitorDetail() {
     );
   }
 
-  const photoSrc = visitor.photoUrl
-    ? (visitor.photoUrl.startsWith('http') ? visitor.photoUrl : `http://localhost:5000${visitor.photoUrl}`)
-    : undefined;
+  const photoSrc = resolvePhotoUrl(visitor.photoUrl);
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-0 select-none pb-24">

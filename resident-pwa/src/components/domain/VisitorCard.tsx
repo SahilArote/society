@@ -6,6 +6,7 @@ import { Badge } from '../ui/Badge';
 import { cn, formatRelativeTime } from '../../lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
+import { resolvePhotoUrl } from '../../services/api';
 
 export interface VisitorCardProps {
   visitor: Visitor;
@@ -19,16 +20,7 @@ export default function VisitorCard({ visitor, className }: VisitorCardProps) {
     visitor.requestedAt instanceof Date ? visitor.requestedAt : new Date(visitor.requestedAt)
   );
 
-  const backendOrigin = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-  const photoSrc = (visitor as any).photoUrl
-    ? (visitor as any).photoUrl.startsWith('http')
-      ? (visitor as any).photoUrl
-      : `${backendOrigin}${(visitor as any).photoUrl}`
-    : visitor.photo
-    ? visitor.photo.startsWith('http')
-      ? visitor.photo
-      : `${backendOrigin}${visitor.photo}`
-    : undefined;
+  const photoSrc = resolvePhotoUrl((visitor as any).photoUrl || visitor.photo);
 
   return (
     <Card 

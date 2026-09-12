@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { PhotoViewerModal } from '../ui/PhotoViewerModal';
 import { formatTime } from '../../lib/utils';
 import { mockResident } from '../../data/mockResident';
+import { resolvePhotoUrl } from '../../services/api';
 import type { Visitor } from '../../types';
 
 interface VisitorApprovalSheetProps {
@@ -95,16 +96,7 @@ export function VisitorApprovalSheet({
               {/* Visitor Identity Card */}
               <div className="flex flex-col items-center text-center p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-5">
                 {(() => {
-                  const backendOrigin = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-                  const photoSrc = (visitor as any).photoUrl
-                    ? (visitor as any).photoUrl.startsWith('http')
-                      ? (visitor as any).photoUrl
-                      : `${backendOrigin}${(visitor as any).photoUrl}`
-                    : visitor.photo
-                    ? visitor.photo.startsWith('http')
-                      ? visitor.photo
-                      : `${backendOrigin}${visitor.photo}`
-                    : undefined;
+                  const photoSrc = resolvePhotoUrl((visitor as any).photoUrl || visitor.photo);
 
                   return (
                     <>
@@ -238,17 +230,7 @@ export function VisitorApprovalSheet({
       <PhotoViewerModal
         isOpen={showPhotoModal}
         onClose={() => setShowPhotoModal(false)}
-        imageUrl={
-          (visitor as any).photoUrl
-            ? (visitor as any).photoUrl.startsWith('http')
-              ? (visitor as any).photoUrl
-              : `http://localhost:5000${(visitor as any).photoUrl}`
-            : visitor.photo
-            ? visitor.photo.startsWith('http')
-              ? visitor.photo
-              : `http://localhost:5000${visitor.photo}`
-            : undefined
-        }
+        imageUrl={resolvePhotoUrl((visitor as any).photoUrl || visitor.photo)}
         name={visitor.name}
         subtitle={`${visitor.purpose?.toUpperCase()} • Flat ${mockResident.flat.number} • ${visitor.gate || 'Main Gate'}`}
         tag="Security Gate Photo"
