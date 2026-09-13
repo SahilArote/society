@@ -198,58 +198,70 @@ router.post(
       });
 
       // 6. Create Resident Notification in MySQL
-      const gate = await findGateById(gateId);
-      const gateName = gate?.name || 'Main Gate';
-      const guardName = req.user!.name || 'Gate Security';
-
-      await createNotification({
-        id: `notif_${uuidv4().slice(0, 8)}`,
-        recipientId: resident.id,
-        type: 'visitor',
-        title: 'Visitor Approval Required',
-        message: `${name} is waiting at ${gateName} for Flat ${flat.flatNumber}`,
-        relatedEntityId: requestId,
-      });
+      let gateName = 'Main Gate';
+      let guardName = req.user!.name || 'Gate Security';
+      try {
+        const gate = await findGateById(gateId);
+        if (gate) gateName = gate.name;
+        await createNotification({
+          id: `notif_${uuidv4().slice(0, 8)}`,
+          recipientId: resident.id,
+          type: 'visitor',
+          title: 'Visitor Approval Required',
+          message: `${name} is waiting at ${gateName} for Flat ${flat.flatNumber}`,
+          relatedEntityId: requestId,
+        });
+      } catch (notifErr) {
+        console.warn('[Backend Warning] Could not create resident notification row:', notifErr);
+      }
 
       // 7. Create Audit Log in MySQL
-      await createAuditLog({
-        id: `audit_${uuidv4().slice(0, 8)}`,
-        actorId: guardId,
-        actorRole: 'GUARD',
-        societyId,
-        requestId,
-        action: 'GUARD_CREATED_REQUEST',
-        entityType: 'VISITOR_REQUEST',
-        entityId: requestId,
-        metadata: JSON.stringify({
-          visitorName: name,
-          flatNumber: flat.flatNumber,
-          gateName,
-          photoStorage: photoStorageResult.storageType,
-        }),
-        ipAddress: req.ip,
-      });
+      try {
+        await createAuditLog({
+          id: `audit_${uuidv4().slice(0, 8)}`,
+          actorId: guardId,
+          actorRole: 'GUARD',
+          societyId,
+          requestId,
+          action: 'GUARD_CREATED_REQUEST',
+          entityType: 'VISITOR_REQUEST',
+          entityId: requestId,
+          metadata: JSON.stringify({
+            visitorName: name,
+            flatNumber: flat.flatNumber,
+            gateName,
+            photoStorage: photoStorageResult.storageType,
+          }),
+          ipAddress: req.ip,
+        });
+      } catch (auditErr) {
+        console.warn('[Backend Warning] Could not create audit log entry:', auditErr);
+      }
 
       // 8. Real-time Push via Authenticated Socket.IO
-      emitVisitorCreated({
-        requestId,
-        visitor: {
-          id: visitorRecord.id,
-          name: visitorRecord.name,
-          mobile: visitorRecord.mobile,
-          purpose: visitorRecord.purpose,
-          visitorType: visitorRecord.visitorType,
-          photoUrl: `/api/visitor-requests/${requestId}/photo`,
-          vehicleNumber: visitorRecord.vehicleNumber,
-          deliveryCompany: visitorRecord.deliveryCompany,
-        },
-        flatNumber: flat.flatNumber,
-        gateName,
-        guardName,
-        residentId: resident.id,
-        societyId,
-        requestedAt: requestRecord.requestedAt,
-      });
+      try {
+        emitVisitorCreated({
+          requestId,
+          visitor: {
+            id: visitorRecord.id,
+            name: visitorRecord.name,
+            mobile: visitorRecord.mobile,
+            purpose: visitorRecord.purpose,
+            visitorType: visitorRecord.visitorType,
+            photoUrl: `/api/visitor-requests/${requestId}/photo`,
+            vehicleNumber: visitorRecord.vehicleNumber,
+            deliveryCompany: visitorRecord.deliveryCompany,
+          },
+          flatNumber: flat.flatNumber,
+          gateName,
+          guardName,
+          residentId: resident.id,
+          societyId,
+          requestedAt: requestRecord.requestedAt,
+        });
+      } catch (socketErr) {
+        console.warn('[Backend Warning] Socket emit error:', socketErr);
+      }
 
       return res.status(201).json({
         success: true,
