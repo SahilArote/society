@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Phone, Heart } from 'lucide-react';
 import { AppHeader } from '../components/layout/AppHeader';
@@ -5,23 +6,24 @@ import { PageContainer } from '../components/layout/PageContainer';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
-import { mockFamily } from '../data/mockFamily';
+import type { FamilyMember } from '../types';
 
 export default function Family() {
   const navigate = useNavigate();
+  const [familyMembers] = useState<FamilyMember[]>([]);
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-0 select-none">
       <AppHeader
         title="Family Members"
-        subtitle={`${mockFamily.length} registered residents`}
+        subtitle={`${familyMembers.length} registered members`}
         showBack
       />
 
       <PageContainer className="flex-1 flex flex-col pt-3 pb-24 space-y-3">
-        {mockFamily.length > 0 ? (
+        {familyMembers.length > 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200/60 shadow-2xs divide-y divide-slate-100 overflow-hidden">
-            {mockFamily.map((member) => (
+            {familyMembers.map((member) => (
               <div
                 key={member.id}
                 className="flex items-center justify-between p-3.5 hover:bg-slate-50 transition-colors"

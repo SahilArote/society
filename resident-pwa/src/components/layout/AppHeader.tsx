@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Bell } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
 import { cn } from '../../lib/utils';
-import { mockResident } from '../../data/mockResident';
-import { getUnreadCount } from '../../data/mockNotifications';
 import { useGreeting } from '../../hooks';
+import { useAuth } from '../../context/AuthContext';
 
 interface AppHeaderProps {
   isHome?: boolean;
@@ -30,7 +29,7 @@ export function AppHeader({
 }: AppHeaderProps) {
   const navigate = useNavigate();
   const greeting = useGreeting();
-  const unreadCount = getUnreadCount();
+  const { user } = useAuth();
 
   const handleBack = () => {
     if (onBack) {
@@ -39,6 +38,10 @@ export function AppHeader({
       navigate(-1);
     }
   };
+
+  const displayName = user?.name || 'Resident';
+  const displayFlat = user?.flatNumber ? `Flat ${user.flatNumber}` : 'Unit';
+  const displaySociety = user?.societyName || 'Green Gate Residency';
 
   return (
     <header
@@ -57,7 +60,7 @@ export function AppHeader({
               className="flex items-center gap-3.5 cursor-pointer group tap-target -ml-1 py-1"
             >
               <Avatar
-                name={mockResident.name}
+                name={displayName}
                 size="md"
                 className="ring-2 ring-indigo-500/20 shadow-sm transition-transform group-active:scale-95 flex-shrink-0"
               />
@@ -66,10 +69,10 @@ export function AppHeader({
                   {greeting}
                 </span>
                 <p className="text-sm font-extrabold text-slate-900 leading-snug tracking-tight">
-                  {mockResident.name}
+                  {displayName}
                 </p>
                 <p className="text-[11px] text-slate-500 font-medium leading-tight mt-0.5">
-                  {mockResident.society.name.split(' ')[0]} Residency · <span className="font-semibold text-slate-700">Flat {mockResident.flat.number}</span>
+                  {displaySociety.split(' ')[0]} Residency · <span className="font-semibold text-slate-700">{displayFlat}</span>
                 </p>
               </div>
             </div>
@@ -81,9 +84,6 @@ export function AppHeader({
               aria-label="View notifications"
             >
               <Bell className="w-4 h-4 text-slate-700" />
-              {unreadCount > 0 && (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white" />
-              )}
             </button>
           </div>
         ) : (

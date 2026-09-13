@@ -1,62 +1,43 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { mockResident } from '../data/mockResident';
 import { BRAND_CONFIG } from '../config/branding';
-import { loginResidentDirect } from '../services/api';
-import { authSession } from '../services/authSession';
+import { sendOtp, ApiError } from '../services/api';
 
 export default function Login() {
   const navigate = useNavigate();
-  const [phone, setPhone] = useState('98765 43210');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanDigits = phone.replace(/\D/g, '') || '9876543210';
+    const cleanDigits = phone.replace(/\D/g, '');
+
+    if (cleanDigits.length < 10) {
+      setError('Please enter a valid 10-digit mobile number');
+      return;
+    }
 
     setLoading(true);
     setError('');
+
     try {
-      const res = await loginResidentDirect(cleanDigits);
-      const user = res.user;
-      const flat = res.flat;
-      const society = res.society;
-      const token = res.token;
-
-      authSession.setSession(token, {
-        id: user?.id || 'res_sahil',
-        name: user?.name || (cleanDigits === '9876543210' ? 'Sahil Arote' : `Resident (${cleanDigits})`),
-        phone: cleanDigits,
-        mobile: cleanDigits,
-        flat: flat?.flatNumber || user?.flatNumber || 'A-402',
-        flatNumber: flat?.flatNumber || user?.flatNumber || 'A-402',
-        wing: flat?.buildingWing || user?.wing || 'Tower A',
-        societyId: society?.id || user?.societyId || 'soc_greengate',
-      });
-
-      navigate('/home', { replace: true });
+      await sendOtp(cleanDigits);
+      navigate('/otp-verify', { state: { mobile: cleanDigits } });
     } catch (err: any) {
-      // Guaranteed fallback for any phone number
-      authSession.setSession('bypassed_token_' + Date.now(), {
-        id: 'res_sahil',
-        name: cleanDigits === '9876543210' ? 'Sahil Arote' : `Resident (${cleanDigits})`,
-        phone: cleanDigits,
-        mobile: cleanDigits,
-        flat: 'A-402',
-        flatNumber: 'A-402',
-        wing: 'Tower A',
-        societyId: 'soc_greengate',
-      });
-      navigate('/home', { replace: true });
+      console.error('Login error:', err);
+      if (err instanceof ApiError && (err.status === 404 || err.code === 'USER_NOT_FOUND')) {
+        setError('Account not found. This mobile number is not registered with GreenGate. Please contact your society administrator.');
+      } else {
+        setError(err.message || 'Account not found. Please verify your mobile number with your society administrator.');
+      }
     } finally {
       setLoading(false);
     }
   };
-
 
   return (
     <div className="min-h-screen bg-white flex flex-col justify-between p-6">
@@ -69,7 +50,7 @@ export default function Login() {
           <span className="font-bold text-sm tracking-tight text-slate-900">{BRAND_CONFIG.name}</span>
         </div>
         <span className="text-xs text-slate-500 font-medium bg-slate-100 px-2.5 py-1 rounded-full">
-          {mockResident.society.name.split(' ')[0]}
+          Resident Portal
         </span>
       </div>
 
@@ -80,27 +61,33 @@ export default function Login() {
             Welcome back 👋
           </h1>
           <p className="text-sm text-slate-500 mt-2 leading-relaxed">
-            Enter your registered mobile number associated with flat{' '}
-            <span className="font-semibold text-slate-700">{mockResident.flat.number}</span>.
+            Enter your registered mobile number associated with your society flat.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <Input
-              label="Mobile Number"
+              label="Registered Mobile Number"
               type="tel"
               value={phone}
               onChange={(e) => {
                 setPhone(e.target.value);
                 setError('');
               }}
-              placeholder="98765 43210"
+              placeholder="Enter 10-digit mobile number"
               error={error}
               prefix={<span className="font-semibold text-slate-700 text-sm mr-1">+91</span>}
               autoFocus
             />
           </div>
+
+          {error && (
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-rose-700 text-xs font-medium leading-relaxed">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
 
           <Button
             type="submit"
@@ -110,7 +97,7 @@ export default function Login() {
             loading={loading}
             icon={<ArrowRight className="w-5 h-5" />}
           >
-            Continue
+            Send Verification Code
           </Button>
         </form>
       </div>

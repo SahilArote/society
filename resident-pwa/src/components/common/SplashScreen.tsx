@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { mockResident } from '../../data/mockResident';
 import { BRAND_CONFIG } from '../../config/branding';
 
 interface SplashScreenProps {
@@ -73,7 +72,7 @@ export function SplashScreen({ onComplete, minDurationMs = 350 }: SplashScreenPr
             className="pb-safe text-center"
           >
             <p className="text-xs font-medium text-indigo-200">
-              {mockResident.society.name}
+              GreenGate Society Platform
             </p>
             <p className="text-[10px] text-indigo-300/70 mt-0.5">
               Secure Residential Gate Network

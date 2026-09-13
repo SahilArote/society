@@ -266,7 +266,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       decoration: InputDecoration(
                         prefixIcon: const Icon(Icons.badge, size: 24, color: AppColors.primary),
-                        hintText: 'GRD-8821 or Mobile Number',
+                        hintText: 'guard_ramesh or 9800011122',
                         suffixIcon: _idController.text.isNotEmpty
                             ? IconButton(
                                 icon: const Icon(Icons.clear, size: 22, color: AppColors.textSecondary),
@@ -459,7 +459,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 16),
               const Text(
-                'Default PIN: 1234 • Gate 01',
+                'Guard: guard_ramesh • PIN: 1234 • Main Gate',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,

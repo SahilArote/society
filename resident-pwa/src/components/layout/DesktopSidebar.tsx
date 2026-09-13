@@ -1,14 +1,14 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Home, Users, Bell, User, Heart, Car, Building2, Plus, LogOut } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { getUnreadCount } from '../../data/mockNotifications';
-import { mockResident } from '../../data/mockResident';
 import { BRAND_CONFIG } from '../../config/branding';
 import { Avatar } from '../ui/Avatar';
+import { useAuth } from '../../context/AuthContext';
 
 export function DesktopSidebar() {
   const navigate = useNavigate();
-  const unreadCount = getUnreadCount();
+  const { user, logoutSession } = useAuth();
+  const unreadCount = 0;
 
   const mainNav = [
     { label: 'Home Dashboard', path: '/home', icon: Home },
@@ -23,6 +23,10 @@ export function DesktopSidebar() {
     { label: 'Flat Details', path: '/flat', icon: Building2 },
   ];
 
+  const userName = user?.name || 'Resident';
+  const flatNumber = user?.flatNumber || '';
+  const societyName = user?.societyName || 'GreenGate Society';
+
   return (
     <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-slate-200 min-h-screen p-5 flex-shrink-0 sticky top-0 h-screen overflow-y-auto">
       {/* Brand Header */}
@@ -32,7 +36,7 @@ export function DesktopSidebar() {
         </div>
         <div>
           <h2 className="font-bold text-slate-900 leading-tight">{BRAND_CONFIG.name}</h2>
-          <p className="text-xs text-slate-500 truncate max-w-[140px]">{mockResident.society.name}</p>
+          <p className="text-xs text-slate-500 truncate max-w-[140px]">{societyName}</p>
         </div>
       </div>
 
@@ -112,15 +116,15 @@ export function DesktopSidebar() {
           onClick={() => navigate('/profile')}
           className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
         >
-          <Avatar name={mockResident.name} size="sm" />
+          <Avatar name={userName} size="sm" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-800 truncate">{mockResident.name}</p>
-            <p className="text-xs text-slate-500 truncate">Flat {mockResident.flat.number}</p>
+            <p className="text-sm font-semibold text-slate-800 truncate">{userName}</p>
+            <p className="text-xs text-slate-500 truncate">{flatNumber ? `Flat ${flatNumber}` : 'Resident'}</p>
           </div>
           <button
             onClick={(e) => {
               e.stopPropagation();
-              navigate('/login');
+              logoutSession();
             }}
             title="Log Out"
             className="text-slate-400 hover:text-rose-500 p-1.5 rounded-lg hover:bg-rose-50 transition-colors"

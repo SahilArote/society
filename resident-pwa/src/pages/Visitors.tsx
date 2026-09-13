@@ -1,12 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, UsersRound, X } from 'lucide-react';
+import { Search, UsersRound, X, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppHeader } from '../components/layout/AppHeader';
 import { PageContainer } from '../components/layout/PageContainer';
 import { VisitorCard, FloatingActionButton } from '../components/domain';
 import { EmptyState } from '../components/ui/EmptyState';
-import { mockVisitors } from '../data/mockVisitors';
+import { fetchVisitorRequests, getSecurePhotoUrl } from '../services/api';
 import type { Visitor } from '../types';
 
 type TabType = 'upcoming' | 'recent' | 'all';
@@ -16,15 +16,56 @@ export default function Visitors() {
   const [activeTab, setActiveTab] = useState<TabType>('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [visitors, setVisitors] = useState<Visitor[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadVisitors = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const apiData = await fetchVisitorRequests();
+      if (apiData && Array.isArray(apiData)) {
+        const mapped: Visitor[] = apiData.map((item: any) => {
+          const rawPhoto = item.visitor?.photoUrl || item.visitor?.photo || item.photoUrl || item.photo;
+          const photoUrl = getSecurePhotoUrl(rawPhoto);
+          return {
+            id: item.id,
+            name: item.visitor?.name || item.name || 'Visitor',
+            phone: item.visitor?.mobile || item.phone,
+            photoUrl: photoUrl,
+            photo: photoUrl,
+            purpose: (item.entryType || item.visitor?.purpose || 'personal').toLowerCase() as any,
+            status: (item.status || 'pending').toLowerCase() as any,
+            gate: item.gate || 'Main Gate',
+            flatNumber: item.flatNumber || '',
+            requestedAt: new Date(item.requestedAt || Date.now()),
+            isPreApproved: Boolean(item.isPreApproved),
+          };
+        });
+        setVisitors(mapped);
+      } else {
+        setVisitors([]);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load visitor records');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadVisitors();
+  }, []);
 
   const filteredVisitors = useMemo(() => {
-    return mockVisitors.filter((visitor: Visitor) => {
+    return visitors.filter((visitor: Visitor) => {
       // Tab matching
       if (activeTab === 'upcoming') {
-        const isUpcoming = (visitor.isPreApproved && visitor.status === 'approved') || visitor.status === 'pending';
+        const isUpcoming = visitor.status === 'pending' || visitor.status === 'approved' || visitor.isPreApproved;
         if (!isUpcoming) return false;
       } else if (activeTab === 'recent') {
-        const isRecent = visitor.status === 'entered' || visitor.status === 'exited';
+        const isRecent = visitor.status === 'entered' || visitor.status === 'exited' || visitor.status === 'rejected';
         if (!isRecent) return false;
       }
 
@@ -40,7 +81,7 @@ export default function Visitors() {
 
       return true;
     });
-  }, [activeTab, searchQuery]);
+  }, [visitors, activeTab, searchQuery]);
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 relative min-h-0">
@@ -113,8 +154,25 @@ export default function Visitors() {
           })}
         </div>
 
-        {/* Visitor Cards List */}
-        {filteredVisitors.length > 0 ? (
+        {/* Error State with Retry */}
+        {error ? (
+          <div className="bg-rose-50 border border-rose-200/80 rounded-2xl p-4 text-center space-y-3">
+            <p className="text-xs font-semibold text-rose-800">{error}</p>
+            <button
+              onClick={loadVisitors}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry</span>
+            </button>
+          </div>
+        ) : isLoading ? (
+          <div className="space-y-2 pt-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 bg-white rounded-2xl border border-slate-200/60 animate-pulse" />
+            ))}
+          </div>
+        ) : filteredVisitors.length > 0 ? (
           <div className="space-y-2 pt-0.5">
             {filteredVisitors.map((visitor) => (
               <VisitorCard key={visitor.id} visitor={visitor} />
@@ -137,7 +195,7 @@ export default function Visitors() {
         )}
       </PageContainer>
 
-      <FloatingActionButton />
+      <FloatingActionButton onClick={() => navigate('/invite-visitor')} />
     </div>
   );
 }

@@ -9,6 +9,7 @@ class StorageService {
   static const String _keyGuardPin = 'guard_pin';
   static const String _keyVisitorRequests = 'visitor_requests';
   static const String _keyServerUrl = 'server_base_url';
+  static const String _keyAuthToken = 'guard_auth_token';
 
   final SharedPreferences _prefs;
 
@@ -17,6 +18,14 @@ class StorageService {
   static Future<StorageService> init() async {
     final prefs = await SharedPreferences.getInstance();
     return StorageService(prefs);
+  }
+
+  Future<void> saveToken(String token) async {
+    await _prefs.setString(_keyAuthToken, token);
+  }
+
+  String? getToken() {
+    return _prefs.getString(_keyAuthToken);
   }
 
   String getServerUrl() {

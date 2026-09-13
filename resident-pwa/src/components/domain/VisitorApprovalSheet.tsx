@@ -4,9 +4,8 @@ import { ShieldCheck, X, CheckCircle2, XCircle, MapPin, Building, Clock } from '
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 import { formatTime } from '../../lib/utils';
-import { mockResident } from '../../data/mockResident';
 import { getSecurePhotoUrl } from '../../services/api';
-import { authSession } from '../../services/authSession';
+import { getStoredUser } from '../../services/authSession';
 import type { Visitor } from '../../types';
 
 interface VisitorApprovalSheetProps {
@@ -44,8 +43,8 @@ export function VisitorApprovalSheet({
   };
 
   const photoSrc = getSecurePhotoUrl((visitor as any).photoUrl || visitor.photo);
-  const resident = authSession.getUser();
-  const displayFlatNumber = visitor.flatNumber || resident?.flatNumber || mockResident.flat.number;
+  const resident = getStoredUser();
+  const displayFlatNumber = visitor.flatNumber || resident?.flatNumber || 'Flat';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-auto">

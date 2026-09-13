@@ -1,26 +1,28 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Car } from 'lucide-react';
 import { AppHeader } from '../components/layout/AppHeader';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
-import { mockVehicles } from '../data/mockVehicles';
+import type { Vehicle } from '../types';
 
 export default function Vehicles() {
   const navigate = useNavigate();
+  const [vehicles] = useState<Vehicle[]>([]);
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-0 select-none">
       <AppHeader
         title="My Vehicles"
-        subtitle={`${mockVehicles.length} registered vehicles`}
+        subtitle={`${vehicles.length} registered vehicles`}
         showBack
       />
 
       <PageContainer className="flex-1 flex flex-col pt-3 pb-24 space-y-3">
-        {mockVehicles.length > 0 ? (
+        {vehicles.length > 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200/60 shadow-2xs divide-y divide-slate-100 overflow-hidden">
-            {mockVehicles.map((vehicle) => (
+            {vehicles.map((vehicle) => (
               <div
                 key={vehicle.id}
                 className="flex items-center justify-between p-3.5 hover:bg-slate-50 transition-colors"

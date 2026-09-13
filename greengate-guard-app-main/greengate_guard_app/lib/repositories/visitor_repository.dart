@@ -15,6 +15,7 @@ class VisitorRepository extends ChangeNotifier {
 
   VisitorRepository(this._storage) {
     _loadRequests();
+    fetchDirectoryFromBackend();
     _startStatusPolling();
   }
 
@@ -80,192 +81,58 @@ class VisitorRepository extends ChangeNotifier {
     super.dispose();
   }
 
-  // Directory Data
-  final List<String> wings = ['Tower A', 'Tower B', 'Tower C', 'Tower D'];
+  // Directory Data - Strictly Dynamic from Database
+  List<String> wings = [];
+  Map<String, List<Flat>> wingFlats = {};
 
-  final Map<String, List<Flat>> wingFlats = {
-    'Tower A': [
-      Flat(
-        flatNumber: 'A-101',
-        buildingWing: 'Tower A',
-        floor: '1st Floor',
-        residents: [
-          Resident(
-            id: 'res_a101',
-            name: 'Priya Sharma',
-            phoneNumber: '+91 98101 22334',
-            flatNumber: 'A-101',
-            buildingWing: 'Tower A',
-          ),
-        ],
-      ),
-      Flat(
-        flatNumber: 'A-104',
-        buildingWing: 'Tower A',
-        floor: '1st Floor',
-        residents: [
-          Resident(
-            id: 'res_a104',
-            name: 'Rajesh Rao',
-            phoneNumber: '+91 98221 44556',
-            flatNumber: 'A-104',
-            buildingWing: 'Tower A',
-          ),
-        ],
-      ),
-      Flat(
-        flatNumber: 'A-201',
-        buildingWing: 'Tower A',
-        floor: '2nd Floor',
-        residents: [
-          Resident(
-            id: 'res_a201',
-            name: 'Kavita Patel',
-            phoneNumber: '+91 98332 55667',
-            flatNumber: 'A-201',
-            buildingWing: 'Tower A',
-          ),
-        ],
-      ),
-      Flat(
-        flatNumber: 'A-402',
-        buildingWing: 'Tower A',
-        floor: '4th Floor',
-        residents: [
-          Resident(
-            id: 'res_sahil',
-            name: 'Sahil Arote',
-            phoneNumber: '+91 98765 43210',
-            flatNumber: 'A-402',
-            buildingWing: 'Tower A',
-          ),
-        ],
-      ),
-    ],
-    'Tower B': [
-      Flat(
-        flatNumber: 'B-101',
-        buildingWing: 'Tower B',
-        floor: '1st Floor',
-        residents: [
-          Resident(
-            id: 'res_b101',
-            name: 'Anand Mehta',
-            phoneNumber: '+91 98443 66778',
-            flatNumber: 'B-101',
-            buildingWing: 'Tower B',
-          ),
-        ],
-      ),
-      Flat(
-        flatNumber: 'B-202',
-        buildingWing: 'Tower B',
-        floor: '2nd Floor',
-        residents: [
-          Resident(
-            id: 'res_b202',
-            name: 'Sunita Joshi',
-            phoneNumber: '+91 98554 77889',
-            flatNumber: 'B-202',
-            buildingWing: 'Tower B',
-          ),
-        ],
-      ),
-      Flat(
-        flatNumber: 'B-402',
-        buildingWing: 'Tower B',
-        floor: '4th Floor',
-        residents: [
-          Resident(
-            id: 'res_b402',
-            name: 'Dr. Amit Sharma',
-            phoneNumber: '+91 98200 44821',
-            flatNumber: 'B-402',
-            buildingWing: 'Tower B',
-          ),
-        ],
-      ),
-    ],
-    'Tower C': [
-      Flat(
-        flatNumber: 'C-102',
-        buildingWing: 'Tower C',
-        floor: '1st Floor',
-        residents: [
-          Resident(
-            id: 'res_c102',
-            name: 'Mrs. Neha Gupta',
-            phoneNumber: '+91 98110 33921',
-            flatNumber: 'C-102',
-            buildingWing: 'Tower C',
-          ),
-        ],
-      ),
-      Flat(
-        flatNumber: 'C-201',
-        buildingWing: 'Tower C',
-        floor: '2nd Floor',
-        residents: [
-          Resident(
-            id: 'res_c201',
-            name: 'Vikas Malhotra',
-            phoneNumber: '+91 98776 88990',
-            flatNumber: 'C-201',
-            buildingWing: 'Tower C',
-          ),
-        ],
-      ),
-    ],
-    'Tower D': [
-      Flat(
-        flatNumber: 'D-101',
-        buildingWing: 'Tower D',
-        floor: '1st Floor',
-        residents: [
-          Resident(
-            id: 'res_d101',
-            name: 'Rohan Verma',
-            phoneNumber: '+91 98887 99001',
-            flatNumber: 'D-101',
-            buildingWing: 'Tower D',
-          ),
-        ],
-      ),
-    ],
-  };
+  Future<void> fetchDirectoryFromBackend() async {
+    try {
+      final data = await ApiService.fetchDirectory();
+      if (data != null && data['wings'] != null && data['wingFlats'] != null) {
+        final List<String> loadedWings = List<String>.from(data['wings']);
+        final Map<String, dynamic> rawMap = Map<String, dynamic>.from(data['wingFlats']);
+        final Map<String, List<Flat>> loadedWingFlats = {};
+
+        rawMap.forEach((wingName, flatList) {
+          if (flatList is List) {
+            loadedWingFlats[wingName] = flatList.map((f) {
+              final residentsList = (f['residents'] as List? ?? []).map((r) => Resident(
+                id: r['id'] ?? '',
+                name: r['name'] ?? '',
+                phoneNumber: r['phoneNumber'] ?? '',
+                flatNumber: r['flatNumber'] ?? '',
+                buildingWing: r['buildingWing'] ?? '',
+              )).toList();
+
+              return Flat(
+                flatNumber: f['flatNumber'] ?? '',
+                buildingWing: f['buildingWing'] ?? wingName,
+                floor: f['floor'] ?? '',
+                residents: residentsList,
+              );
+            }).toList();
+          }
+        });
+
+        if (loadedWings.isNotEmpty) {
+          wings = loadedWings;
+          wingFlats = loadedWingFlats;
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      print('Notice: Could not refresh dynamic directory from API: $e');
+    }
+  }
 
   void _loadRequests() {
     final stored = _storage.getRequests();
     if (stored != null && stored.isNotEmpty) {
-      _requests = stored;
+      // Filter out any previous mock seed requests
+      _requests = stored.where((r) => !r.id.startsWith('REQ-1001') && r.visitor.name != 'Rahul Verma').toList();
     } else {
-      _requests = _getSeedRequests();
-      _storage.saveRequests(_requests);
+      _requests = [];
     }
-  }
-
-  List<VisitorRequest> _getSeedRequests() {
-    final now = DateTime.now();
-    return [
-      VisitorRequest(
-        id: 'REQ-1001',
-        visitor: const Visitor(
-          name: 'Rahul Verma',
-          phoneNumber: '+91 98765 43210',
-          type: VisitorType.guest,
-          vehicleNumber: 'MH02-CL-4412',
-        ),
-        flatNumber: 'B-402',
-        buildingWing: 'Tower B',
-        residentName: 'Dr. Amit Sharma',
-        residentPhone: '+91 98200 44821',
-        purpose: 'Personal Visit',
-        status: VisitorStatus.completed,
-        requestTime: now.subtract(const Duration(minutes: 25)),
-        decisionTime: now.subtract(const Duration(minutes: 23)),
-        decisionBy: 'Dr. Amit Sharma',
-      ),
-    ];
   }
 
   // Getters
@@ -400,9 +267,9 @@ class VisitorRepository extends ChangeNotifier {
     }
   }
 
-  // Reset to seed requests
+  // Reset requests
   Future<void> resetToSeedData() async {
-    _requests = _getSeedRequests();
+    _requests = [];
     await _storage.saveRequests(_requests);
     notifyListeners();
   }

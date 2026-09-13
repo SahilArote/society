@@ -28,6 +28,7 @@ class ApiService {
         Uri.parse('$baseUrl/auth/guard/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
+          'guardIdOrMobile': guardIdOrPhone.trim(),
           'guardId': guardIdOrPhone.trim(),
           'mobile': guardIdOrPhone.trim(),
           'pin': pin.trim(),
@@ -115,11 +116,19 @@ class ApiService {
         return json['data'];
       } else {
         print('API Error [${response.statusCode}]: ${response.body}');
+        try {
+          final json = jsonDecode(response.body);
+          if (json['error'] != null && json['error']['message'] != null) {
+            throw Exception(json['error']['message']);
+          }
+        } on Exception {
+          rethrow;
+        } catch (_) {}
         return null;
       }
     } catch (e) {
-      print('Network exception during visitor submission: $e');
-      return null;
+      print('Network/API exception during visitor submission: $e');
+      rethrow;
     }
   }
 

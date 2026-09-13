@@ -21,15 +21,19 @@ class GuardRepository extends ChangeNotifier {
   void _loadInitialState() {
     _isAuthenticated = _storage.isLoggedIn();
     _currentGuard = _storage.getGuard() ?? _defaultGuard;
+    final token = _storage.getToken();
+    if (token != null) {
+      ApiService.setAuthToken(token);
+    }
   }
 
   static const Guard _defaultGuard = Guard(
-    id: 'GRD-8821',
-    name: 'Officer Vikram Singh',
-    badgeNumber: 'GG-SEC-8821',
-    societyName: 'Green Valley Heights',
-    assignedGate: 'Gate 01 - Main Entrance',
-    shift: 'Morning Shift A (07:00 AM - 03:30 PM)',
+    id: 'guard_ramesh',
+    name: 'Ramesh Singh',
+    badgeNumber: 'GG-SEC-01',
+    societyName: 'Green Gate Residency',
+    assignedGate: 'Main Gate',
+    shift: 'Morning Shift (07:00 AM - 07:00 PM)',
   );
 
   /// Authenticate guard using ID / Phone and 4-digit PIN
@@ -45,17 +49,23 @@ class GuardRepository extends ChangeNotifier {
     );
 
     if (apiRes != null && apiRes['success'] == true) {
+      final token = apiRes['token'] ?? apiRes['data']?['token'];
+      if (token != null) {
+        await _storage.saveToken(token);
+        ApiService.setAuthToken(token);
+      }
+
       final g = apiRes['guard'] ?? {};
       final gate = apiRes['gate'] ?? {};
       final soc = apiRes['society'] ?? {};
 
       _currentGuard = Guard(
         id: g['id'] ?? cleanInput,
-        name: g['name'] ?? 'Officer Vikram Singh',
-        badgeNumber: 'GG-SEC-${(g['id'] ?? '8821').toString().replaceAll(RegExp(r'\D'), '')}',
-        societyName: soc['name'] ?? 'Green Valley Residency',
-        assignedGate: gate['name'] ?? 'Gate 01 - Main Entrance',
-        shift: g['shift'] ?? 'Morning Shift A (07:00 AM - 03:30 PM)',
+        name: g['name'] ?? 'Ramesh Singh',
+        badgeNumber: 'GG-SEC-01',
+        societyName: soc['name'] ?? 'Green Gate Residency',
+        assignedGate: gate['name'] ?? 'Main Gate',
+        shift: g['shift'] ?? 'Morning Shift (07:00 AM - 07:00 PM)',
       );
       _isAuthenticated = true;
       await _storage.setLoggedIn(true);

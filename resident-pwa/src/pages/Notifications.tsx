@@ -1,11 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck, UsersRound, Shield, Megaphone, AlertCircle } from 'lucide-react';
 import { AppHeader } from '../components/layout/AppHeader';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Chip } from '../components/ui/Chip';
 import { EmptyState } from '../components/ui/EmptyState';
-import { mockNotifications } from '../data/mockNotifications';
+import { fetchNotifications } from '../services/api';
 import { formatRelativeTime } from '../lib/utils';
 import { useToast } from '../hooks';
 import type { Notification, NotificationType } from '../types';
@@ -14,8 +14,30 @@ export default function Notifications() {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetchNotifications()
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const mapped: Notification[] = data.map((n: any) => ({
+            id: n.id,
+            type: n.type || 'visitor',
+            title: n.title || 'Notification',
+            body: n.body || n.message || '',
+            timestamp: new Date(n.timestamp || Date.now()),
+            read: Boolean(n.read),
+            actionUrl: n.actionUrl,
+            visitorId: n.visitorId || n.requestId,
+          }));
+          setNotifications(mapped);
+        }
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const filteredNotifications = useMemo(() => {
     if (activeCategory === 'all') return notifications;
@@ -28,7 +50,6 @@ export default function Notifications() {
   };
 
   const handleItemClick = (notif: Notification) => {
-    // Mark clicked as read
     setNotifications((prev) =>
       prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n))
     );
@@ -92,7 +113,13 @@ export default function Notifications() {
         </div>
 
         {/* Native Notification Feed */}
-        {filteredNotifications.length > 0 ? (
+        {isLoading ? (
+          <div className="space-y-2 pt-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 bg-white rounded-2xl animate-pulse border border-slate-200/60" />
+            ))}
+          </div>
+        ) : filteredNotifications.length > 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200/60 shadow-2xs divide-y divide-slate-100 overflow-hidden">
             {filteredNotifications.map((notif) => (
               <div

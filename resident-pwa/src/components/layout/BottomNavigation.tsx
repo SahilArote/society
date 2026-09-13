@@ -2,10 +2,9 @@ import { NavLink } from 'react-router-dom';
 import { House, UsersRound, Bell, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
-import { getUnreadCount } from '../../data/mockNotifications';
 
 export function BottomNavigation() {
-  const unreadCount = getUnreadCount();
+  const unreadCount = 0;
 
   const navItems = [
     { label: 'Home', path: '/home', icon: House },

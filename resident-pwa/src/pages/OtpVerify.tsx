@@ -1,23 +1,31 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ShieldCheck, AlertCircle } from 'lucide-react';
 import { OtpInput } from '../components/domain';
 import { maskPhone } from '../lib/utils';
 import { useToast } from '../hooks';
-
-import { verifyResidentOtp, sendResidentOtp } from '../services/api';
-import { authSession } from '../services/authSession';
+import { verifyOtp, sendOtp } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function OtpVerify() {
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast } = useToast();
+  const { loginSession } = useAuth();
 
-  const phone = location.state?.phone || '9876543210';
+  const mobile = location.state?.mobile || '';
   const [countdown, setCountdown] = useState(30);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    if (!mobile) {
+      navigate('/login', { replace: true });
+      return;
+    }
+  }, [mobile, navigate]);
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -27,54 +35,60 @@ export default function OtpVerify() {
 
   const handleComplete = async (otp: string) => {
     setIsVerifying(true);
+    setErrorMsg('');
+
     try {
-      const response = await verifyResidentOtp(phone, otp);
+      const response = await verifyOtp(mobile, otp);
       setIsVerifying(false);
+
+      const token = response.token || response.data?.token;
+      const user = response.user || response.data?.user;
+      const flat = response.flat;
+      const society = response.society;
+
+      if (!token || !user) {
+        throw new Error('Authentication failed. Server returned invalid payload.');
+      }
+
       setIsSuccess(true);
-      const { token, user, flat, society } = response;
-      authSession.setSession(token, {
-        id: user?.id || 'res_sahil',
-        name: user?.name || (phone === '9876543210' ? 'Sahil Arote' : `Resident (${phone})`),
-        phone: user?.mobile || phone,
-        mobile: user?.mobile || phone,
-        flat: flat?.flatNumber || 'A-402',
-        flatNumber: flat?.flatNumber || 'A-402',
-        wing: flat?.buildingWing || 'Tower A',
-        societyId: society?.id || user?.societyId || 'soc_greengate',
-      });
-      showToast('Authentication verified (OTP Bypassed)', 'success');
+
+      const sessionUser = {
+        id: user.id,
+        name: user.name,
+        mobile: user.mobile || mobile,
+        role: user.role || 'RESIDENT',
+        societyId: user.societyId || society?.id || 'soc_greengate',
+        flatId: user.flatId || flat?.id,
+        flatNumber: user.flatNumber || flat?.flatNumber || 'Unit',
+        wing: user.wing || flat?.buildingWing || '',
+        societyName: society?.name || 'Green Gate Residency',
+      };
+
+      loginSession(token, sessionUser);
+      showToast('Authentication verified successfully', 'success');
+
       setTimeout(() => {
         navigate('/home', { replace: true });
       }, 500);
     } catch (err: any) {
       setIsVerifying(false);
-      setIsSuccess(true);
-      authSession.setSession('bypassed_token_' + Date.now(), {
-        id: 'res_sahil',
-        name: phone === '9876543210' ? 'Sahil Arote' : `Resident (${phone})`,
-        phone,
-        mobile: phone,
-        flat: 'A-402',
-        flatNumber: 'A-402',
-        wing: 'Tower A',
-        societyId: 'soc_greengate',
-      });
-      setTimeout(() => {
-        navigate('/home', { replace: true });
-      }, 500);
+      console.error('OTP Verification failed:', err);
+      const msg = err.message || 'Invalid verification code. Please check the code and try again.';
+      setErrorMsg(msg);
+      showToast(msg, 'error');
     }
   };
 
   const handleResend = async () => {
     setCountdown(30);
+    setErrorMsg('');
     try {
-      await sendResidentOtp(phone);
-      showToast('A new 6-digit OTP has been sent via SMS', 'info');
+      await sendOtp(mobile);
+      showToast('A new 6-digit verification code has been sent', 'info');
     } catch (err: any) {
-      showToast(err.message || 'Failed to resend OTP', 'error');
+      showToast(err.message || 'Failed to resend code', 'error');
     }
   };
-
 
   return (
     <div className="min-h-screen bg-white flex flex-col justify-between p-6">
@@ -120,9 +134,9 @@ export default function OtpVerify() {
                 Verify your mobile number
               </h1>
               <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-                We've sent a 6-digit verification code to <br />
+                We've sent a verification code to <br />
                 <span className="font-semibold text-slate-800 tracking-wider">
-                  +91 {maskPhone(phone)}
+                  +91 {maskPhone(mobile || '9876543210')}
                 </span>
               </p>
 
@@ -131,11 +145,18 @@ export default function OtpVerify() {
                 <OtpInput onComplete={handleComplete} />
               </div>
 
-              {/* Status / Spinner */}
+              {/* Status / Error */}
               {isVerifying && (
                 <p className="text-xs text-primary-600 font-medium animate-pulse mb-4">
-                  Checking code...
+                  Checking verification code...
                 </p>
+              )}
+
+              {errorMsg && (
+                <div className="p-3 mb-4 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2 text-rose-700 text-xs font-medium text-left">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>{errorMsg}</span>
+                </div>
               )}
 
               {/* Countdown & Resend */}
@@ -152,7 +173,7 @@ export default function OtpVerify() {
                     onClick={handleResend}
                     className="text-xs font-semibold text-primary-600 hover:text-primary-700 underline focus:outline-none"
                   >
-                    Resend OTP Code
+                    Resend Code
                   </button>
                 )}
 
@@ -173,7 +194,7 @@ export default function OtpVerify() {
       {/* Safety Notice */}
       <div className="pb-4 text-center">
         <p className="text-[11px] text-slate-400">
-          GreenGate uses secure, tamper-proof OTP authentication
+          GreenGate uses secure, backend-verified authentication
         </p>
       </div>
     </div>

@@ -4,11 +4,10 @@ import { motion } from 'framer-motion';
 import { Shield, Users, Car, Bell, Smartphone, QrCode, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { PwaInstallSheet } from '../components/common/PwaInstallSheet';
-import { mockResident } from '../data/mockResident';
 import { usePwaInstall, useToast } from '../hooks';
 import { BRAND_CONFIG } from '../config/branding';
 
-import { authSession } from '../services/authSession';
+import { isAuthenticatedSession } from '../services/authSession';
 import { pwaInstallManager } from '../services/pwaInstallManager';
 
 export default function Landing() {
@@ -20,7 +19,7 @@ export default function Landing() {
   // When launched from phone home screen in standalone mode, transition directly into the application
   useEffect(() => {
     if (isStandalone) {
-      navigate(authSession.isAuthenticated() ? '/home' : '/login', { replace: true });
+      navigate(isAuthenticatedSession() ? '/home' : '/login', { replace: true });
     }
   }, [isStandalone, navigate]);
 
@@ -54,7 +53,7 @@ export default function Landing() {
   const handleInstallCTA = async () => {
     // If running in standalone app mode:
     if (isStandalone) {
-      navigate(authSession.isAuthenticated() ? '/home' : '/login');
+      navigate(isAuthenticatedSession() ? '/home' : '/login');
       return;
     }
 
@@ -104,7 +103,7 @@ export default function Landing() {
               {BRAND_CONFIG.name}
             </h1>
             <p className="text-sm text-indigo-100/90 font-medium">
-              {mockResident.society.name}
+              Smart Society Security & Access
             </p>
           </motion.div>
         </div>

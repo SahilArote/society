@@ -257,28 +257,65 @@ export async function findFlatByNumberAndWing(societyId: string, flatNumber: str
   const pool = await getMysqlPool();
   if (!pool) return null;
 
-  let query = 'SELECT f.*, u.name as res_name, u.mobile as res_mobile FROM flats f LEFT JOIN users u ON f.resident_id = u.id WHERE f.society_id = ? AND UPPER(f.flat_number) = UPPER(?)';
-  const params: any[] = [societyId, flatNumber.trim()];
+  const cleanFlat = flatNumber.trim();
 
+  // 1. Try matching with flexible wing name (extracting wing letter e.g. 'A' from 'Wing A' or 'Tower A')
   if (wing && wing.trim()) {
-    query += ' AND LOWER(f.wing) = LOWER(?)';
-    params.push(wing.trim());
+    const cleanWing = wing.trim();
+    const wingLetter = cleanWing.replace(/^(Wing|Tower)\s*/i, '').trim();
+    const query = `
+      SELECT f.*, u.name as res_name, u.mobile as res_mobile 
+      FROM flats f 
+      LEFT JOIN users u ON f.resident_id = u.id 
+      WHERE f.society_id = ? 
+        AND UPPER(f.flat_number) = UPPER(?) 
+        AND (
+          LOWER(f.wing) = LOWER(?) 
+          OR f.wing LIKE ? 
+          OR LOWER(?) LIKE CONCAT('%', LOWER(f.wing), '%')
+        )
+      LIMIT 1
+    `;
+    const [rows]: any = await pool.query(query, [societyId, cleanFlat, cleanWing, `%${wingLetter}%`, cleanWing]);
+    if (rows && rows[0]) {
+      const r = rows[0];
+      return {
+        id: r.id,
+        societyId: r.society_id,
+        flatNumber: r.flat_number,
+        wing: r.wing,
+        floor: r.floor,
+        residentId: r.resident_id,
+        residentName: r.res_name,
+        residentMobile: r.res_mobile,
+      };
+    }
   }
-  query += ' LIMIT 1';
 
-  const [rows]: any = await pool.query(query, params);
-  if (!rows[0]) return null;
-  const r = rows[0];
-  return {
-    id: r.id,
-    societyId: r.society_id,
-    flatNumber: r.flat_number,
-    wing: r.wing,
-    floor: r.floor,
-    residentId: r.resident_id,
-    residentName: r.res_name,
-    residentMobile: r.res_mobile,
-  };
+  // 2. Fallback: match by flatNumber alone within the society
+  const fallbackQuery = `
+    SELECT f.*, u.name as res_name, u.mobile as res_mobile 
+    FROM flats f 
+    LEFT JOIN users u ON f.resident_id = u.id 
+    WHERE f.society_id = ? AND UPPER(f.flat_number) = UPPER(?)
+    LIMIT 1
+  `;
+  const [fbRows]: any = await pool.query(fallbackQuery, [societyId, cleanFlat]);
+  if (fbRows && fbRows[0]) {
+    const r = fbRows[0];
+    return {
+      id: r.id,
+      societyId: r.society_id,
+      flatNumber: r.flat_number,
+      wing: r.wing,
+      floor: r.floor,
+      residentId: r.resident_id,
+      residentName: r.res_name,
+      residentMobile: r.res_mobile,
+    };
+  }
+
+  return null;
 }
 
 export async function findFlatByResidentId(residentId: string): Promise<FlatRow | null> {

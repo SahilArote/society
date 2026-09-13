@@ -16,42 +16,48 @@ import { PageContainer } from '../components/layout/PageContainer';
 import { Avatar } from '../components/ui/Avatar';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { Button } from '../components/ui/Button';
-import { mockResident } from '../data/mockResident';
 import { useToast } from '../hooks';
-import { authSession } from '../services/authSession';
+import { useAuth } from '../context/AuthContext';
 
 export default function Profile() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { user, logoutSession } = useAuth();
   const [showLogoutSheet, setShowLogoutSheet] = useState(false);
 
   const handleLogoutConfirm = () => {
     setShowLogoutSheet(false);
-    authSession.clearSession();
-    showToast('Signed out of society portal', 'info');
+    logoutSession();
+    showToast('Signed out of GreenGate portal', 'info');
     navigate('/login', { replace: true });
   };
+
+  const displayName = user?.name || 'Resident';
+  const displayFlat = user?.flatNumber ? `Flat ${user.flatNumber}` : 'Unit';
+  const displayWing = user?.wing ? ` (${user.wing})` : '';
+  const displaySociety = user?.societyName || 'Green Gate Residency';
+  const displayMobile = user?.mobile || '';
 
   const homeRows = [
     {
       icon: Building2,
       iconBg: 'bg-indigo-50 text-indigo-600',
       label: 'My Flat & Unit',
-      value: `Flat ${mockResident.flat.number}`,
+      value: `${displayFlat}${displayWing}`,
       onClick: () => navigate('/flat'),
     },
     {
       icon: Heart,
       iconBg: 'bg-rose-50 text-rose-600',
       label: 'Family Members',
-      value: '4 members',
+      value: 'Members List',
       onClick: () => navigate('/family'),
     },
     {
       icon: Car,
       iconBg: 'bg-amber-50 text-amber-600',
       label: 'My Vehicles',
-      value: '3 registered',
+      value: 'Registered',
       onClick: () => navigate('/vehicles'),
     },
   ];
@@ -94,19 +100,19 @@ export default function Profile() {
         {/* Top Resident Card */}
         <div className="bg-white rounded-2xl p-4 border border-slate-200/60 shadow-2xs flex items-center gap-4">
           <Avatar
-            name={mockResident.name}
+            name={displayName}
             size="lg"
             className="ring-4 ring-indigo-50/80 shadow-2xs font-extrabold"
           />
           <div className="flex-1 min-w-0">
             <h1 className="text-base font-extrabold text-slate-900 leading-tight">
-              {mockResident.name}
+              {displayName}
             </h1>
             <p className="text-xs font-bold text-indigo-600 mt-0.5">
-              Flat {mockResident.flat.number} · {mockResident.flat.building}
+              {displayFlat}{displayWing}
             </p>
             <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
-              {mockResident.society.name}
+              {displaySociety} {displayMobile ? `· +91 ${displayMobile}` : ''}
             </p>
           </div>
         </div>
@@ -214,7 +220,7 @@ export default function Profile() {
         </div>
 
         <div className="text-center pt-1 pb-4">
-          <p className="text-[10px] font-semibold text-slate-400">GreenGate Resident PWA · v1.0.0</p>
+          <p className="text-[10px] font-semibold text-slate-400">GreenGate Resident PWA · Live Connected</p>
         </div>
       </PageContainer>
 

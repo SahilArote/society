@@ -31,10 +31,10 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
 
   VisitorType _selectedType = VisitorType.delivery;
   String _selectedCompany = 'Zomato';
-  late String _selectedWing;
-  String _selectedFlat = 'B-402';
-  String _selectedResidentName = 'Dr. Amit Sharma';
-  String _selectedResidentPhone = '+91 98200 44821';
+  String _selectedWing = '';
+  String _selectedFlat = '';
+  String _selectedResidentName = '';
+  String _selectedResidentPhone = '';
 
   final List<String> _deliveryCompanies = [
     'Zomato',
@@ -51,8 +51,26 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedWing = widget.visitorRepo.wings.contains('Tower B') ? 'Tower B' : widget.visitorRepo.wings.first;
-    _updateFlatSelection(_selectedFlat);
+    _loadDirectory();
+  }
+
+  Future<void> _loadDirectory() async {
+    if (widget.visitorRepo.wings.isEmpty) {
+      await widget.visitorRepo.fetchDirectoryFromBackend();
+    }
+    if (!mounted) return;
+    if (widget.visitorRepo.wings.isNotEmpty) {
+      final firstWing = widget.visitorRepo.wings.first;
+      final flats = widget.visitorRepo.wingFlats[firstWing] ?? [];
+      setState(() {
+        _selectedWing = firstWing;
+        if (flats.isNotEmpty) {
+          _selectedFlat = flats.first.flatNumber;
+          _selectedResidentName = flats.first.primaryResident?.name ?? 'Resident';
+          _selectedResidentPhone = flats.first.primaryResident?.phoneNumber ?? '';
+        }
+      });
+    }
   }
 
   @override
@@ -71,6 +89,10 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
         _selectedFlat = flats.first.flatNumber;
         _selectedResidentName = flats.first.primaryResident?.name ?? 'Resident';
         _selectedResidentPhone = flats.first.primaryResident?.phoneNumber ?? '';
+      } else {
+        _selectedFlat = '';
+        _selectedResidentName = '';
+        _selectedResidentPhone = '';
       }
     });
   }
@@ -456,8 +478,11 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
-                          value: _selectedFlat,
+                          value: flatsInCurrentWing.any((f) => f.flatNumber == _selectedFlat)
+                              ? _selectedFlat
+                              : (flatsInCurrentWing.isNotEmpty ? flatsInCurrentWing.first.flatNumber : null),
                           isExpanded: true,
+                          hint: const Text('Loading flats from database...', style: TextStyle(fontSize: 15, color: AppColors.textSecondary)),
                           icon: const Icon(Icons.arrow_drop_down, size: 28, color: AppColors.textPrimary),
                           items: flatsInCurrentWing.map((flat) {
                             return DropdownMenuItem<String>(

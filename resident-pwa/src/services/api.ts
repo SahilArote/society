@@ -1,169 +1,153 @@
-import { authSession } from './authSession';
+import { getStoredToken } from './authSession';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://society-d521.onrender.com/api';
-const BACKEND_BASE = import.meta.env.VITE_BACKEND_URL || 'https://society-d521.onrender.com';
 
-function getAuthHeaders(): Record<string, string> {
-  const token = authSession.getToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+export class ApiError extends Error {
+  code?: string;
+  status?: number;
+  constructor(message: string, code?: string, status?: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+    this.status = status;
   }
-  return headers;
 }
 
-export function getSecurePhotoUrl(photoUrl?: string): string | undefined {
-  if (!photoUrl) return undefined;
-  let url = photoUrl;
-  if (url.startsWith('/')) {
-    url = `${BACKEND_BASE}${url}`;
+async function handleResponse(res: Response) {
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || json.success === false) {
+    const errorObj = json.error || {};
+    const code = errorObj.code || (res.status === 404 ? 'NOT_FOUND' : res.status === 409 ? 'STATE_CONFLICT' : 'API_ERROR');
+    const message = errorObj.message || json.message || `Request failed with status ${res.status}`;
+    throw new ApiError(message, code, res.status);
   }
-  const token = authSession.getToken();
-  if (token && url.includes('/api/visitor-requests/')) {
-    const separator = url.includes('?') ? '&' : '?';
-    if (!url.includes('token=')) {
-      url = `${url}${separator}token=${encodeURIComponent(token)}`;
-    }
-  }
-  return url;
+  return json;
 }
 
-export async function sendResidentOtp(mobile: string) {
-  const cleanMobile = mobile.replace(/\D/g, '') || '9876543210';
-  try {
-    const res = await fetch(`${API_BASE_URL}/auth/resident/send-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mobile: cleanMobile }),
-    });
-    const json = await res.json();
-    if (res.ok && json.success) {
-      return json;
-    }
-  } catch (err) {
-    console.warn('Backend send-otp issue, using bypassed OTP flow:', err);
-  }
-  // Bypassed OTP fallback
-  return {
-    success: true,
-    message: 'OTP bypassed for development/testing',
-    data: { mobile: cleanMobile, devOtpHint: '123456' },
-  };
+// =============================================================
+// AUTH API METHODS
+// =============================================================
+
+export async function sendOtp(mobile: string) {
+  const cleanMobile = mobile.replace(/\D/g, '');
+  const res = await fetch(`${API_BASE_URL}/auth/resident/send-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mobile: cleanMobile }),
+  });
+  return handleResponse(res);
 }
 
-export async function loginResidentDirect(mobile: string) {
-  const cleanMobile = mobile.replace(/\D/g, '') || '9876543210';
-  try {
-    const res = await fetch(`${API_BASE_URL}/auth/resident/verify-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mobile: cleanMobile, otp: '123456' }),
-    });
-    const json = await res.json();
-    if (res.ok && json.success) {
-      return {
-        token: json.token || json.data?.token,
-        user: json.user || json.data?.user,
-        flat: json.flat || json.data?.flat,
-        society: json.society || json.data?.society,
-      };
-    }
-  } catch (err) {
-    console.warn('Backend verify-otp issue, activating local resident session:', err);
-  }
-
-  // Failsafe bypass session - guarantees login always succeeds for ANY mobile number
-  return {
-    token: `bypassed_token_${cleanMobile}_${Date.now()}`,
-    user: {
-      id: 'res_sahil',
-      name: cleanMobile === '9876543210' ? 'Sahil Arote' : `Resident (${cleanMobile})`,
-      mobile: cleanMobile,
-      phone: cleanMobile,
-      role: 'RESIDENT',
-      societyId: 'soc_greengate',
-      flatNumber: 'A-402',
-      wing: 'Tower A',
-    },
-    flat: {
-      flatNumber: 'A-402',
-      buildingWing: 'Tower A',
-    },
-    society: {
-      id: 'soc_greengate',
-      name: 'Green Gate Residency',
-    },
-  };
+export async function verifyOtp(mobile: string, otp: string) {
+  const cleanMobile = mobile.replace(/\D/g, '');
+  const res = await fetch(`${API_BASE_URL}/auth/resident/verify-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mobile: cleanMobile, otp }),
+  });
+  return handleResponse(res);
 }
 
-export async function verifyResidentOtp(mobile: string, otp: string) {
-  return loginResidentDirect(mobile);
+export async function fetchCurrentUser() {
+  const token = getStoredToken();
+  if (!token) return null;
+
+  const res = await fetch(`${API_BASE_URL}/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await handleResponse(res);
+  return json.data;
 }
+
+// =============================================================
+// VISITOR REQUESTS API METHODS
+// =============================================================
 
 export async function fetchVisitorRequests() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/visitor-requests`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-    const json = await res.json();
-    return json.data || [];
-  } catch (err) {
-    console.error('Failed to fetch visitor requests from API:', err);
-    return null;
-  }
-}
+  const token = getStoredToken();
+  if (!token) throw new ApiError('Authentication token missing', 'UNAUTHORIZED', 401);
 
-export async function fetchVisitorRequestById(requestId: string) {
-  try {
-    const res = await fetch(`${API_BASE_URL}/visitor-requests/${requestId}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-    const json = await res.json();
-    return json.data;
-  } catch (err) {
-    console.error(`Failed to fetch visitor request ${requestId}:`, err);
-    return null;
-  }
+  const res = await fetch(`${API_BASE_URL}/visitor-requests`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = await handleResponse(res);
+  return json.data || [];
 }
 
 export async function approveVisitorRequest(requestId: string) {
-  try {
-    const res = await fetch(`${API_BASE_URL}/visitor-requests/${requestId}/approve`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson.error?.message || `HTTP error ${res.status}`);
-    }
-    const json = await res.json();
-    return json.data;
-  } catch (err) {
-    console.error(`Failed to approve request ${requestId}:`, err);
-    throw err;
-  }
+  const token = getStoredToken();
+  if (!token) throw new ApiError('Authentication token missing', 'UNAUTHORIZED', 401);
+
+  const res = await fetch(`${API_BASE_URL}/visitor-requests/${requestId}/approve`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const json = await handleResponse(res);
+  return json.data;
 }
 
 export async function rejectVisitorRequest(requestId: string, reason?: string) {
+  const token = getStoredToken();
+  if (!token) throw new ApiError('Authentication token missing', 'UNAUTHORIZED', 401);
+
+  const res = await fetch(`${API_BASE_URL}/visitor-requests/${requestId}/reject`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ reason }),
+  });
+  const json = await handleResponse(res);
+  return json.data;
+}
+
+export async function fetchVisitorRequestById(requestId: string) {
+  const token = getStoredToken();
+  if (!token) return null;
+
   try {
-    const res = await fetch(`${API_BASE_URL}/visitor-requests/${requestId}/reject`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ reason }),
+    const res = await fetch(`${API_BASE_URL}/visitor-requests/${requestId}`, {
+      headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson.error?.message || `HTTP error ${res.status}`);
-    }
+    if (!res.ok) return null;
     const json = await res.json();
     return json.data;
-  } catch (err) {
-    console.error(`Failed to reject request ${requestId}:`, err);
-    throw err;
+  } catch (e) {
+    return null;
   }
 }
 
+export function getSecurePhotoUrl(photoPath?: string): string | undefined {
+  if (!photoPath) return undefined;
+  if (photoPath.startsWith('http://') || photoPath.startsWith('https://') || photoPath.startsWith('data:')) {
+    return photoPath;
+  }
+  const token = getStoredToken();
+  const baseUrl = API_BASE_URL.replace(/\/api$/, '');
+  const cleanPath = photoPath.startsWith('/') ? photoPath : `/${photoPath}`;
+  return token ? `${baseUrl}${cleanPath}?token=${token}` : `${baseUrl}${cleanPath}`;
+}
+
+// =============================================================
+// NOTIFICATIONS API METHODS
+// =============================================================
+
+export async function fetchNotifications() {
+  const token = getStoredToken();
+  if (!token) return [];
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/notifications`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return json.data || [];
+  } catch (e) {
+    return [];
+  }
+}

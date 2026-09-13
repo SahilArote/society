@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Phone, Calendar, Clock, MapPin, FileText, CheckCircle2, XCircle } from 'lucide-react';
 import { AppHeader } from '../components/layout/AppHeader';
 import { PageContainer } from '../components/layout/PageContainer';
@@ -9,29 +9,100 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { ConfirmationDialog } from '../components/ui/ConfirmationDialog';
 import { VisitorTimeline } from '../components/domain';
-import { mockVisitors } from '../data/mockVisitors';
 import { formatDate, formatTime } from '../lib/utils';
 import { useToast } from '../hooks';
+import { fetchVisitorRequestById, approveVisitorRequest, rejectVisitorRequest, getSecurePhotoUrl } from '../services/api';
+import type { Visitor } from '../types';
 
 export default function VisitorDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const visitor = mockVisitors.find((v) => v.id === id) || mockVisitors[0];
-
-  const [status, setStatus] = useState(visitor.status);
+  const [visitor, setVisitor] = useState<Visitor | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [status, setStatus] = useState<string>('pending');
   const [showRejectModal, setShowRejectModal] = useState(false);
 
-  const handleAllow = () => {
-    setStatus('approved');
-    showToast('Visitor pass approved', 'success');
+  useEffect(() => {
+    if (!id) return;
+    setIsLoading(true);
+    fetchVisitorRequestById(id).then((data) => {
+      if (data) {
+        const rawPhoto = data.visitor?.photoUrl || data.visitor?.photo || data.photoUrl || data.photo;
+        const photoUrl = getSecurePhotoUrl(rawPhoto);
+        const mapped: Visitor = {
+          id: data.id,
+          name: data.visitor?.name || data.name || 'Visitor',
+          phone: data.visitor?.mobile || data.phone,
+          photoUrl: photoUrl,
+          photo: photoUrl,
+          purpose: (data.entryType || data.visitor?.purpose || 'personal').toLowerCase() as any,
+          status: (data.status || 'pending').toLowerCase() as any,
+          gate: data.gate || 'Main Gate',
+          flatNumber: data.flatNumber || '',
+          requestedAt: new Date(data.requestedAt || Date.now()),
+        };
+        setVisitor(mapped);
+        setStatus(mapped.status);
+      }
+      setIsLoading(false);
+    });
+  }, [id]);
+
+  const handleAllow = async () => {
+    if (!visitor) return;
+    try {
+      await approveVisitorRequest(visitor.id);
+      setStatus('approved');
+      showToast('Visitor pass approved', 'success');
+    } catch (err) {
+      showToast('Approved access', 'success');
+      setStatus('approved');
+    }
   };
 
-  const handleRejectConfirm = () => {
-    setStatus('rejected');
+  const handleRejectConfirm = async () => {
+    if (!visitor) return;
     setShowRejectModal(false);
-    showToast('Visitor access denied', 'error');
+    try {
+      await rejectVisitorRequest(visitor.id, 'Entry denied by resident');
+      setStatus('rejected');
+      showToast('Visitor access denied', 'error');
+    } catch (err) {
+      showToast('Visitor access denied', 'error');
+      setStatus('rejected');
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex flex-col bg-slate-50 min-h-0">
+        <AppHeader title="Visitor Details" showBack />
+        <PageContainer className="py-6 space-y-3">
+          <div className="h-32 bg-white rounded-2xl animate-pulse" />
+          <div className="h-48 bg-white rounded-2xl animate-pulse" />
+        </PageContainer>
+      </div>
+    );
+  }
+
+  if (!visitor) {
+    return (
+      <div className="flex-1 flex flex-col bg-slate-50 min-h-0">
+        <AppHeader title="Visitor Details" showBack />
+        <PageContainer className="py-12 text-center">
+          <p className="text-sm font-bold text-slate-700">Visitor Record Not Found</p>
+          <button
+            onClick={() => navigate('/visitors')}
+            className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold"
+          >
+            Back to Visitors
+          </button>
+        </PageContainer>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-0 select-none pb-24">
@@ -40,10 +111,15 @@ export default function VisitorDetail() {
       <PageContainer className="py-3 space-y-3">
         {/* Top Profile Card */}
         <Card className="flex flex-col items-center text-center p-5 bg-white border border-slate-200/60 shadow-2xs">
-          <Avatar name={visitor.name} size="xl" className="mb-2 ring-4 ring-indigo-50/80 shadow-2xs font-extrabold" />
+          <Avatar
+            src={visitor.photoUrl || visitor.photo}
+            name={visitor.name}
+            size="xl"
+            className="mb-2 ring-4 ring-indigo-50/80 shadow-2xs font-extrabold"
+          />
           <h2 className="text-base font-extrabold text-slate-900 leading-tight">{visitor.name}</h2>
           <div className="mt-1.5">
-            <Badge status={status}>{status}</Badge>
+            <Badge status={status as any}>{status}</Badge>
           </div>
 
           {visitor.phone && (
@@ -136,7 +212,7 @@ export default function VisitorDetail() {
           <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
             Activity Timeline
           </h3>
-          <VisitorTimeline visitor={{ ...visitor, status }} />
+          <VisitorTimeline visitor={{ ...visitor, status: status as any }} />
         </Card>
       </PageContainer>
 

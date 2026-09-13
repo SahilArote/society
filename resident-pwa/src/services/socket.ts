@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import { authSession } from './authSession';
+import { getStoredToken, getStoredUser } from './authSession';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://society-d521.onrender.com';
 
@@ -10,7 +10,9 @@ export function initResidentSocket(
   onVisitorCreated?: (data: any) => void,
   onVisitorUpdated?: (data: any) => void
 ) {
-  const token = authSession.getToken();
+  const token = getStoredToken();
+  const user = getStoredUser();
+
   if (!token) {
     console.warn('[ResidentSocket] Cannot initialize socket: No resident auth token found');
     return null;
@@ -49,6 +51,13 @@ export function initResidentSocket(
 
   socket.on('connect', () => {
     console.log('[ResidentSocket] Connected securely to Socket.IO Server:', socket?.id);
+    if (user?.id) {
+      socket?.emit('join', {
+        role: 'RESIDENT',
+        residentId: user.id,
+        societyId: user.societyId || 'soc_greengate',
+      });
+    }
   });
 
   socket.on('connect_error', (err) => {
@@ -78,4 +87,3 @@ export function disconnectResidentSocket() {
     socket = null;
   }
 }
-

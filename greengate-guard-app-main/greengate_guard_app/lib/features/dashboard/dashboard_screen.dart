@@ -74,9 +74,9 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final guard = guardRepo.currentGuard;
-    final guardName = guard?.name ?? 'Officer Vikram Singh';
-    final societyName = guard?.societyName ?? 'Green Valley Heights';
-    final gateName = guard?.assignedGate ?? 'Gate 01';
+    final guardName = guard?.name ?? 'Ramesh Singh';
+    final societyName = guard?.societyName ?? 'Green Gate Residency';
+    final gateName = guard?.assignedGate ?? 'Main Gate';
 
     return Scaffold(
       backgroundColor: AppColors.background,

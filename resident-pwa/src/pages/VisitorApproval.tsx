@@ -5,12 +5,10 @@ import { ShieldAlert, CheckCircle2, XCircle, MapPin, Building, Clock, ArrowLeft 
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { ConfirmationDialog } from '../components/ui/ConfirmationDialog';
-import { mockVisitors } from '../data/mockVisitors';
-import { mockResident } from '../data/mockResident';
 import { formatTime } from '../lib/utils';
 import { useToast } from '../hooks';
 import { fetchVisitorRequestById, approveVisitorRequest, rejectVisitorRequest, getSecurePhotoUrl } from '../services/api';
-import { authSession } from '../services/authSession';
+import { getStoredUser } from '../services/authSession';
 import type { Visitor } from '../types';
 
 export default function VisitorApproval() {
@@ -18,34 +16,37 @@ export default function VisitorApproval() {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const [visitor, setVisitor] = useState<Visitor>(() => {
-    return mockVisitors.find((v) => v.id === id) || mockVisitors[0];
-  });
-
-  useEffect(() => {
-    if (!id) return;
-    fetchVisitorRequestById(id).then((data) => {
-      if (data) {
-        setVisitor({
-          id: data.id,
-          name: data.visitor?.name || 'Visitor',
-          phone: data.visitor?.mobile,
-          photoUrl: data.visitor?.photoUrl,
-          photo: data.visitor?.photoUrl || data.visitor?.photo,
-          purpose: data.visitor?.purpose || 'personal',
-          status: (data.status?.toLowerCase() as any) || 'pending',
-          gate: data.gate || 'Main Gate',
-          flatNumber: data.flatNumber || 'A-402',
-          requestedAt: new Date(data.requestedAt),
-        });
-      }
-    });
-  }, [id]);
-
+  const [visitor, setVisitor] = useState<Visitor | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [outcome, setOutcome] = useState<'allowed' | 'rejected' | null>(null);
 
+  useEffect(() => {
+    if (!id) return;
+    setIsLoading(true);
+    fetchVisitorRequestById(id).then((data) => {
+      if (data) {
+        const rawPhoto = data.visitor?.photoUrl || data.visitor?.photo || data.photoUrl || data.photo;
+        const photoUrl = getSecurePhotoUrl(rawPhoto);
+        setVisitor({
+          id: data.id,
+          name: data.visitor?.name || data.name || 'Visitor',
+          phone: data.visitor?.mobile || data.phone,
+          photoUrl: photoUrl,
+          photo: photoUrl,
+          purpose: (data.entryType || data.visitor?.purpose || 'personal').toLowerCase() as any,
+          status: (data.status || 'pending').toLowerCase() as any,
+          gate: data.gate || 'Main Gate',
+          flatNumber: data.flatNumber || getStoredUser()?.flatNumber || '',
+          requestedAt: new Date(data.requestedAt || Date.now()),
+        });
+      }
+      setIsLoading(false);
+    });
+  }, [id]);
+
   const handleAllow = async () => {
+    if (!visitor) return;
     try {
       await approveVisitorRequest(visitor.id);
     } catch (err) {
@@ -59,6 +60,7 @@ export default function VisitorApproval() {
   };
 
   const handleRejectConfirm = async () => {
+    if (!visitor) return;
     setShowRejectDialog(false);
     try {
       await rejectVisitorRequest(visitor.id, 'Entry denied by resident');
@@ -72,6 +74,14 @@ export default function VisitorApproval() {
     }, 1200);
   };
 
+  if (isLoading || !visitor) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-sm font-semibold text-slate-300">Loading Visitor Details...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col justify-between p-6">
@@ -143,7 +153,7 @@ export default function VisitorApproval() {
               {/* Visitor Avatar */}
               <div className="relative inline-block my-4">
                 <Avatar
-                  src={getSecurePhotoUrl(visitor.photoUrl || visitor.photo)}
+                  src={visitor.photoUrl || visitor.photo}
                   name={visitor.name}
                   size="xl"
                   className="w-24 h-24 text-2xl mx-auto ring-4 ring-primary-500/30 shadow-lg object-cover rounded-2xl"
@@ -165,9 +175,10 @@ export default function VisitorApproval() {
                     <Building className="w-3 h-3 text-slate-400" />
                     <span>Flat</span>
                   </div>
-                  <p className="text-xs font-bold text-white">{visitor.flatNumber || authSession.getUser()?.flatNumber || mockResident.flat.number}</p>
+                  <p className="text-xs font-bold text-white">
+                    {visitor.flatNumber || getStoredUser()?.flatNumber || ''}
+                  </p>
                 </div>
-
 
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1 text-[10px] text-slate-400 font-medium">
@@ -188,7 +199,7 @@ export default function VisitorApproval() {
                 </div>
               </div>
 
-              {/* Large Urgent Action Buttons */}
+              {/* Action Buttons */}
               <div className="space-y-3">
                 <Button
                   variant="success"
@@ -206,10 +217,10 @@ export default function VisitorApproval() {
                   size="lg"
                   fullWidth
                   onClick={() => setShowRejectDialog(true)}
-                  className="h-14 text-base font-bold tracking-wide"
+                  className="h-14 text-base font-bold tracking-wide bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800/50 shadow-lg shadow-rose-950/40"
                   icon={<XCircle className="w-6 h-6" />}
                 >
-                  REJECT
+                  DENY ENTRY
                 </Button>
               </div>
             </motion.div>
@@ -217,19 +228,12 @@ export default function VisitorApproval() {
         </AnimatePresence>
       </div>
 
-      {/* Security Context footer */}
-      <div className="text-center text-[11px] text-slate-500">
-        GreenGate Gate Security Terminal · ID: {visitor.id}
-      </div>
-
-      {/* Confirmation Modal before Rejecting */}
       <ConfirmationDialog
         isOpen={showRejectDialog}
         onClose={() => setShowRejectDialog(false)}
-        title="Reject this visitor?"
-        message={`Are you sure you want to reject ${visitor.name}? The security guard will not allow entry.`}
-        confirmLabel="Reject Visitor"
-        cancelLabel="Cancel"
+        title="Deny Entry?"
+        message={`Are you sure you want to deny entry to ${visitor.name}? Security will turn them away.`}
+        confirmLabel="Confirm Rejection"
         confirmVariant="danger"
         onConfirm={handleRejectConfirm}
       />
