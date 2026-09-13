@@ -100,32 +100,41 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
       _validationError = null;
     });
 
-    final request = await widget.visitorRepo.createVisitorRequest(
-      name: name,
-      phoneNumber: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
-      photoPath: widget.photoPath,
-      type: _selectedType,
-      deliveryCompany: _selectedType == VisitorType.delivery ? _selectedCompany : null,
-      buildingWing: _selectedWing,
-      flatNumber: _selectedFlat,
-      residentName: _selectedResidentName,
-      residentPhone: _selectedResidentPhone,
-      purpose: _purposeController.text.trim(),
-    );
+    try {
+      final request = await widget.visitorRepo.createVisitorRequest(
+        name: name,
+        phoneNumber: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
+        photoPath: widget.photoPath,
+        type: _selectedType,
+        deliveryCompany: _selectedType == VisitorType.delivery ? _selectedCompany : null,
+        buildingWing: _selectedWing,
+        flatNumber: _selectedFlat,
+        residentName: _selectedResidentName,
+        residentPhone: _selectedResidentPhone,
+        purpose: _purposeController.text.trim(),
+      );
 
-    if (!mounted) return;
-    setState(() => _isSending = false);
+      if (!mounted) return;
+      setState(() => _isSending = false);
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => WaitingApprovalScreen(
-          request: request,
-          visitorRepo: widget.visitorRepo,
-          guardRepo: widget.guardRepo,
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => WaitingApprovalScreen(
+            request: request,
+            visitorRepo: widget.visitorRepo,
+            guardRepo: widget.guardRepo,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isSending = false;
+        _validationError = e.toString().replaceAll('Exception: ', '');
+      });
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {

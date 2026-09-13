@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/icons/favicon-64.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#4F46E5" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Society" />
+    <meta name="application-name" content="Society" />
+    <meta name="description" content="Your Society, Smarter & Safer - Manage visitors, family, vehicles and security." />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <title>Society</title>
+    <script>
+      // Synchronous early capture of beforeinstallprompt in head
+      // Runs BEFORE any deferred scripts or ES modules can execute
+      window.__pwaDeferredPrompt = null;
+      window.__pwaPromptFired = false;
+      window.__pwaPromptFiredTime = null;
+      window.addEventListener('beforeinstallprompt', function (event) {
+        // Prevent default mini-infobar so our custom install CTA controls the native dialog
+        event.preventDefault();
+        window.__pwaDeferredPrompt = event;
+        window.__pwaPromptFired = true;
+        window.__pwaPromptFiredTime = new Date().toISOString();
+        console.log('[PWA Early Head] beforeinstallprompt fired and captured at:', window.__pwaPromptFiredTime);
+        window.dispatchEvent(new CustomEvent('pwa-deferred-prompt-ready', { detail: { event: event } }));
+      });
+      window.addEventListener('appinstalled', function () {
+        console.log('[PWA Early Head] appinstalled event fired.');
+        window.__pwaDeferredPrompt = null;
+        window.__pwaAppInstalled = true;
+        window.dispatchEvent(new CustomEvent('pwa-installed-confirmed'));
+      });
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

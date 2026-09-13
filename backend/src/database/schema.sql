@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS `users` (
   `name` VARCHAR(255) NOT NULL,
   `mobile` VARCHAR(32) NOT NULL UNIQUE,
   `email` VARCHAR(255) DEFAULT NULL,
+  `password_hash` VARCHAR(255) DEFAULT NULL,
+  `pin_hash` VARCHAR(255) DEFAULT NULL,
   `role` ENUM('RESIDENT', 'GUARD', 'ADMIN') NOT NULL,
   `society_id` VARCHAR(64) NOT NULL,
   `status` VARCHAR(32) DEFAULT 'ACTIVE',
@@ -48,7 +50,8 @@ CREATE TABLE IF NOT EXISTS `flats` (
   `floor` INT DEFAULT 1,
   `resident_id` VARCHAR(64) DEFAULT NULL,
   FOREIGN KEY (`society_id`) REFERENCES `societies`(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`resident_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
+  FOREIGN KEY (`resident_id`) REFERENCES `users`(`id`) ON DELETE SET NULL,
+  UNIQUE KEY `uk_society_flat` (`society_id`, `wing`, `flat_number`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 5. Guards Table
@@ -56,19 +59,22 @@ CREATE TABLE IF NOT EXISTS `guards` (
   `id` VARCHAR(64) NOT NULL PRIMARY KEY,
   `user_id` VARCHAR(64) NOT NULL UNIQUE,
   `gate_id` VARCHAR(64) NOT NULL,
-  `shift` VARCHAR(32) DEFAULT 'morning',
+  `shift` VARCHAR(64) DEFAULT 'Morning Shift',
   `status` VARCHAR(32) DEFAULT 'ON_DUTY',
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`gate_id`) REFERENCES `gates`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 6. Visitors Table (Stores photo_url)
+-- 6. Visitors Table (Private photo vault reference)
 CREATE TABLE IF NOT EXISTS `visitors` (
   `id` VARCHAR(64) NOT NULL PRIMARY KEY,
   `name` VARCHAR(255) NOT NULL,
   `mobile` VARCHAR(32) DEFAULT NULL,
   `purpose` VARCHAR(64) NOT NULL,
   `visitor_type` VARCHAR(64) NOT NULL,
+  `photo_key` VARCHAR(255) DEFAULT NULL,
+  `photo_storage_type` VARCHAR(32) DEFAULT 'VAULT',
+  `photo_mime_type` VARCHAR(64) DEFAULT 'image/jpeg',
   `photo_url` TEXT DEFAULT NULL,
   `vehicle_number` VARCHAR(64) DEFAULT NULL,
   `delivery_company` VARCHAR(128) DEFAULT NULL,
@@ -115,6 +121,8 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
   `id` VARCHAR(64) NOT NULL PRIMARY KEY,
   `actor_id` VARCHAR(64) NOT NULL,
   `actor_role` VARCHAR(32) NOT NULL,
+  `society_id` VARCHAR(64) NOT NULL,
+  `request_id` VARCHAR(64) DEFAULT NULL,
   `action` VARCHAR(64) NOT NULL,
   `entity_type` VARCHAR(64) NOT NULL,
   `entity_id` VARCHAR(64) NOT NULL,
@@ -136,8 +144,21 @@ CREATE TABLE IF NOT EXISTS `announcements` (
   FOREIGN KEY (`society_id`) REFERENCES `societies`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 11. OTP Records Table
+CREATE TABLE IF NOT EXISTS `otp_records` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `mobile` VARCHAR(32) NOT NULL,
+  `otp` VARCHAR(8) NOT NULL,
+  `expires_at` DATETIME NOT NULL,
+  `used` TINYINT(1) DEFAULT 0,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- INDEXES FOR PERFORMANCE
 CREATE INDEX idx_user_mobile ON users(mobile);
 CREATE INDEX idx_visitor_request_status ON visitor_requests(status);
 CREATE INDEX idx_visitor_request_resident ON visitor_requests(resident_id);
 CREATE INDEX idx_visitor_request_society ON visitor_requests(society_id);
+CREATE INDEX idx_otp_mobile ON otp_records(mobile);
+CREATE INDEX idx_audit_society ON audit_logs(society_id);
+

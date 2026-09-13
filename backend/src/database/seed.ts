@@ -1,10 +1,11 @@
-import { initDb, getDb } from './db';
+import { initDb } from './db';
 
-export function seedDb() {
-  initDb();
+export async function seedDb() {
+  await initDb();
   console.log('GreenGate Database is ready.');
 }
 
 if (require.main === module) {
   seedDb();
 }
+

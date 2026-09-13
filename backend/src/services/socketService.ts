@@ -15,29 +15,46 @@ export function initSocketServer(server: HttpServer): SocketIOServer {
     },
   });
 
+  // Socket.IO Handshake Authentication Middleware
+  io.use((socket: Socket, next) => {
+    try {
+      const token =
+        socket.handshake.auth?.token ||
+        (socket.handshake.headers['authorization'] && socket.handshake.headers['authorization'].split(' ')[1]) ||
+        socket.handshake.query?.token;
+
+      if (!token) {
+        console.warn(`[Socket Auth] Rejected unauthenticated connection from ${socket.id}`);
+        return next(new Error('Authentication token required'));
+      }
+
+      const decoded = jwt.verify(token as string, JWT_SECRET) as AuthUser;
+      socket.data.user = decoded;
+      next();
+    } catch (err: any) {
+      console.warn(`[Socket Auth] Token verification failed for ${socket.id}: ${err.message}`);
+      return next(new Error('Authentication failed: Invalid or expired token'));
+    }
+  });
+
   io.on('connection', (socket: Socket) => {
-    console.log(`[Socket] Client connected: ${socket.id}`);
+    const user = socket.data.user as AuthUser;
+    console.log(`[Socket] Authenticated client connected: ${socket.id} (${user.name} - ${user.role})`);
 
-    // Room Subscription / Handshake
-    socket.on('join', (data: { token?: string; role?: string; residentId?: string; societyId?: string }) => {
-      const societyId = data.societyId || 'soc_greengate';
-      socket.join(`society:${societyId}`);
+    // Server-Controlled Room Assignments based strictly on verified JWT identity
+    socket.join(`society:${user.societyId}`);
 
-      if (data.role === 'ADMIN') {
-        socket.join(`admin:${societyId}`);
-        console.log(`[Socket] Joined admin:${societyId}`);
-      }
-
-      if (data.role === 'RESIDENT' && data.residentId) {
-        socket.join(`resident:${data.residentId}`);
-        console.log(`[Socket] Joined resident:${data.residentId}`);
-      }
-
-      if (data.role === 'GUARD') {
-        socket.join(`guard:${societyId}`);
-        console.log(`[Socket] Joined guard:${societyId}`);
-      }
-    });
+    if (user.role === 'RESIDENT') {
+      socket.join(`resident:${user.id}`);
+      console.log(`[Socket] Auto-joined room resident:${user.id}`);
+    } else if (user.role === 'GUARD') {
+      socket.join(`guard:${user.id}`);
+      socket.join(`guard_society:${user.societyId}`);
+      console.log(`[Socket] Auto-joined rooms guard:${user.id} & guard_society:${user.societyId}`);
+    } else if (user.role === 'ADMIN') {
+      socket.join(`admin:${user.societyId}`);
+      console.log(`[Socket] Auto-joined room admin:${user.societyId}`);
+    }
 
     socket.on('disconnect', () => {
       console.log(`[Socket] Client disconnected: ${socket.id}`);
@@ -52,71 +69,92 @@ export function getSocketIO(): SocketIOServer | null {
 }
 
 export function emitVisitorCreated(data: {
-  request: any;
+  requestId: string;
   visitor: any;
   flatNumber: string;
+  gateName?: string;
+  guardName?: string;
   residentId: string;
   societyId: string;
+  requestedAt: string;
 }) {
   if (!io) return;
 
   // 1. Emit to specific Resident with Photo URL
   io.to(`resident:${data.residentId}`).emit('visitor:request_created', {
-    request: data.request,
+    requestId: data.requestId,
+    request: {
+      id: data.requestId,
+      status: 'PENDING',
+      requestedAt: data.requestedAt,
+    },
     visitor: data.visitor,
     flatNumber: data.flatNumber,
+    gateName: data.gateName || 'Main Gate',
+    guardName: data.guardName || 'Gate Security',
   });
 
   // 2. Emit to Admin Dashboard without photo per requirements
   io.to(`admin:${data.societyId}`).emit('admin:visitor_activity', {
     type: 'NEW_REQUEST',
-    requestId: data.request.id,
+    requestId: data.requestId,
     visitorName: data.visitor.name,
     purpose: data.visitor.purpose,
     flatNumber: data.flatNumber,
-    status: data.request.status,
-    timestamp: data.request.requestedAt,
+    gateName: data.gateName || 'Main Gate',
+    guardName: data.guardName || 'Gate Security',
+    status: 'PENDING',
+    timestamp: data.requestedAt,
   });
 }
 
 export function emitVisitorDecision(data: {
-  request: any;
-  visitor: any;
+  requestId: string;
+  guardId: string;
   residentId: string;
   societyId: string;
+  visitorName: string;
+  flatNumber: string;
+  gateName?: string;
   status: 'APPROVED' | 'REJECTED';
   rejectionReason?: string;
 }) {
   if (!io) return;
 
-  // 1. Emit to Guard App
-  io.to(`guard:${data.societyId}`).emit(`visitor:${data.status.toLowerCase()}`, {
-    requestId: data.request.id,
-    status: data.status,
-    visitorName: data.visitor.name,
-    flatNumber: data.request.flatNumber,
-    rejectionReason: data.rejectionReason,
-  });
+  const now = new Date().toISOString();
 
-  io.to(`guard:${data.societyId}`).emit('visitor:request_updated', {
-    requestId: data.request.id,
+  // 1. Emit to exact Guard who created the request and guard room
+  const decisionPayload = {
+    requestId: data.requestId,
     status: data.status,
+    visitorName: data.visitorName,
+    flatNumber: data.flatNumber,
     rejectionReason: data.rejectionReason,
-  });
+    respondedAt: now,
+  };
+
+  io.to(`guard:${data.guardId}`).emit(`visitor:${data.status.toLowerCase()}`, decisionPayload);
+  io.to(`guard:${data.guardId}`).emit('visitor:request_updated', decisionPayload);
+  io.to(`guard_society:${data.societyId}`).emit(`visitor:${data.status.toLowerCase()}`, decisionPayload);
 
   // 2. Emit to Resident PWA to sync state
   io.to(`resident:${data.residentId}`).emit('visitor:request_updated', {
-    requestId: data.request.id,
-    status: data.status,
-  });
-
-  // 3. Emit to Admin Dashboard (metadata & status change only)
-  io.to(`admin:${data.societyId}`).emit('admin:visitor_activity', {
-    type: data.status === 'APPROVED' ? 'APPROVED' : 'REJECTED',
-    requestId: data.request.id,
-    visitorName: data.visitor.name,
+    requestId: data.requestId,
     status: data.status,
     rejectionReason: data.rejectionReason,
-    timestamp: new Date().toISOString(),
+    respondedAt: now,
+  });
+
+  // 3. Emit to Admin Dashboard (metadata & status change only, NO photo)
+  io.to(`admin:${data.societyId}`).emit('admin:visitor_activity', {
+    type: data.status,
+    requestId: data.requestId,
+    visitorName: data.visitorName,
+    flatNumber: data.flatNumber,
+    gateName: data.gateName || 'Main Gate',
+    status: data.status,
+    rejectionReason: data.rejectionReason,
+    timestamp: now,
   });
 }
+

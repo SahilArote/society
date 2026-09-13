@@ -1,14 +1,81 @@
-import { Router, Response } from 'express';
+import { Router, Response, Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { getDb, saveDb } from '../database/db';
+import fs from 'fs';
+import path from 'path';
+import {
+  findFlatByNumberAndWing,
+  findFlatsBySociety,
+  findUserById,
+  findGateById,
+  createVisitor,
+  findVisitorById,
+  createVisitorRequest,
+  findVisitorRequestById,
+  findVisitorRequestsJoined,
+  updateVisitorRequestDecision,
+  createNotification,
+  createAuditLog,
+} from '../database/db';
 import { authenticateToken, AuthenticatedRequest, authorizeRoles } from '../middleware/auth';
 import { uploadVisitorPhoto } from '../middleware/upload';
+import { uploadVisitorPhoto as uploadToStorageVault } from '../services/photoStorageService';
 import { emitVisitorCreated, emitVisitorDecision } from '../services/socketService';
 
 const router = Router();
 
+// =============================================================
+// GET /api/visitor-requests/directory
+// Returns wings and flats for the guard's society
+// =============================================================
+router.get('/directory', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const societyId = req.user!.societyId;
+    const flats = await findFlatsBySociety(societyId);
+
+    // Group flats by wing
+    const wingMap: Record<string, any[]> = {};
+    for (const f of flats) {
+      if (!wingMap[f.wing]) {
+        wingMap[f.wing] = [];
+      }
+      wingMap[f.wing].push({
+        flatNumber: f.flatNumber,
+        buildingWing: f.wing,
+        floor: `${f.floor}${f.floor === 1 ? 'st' : f.floor === 2 ? 'nd' : f.floor === 3 ? 'rd' : 'th'} Floor`,
+        residents: f.residentName
+          ? [
+              {
+                id: f.residentId,
+                name: f.residentName,
+                phoneNumber: f.residentMobile,
+                flatNumber: f.flatNumber,
+                buildingWing: f.wing,
+              },
+            ]
+          : [],
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        wings: Object.keys(wingMap),
+        wingFlats: wingMap,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error fetching directory:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to fetch society directory' },
+    });
+  }
+});
+
+// =============================================================
 // POST /api/visitor-requests
 // Guard creates visitor request with photo upload
+// =============================================================
 router.post(
   '/',
   authenticateToken,
@@ -23,68 +90,99 @@ router.post(
         visitorType,
         flatNumber,
         buildingWing,
-        residentName,
-        residentPhone,
         vehicleNumber,
         deliveryCompany,
       } = req.body;
 
-      if (!name || (!flatNumber && !buildingWing)) {
+      if (!name || !name.trim()) {
         return res.status(400).json({
           success: false,
-          error: { code: 'INVALID_INPUT', message: 'Visitor name and flat details are required' },
+          error: { code: 'INVALID_INPUT', message: 'Visitor name is required' },
         });
       }
 
-      const db = getDb();
-      const societyId = req.user?.societyId || 'soc_greengate';
-      const guardId = req.user?.id || 'guard_ramesh';
-      const gateId = req.user?.gateId || 'gate_main';
+      if (!flatNumber || !flatNumber.trim()) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'INVALID_INPUT', message: 'Flat number is required' },
+        });
+      }
 
-      // 1. Locate target flat & resident
-      const cleanFlatNum = (flatNumber || '').trim().toUpperCase();
-      const cleanWing = (buildingWing || '').trim();
+      const societyId = req.user!.societyId;
+      const guardId = req.user!.id;
+      const gateId = req.user!.gateId || 'gate_main';
 
-      let flat = db.flats.find((f) => f.societyId === societyId && (f.flatNumber.toUpperCase() === cleanFlatNum || (cleanWing && f.wing.toLowerCase() === cleanWing.toLowerCase() && f.flatNumber.toUpperCase() === cleanFlatNum)));
-
+      // 1. Validate Target Flat & Society Relation (Strict lookup - No default fallback)
+      const flat = await findFlatByNumberAndWing(societyId, flatNumber, buildingWing);
       if (!flat) {
-        // Fallback: match by flatNumber or seed flat
-        flat = db.flats.find((f) => f.flatNumber.toUpperCase().includes(cleanFlatNum)) || db.flats[0];
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'FLAT_NOT_FOUND',
+            message: `Flat ${flatNumber} ${buildingWing ? `(${buildingWing})` : ''} does not exist in society`,
+          },
+        });
       }
 
-      let resident = db.users.find((u) => u.id === flat.residentId);
-      if (!resident) {
-        resident = db.users.find((u) => u.role === 'RESIDENT') || db.users[0];
+      // 2. Validate Registered Resident for this Flat (Strict lookup - No default fallback)
+      if (!flat.residentId) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'RESIDENT_NOT_FOUND',
+            message: `No resident is currently registered for flat ${flat.flatNumber}`,
+          },
+        });
       }
 
-      // 2. Photo URL setup
-      let photoUrl: string | undefined = undefined;
+      const resident = await findUserById(flat.residentId);
+      if (!resident || resident.role !== 'RESIDENT') {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'RESIDENT_NOT_FOUND',
+            message: `Resident record for flat ${flat.flatNumber} could not be resolved`,
+          },
+        });
+      }
+
+      // 3. Process Visitor Photo Upload
+      let photoStorageResult: any = null;
       if (req.file) {
-        photoUrl = `/api/uploads/visitor-photos/${req.file.filename}`;
-      } else if (req.body.photoUrl) {
-        photoUrl = req.body.photoUrl;
+        photoStorageResult = await uploadToStorageVault(
+          req.file.buffer,
+          req.file.originalname,
+          req.file.mimetype
+        );
+      } else if (req.body.photoPath && fs.existsSync(req.body.photoPath)) {
+        const fileBuffer = fs.readFileSync(req.body.photoPath);
+        photoStorageResult = await uploadToStorageVault(fileBuffer, path.basename(req.body.photoPath));
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'PHOTO_REQUIRED', message: 'Visitor photo capture is required for gate security' },
+        });
       }
 
-      const now = new Date().toISOString();
-
-      // 3. Create Visitor Record
+      // 4. Create Visitor Record in MySQL
       const visitorId = `vis_${uuidv4().slice(0, 8)}`;
-      const visitorRecord = {
+      const visitorRecord = await createVisitor({
         id: visitorId,
         name: name.trim(),
-        mobile: mobile || '+91 98765 00000',
+        mobile: mobile ? mobile.trim() : undefined,
         purpose: (purpose || 'personal').toLowerCase(),
         visitorType: (visitorType || 'guest').toLowerCase(),
-        photoUrl,
-        vehicleNumber: vehicleNumber || undefined,
-        deliveryCompany: deliveryCompany || undefined,
-        createdAt: now,
-      };
-      db.visitors.push(visitorRecord);
+        photoKey: photoStorageResult.photoKey,
+        photoStorageType: photoStorageResult.storageType,
+        photoMimeType: photoStorageResult.mimeType,
+        photoUrl: photoStorageResult.photoUrl,
+        vehicleNumber: vehicleNumber ? vehicleNumber.trim() : undefined,
+        deliveryCompany: deliveryCompany ? deliveryCompany.trim() : undefined,
+      });
 
-      // 4. Create Visitor Request Record
-      const requestId = `REQ-${Math.floor(1000 + Math.random() * 9000)}`;
-      const requestRecord = {
+      // 5. Create Visitor Request in MySQL
+      const requestId = `REQ-${uuidv4().slice(0, 8).toUpperCase()}`;
+      const requestRecord = await createVisitorRequest({
         id: requestId,
         societyId,
         visitorId,
@@ -92,44 +190,61 @@ router.post(
         flatId: flat.id,
         guardId,
         gateId,
-        status: 'PENDING' as const,
-        requestedAt: now,
-      };
-      db.visitorRequests.push(requestRecord);
+        status: 'PENDING',
+      });
 
-      // 5. Create Notification for Resident
-      db.notifications.push({
+      // 6. Create Resident Notification in MySQL
+      const gate = await findGateById(gateId);
+      const gateName = gate?.name || 'Main Gate';
+      const guardName = req.user!.name || 'Gate Security';
+
+      await createNotification({
         id: `notif_${uuidv4().slice(0, 8)}`,
         recipientId: resident.id,
         type: 'visitor',
         title: 'Visitor Approval Required',
-        message: `${name} is waiting at ${gateId === 'gate_back' ? 'Back Gate' : 'Main Gate'} for Flat ${flat.flatNumber}`,
+        message: `${name} is waiting at ${gateName} for Flat ${flat.flatNumber}`,
         relatedEntityId: requestId,
-        read: false,
-        createdAt: now,
       });
 
-      // 6. Audit Log
-      db.auditLogs.push({
+      // 7. Create Audit Log in MySQL
+      await createAuditLog({
         id: `audit_${uuidv4().slice(0, 8)}`,
         actorId: guardId,
         actorRole: 'GUARD',
-        action: 'VISITOR_REQUEST_CREATED',
+        societyId,
+        requestId,
+        action: 'GUARD_CREATED_REQUEST',
         entityType: 'VISITOR_REQUEST',
         entityId: requestId,
-        metadata: JSON.stringify({ visitorName: name, flatNumber: flat.flatNumber }),
-        timestamp: now,
+        metadata: JSON.stringify({
+          visitorName: name,
+          flatNumber: flat.flatNumber,
+          gateName,
+          photoStorage: photoStorageResult.storageType,
+        }),
+        ipAddress: req.ip,
       });
 
-      saveDb();
-
-      // 7. Emit Real-time Socket Event
+      // 8. Real-time Push via Authenticated Socket.IO
       emitVisitorCreated({
-        request: requestRecord,
-        visitor: visitorRecord,
+        requestId,
+        visitor: {
+          id: visitorRecord.id,
+          name: visitorRecord.name,
+          mobile: visitorRecord.mobile,
+          purpose: visitorRecord.purpose,
+          visitorType: visitorRecord.visitorType,
+          photoUrl: `/api/visitor-requests/${requestId}/photo`,
+          vehicleNumber: visitorRecord.vehicleNumber,
+          deliveryCompany: visitorRecord.deliveryCompany,
+        },
         flatNumber: flat.flatNumber,
+        gateName,
+        guardName,
         residentId: resident.id,
         societyId,
+        requestedAt: requestRecord.requestedAt,
       });
 
       return res.status(201).json({
@@ -137,9 +252,13 @@ router.post(
         data: {
           id: requestId,
           status: 'PENDING',
-          visitor: visitorRecord,
+          visitor: {
+            id: visitorRecord.id,
+            name: visitorRecord.name,
+            photoUrl: `/api/visitor-requests/${requestId}/photo`,
+          },
           flatNumber: flat.flatNumber,
-          requestedAt: now,
+          requestedAt: requestRecord.requestedAt,
         },
       });
     } catch (error: any) {
@@ -152,193 +271,320 @@ router.post(
   }
 );
 
-// GET /api/visitor-requests
-// List visitor requests with society data isolation
-router.get('/', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
-  const db = getDb();
-  const user = req.user!;
+// =============================================================
+// GET /api/visitor-requests/:id/photo
+// Protected Visitor Photo Retrieval Endpoint (Tenant & Resident Ownership Verified)
+// =============================================================
+router.get('/:id/photo', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = req.user!;
 
-  let requests = db.visitorRequests;
+    // 1. Locate Request
+    const request = await findVisitorRequestById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Visitor request not found' },
+      });
+    }
 
-  // Filter based on Role & Data Isolation
-  if (user.role === 'RESIDENT') {
-    // Only return requests for this resident's flat/ID
-    requests = requests.filter((r) => r.residentId === user.id || r.societyId === user.societyId);
-  } else if (user.role === 'GUARD' || user.role === 'ADMIN') {
-    // Only return requests for their society
-    requests = requests.filter((r) => r.societyId === user.societyId);
+    // 2. Strict Tenant Isolation
+    if (request.societyId !== user.societyId) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Unauthorized: Society tenant mismatch' },
+      });
+    }
+
+    // 3. Strict Resident Ownership Check
+    if (user.role === 'RESIDENT' && request.residentId !== user.id) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Unauthorized: You can only view photos for your own flat requests' },
+      });
+    }
+
+    // 4. Retrieve Visitor Record
+    const visitor = await findVisitorById(request.visitorId);
+    if (!visitor || (!visitor.photoKey && !visitor.photoUrl)) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'PHOTO_NOT_FOUND', message: 'Visitor photo not found' },
+      });
+    }
+
+    // 5. Deliver Photo Securely
+    if (visitor.photoStorageType === 'CLOUDINARY' && visitor.photoUrl) {
+      // Redirect to Cloudinary secure CDN URL
+      return res.redirect(307, visitor.photoUrl);
+    } else if (visitor.photoUrl && fs.existsSync(visitor.photoUrl)) {
+      // Stream local private vault file
+      res.setHeader('Content-Type', visitor.photoMimeType || 'image/jpeg');
+      res.setHeader('Cache-Control', 'private, max-age=3600');
+      return res.sendFile(path.resolve(visitor.photoUrl));
+    } else {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'PHOTO_NOT_FOUND', message: 'Photo file could not be located in storage' },
+      });
+    }
+  } catch (error: any) {
+    console.error('Error fetching visitor photo:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to retrieve visitor photo' },
+    });
   }
-
-  // Join Visitor and Flat data
-  const result = requests.map((reqItem) => {
-    const visitor = db.visitors.find((v) => v.id === reqItem.visitorId);
-    const flat = db.flats.find((f) => f.id === reqItem.flatId);
-    const resident = db.users.find((u) => u.id === reqItem.residentId);
-    const gate = db.gates.find((g) => g.id === reqItem.gateId);
-
-    return {
-      id: reqItem.id,
-      visitorId: reqItem.visitorId,
-      visitor: visitor
-        ? {
-            id: visitor.id,
-            name: visitor.name,
-            mobile: visitor.mobile,
-            purpose: visitor.purpose,
-            visitorType: visitor.visitorType,
-            photoUrl: visitor.photoUrl,
-            photo: visitor.photoUrl, // backward compatibility
-            vehicleNumber: visitor.vehicleNumber,
-            deliveryCompany: visitor.deliveryCompany,
-          }
-        : null,
-      flatNumber: flat?.flatNumber || 'A-402',
-      buildingWing: flat?.wing || 'Tower A',
-      residentName: resident?.name || 'Sahil Arote',
-      gate: gate?.name || 'Main Gate',
-      status: reqItem.status,
-      requestedAt: reqItem.requestedAt,
-      respondedAt: reqItem.respondedAt,
-      responseBy: reqItem.responseBy,
-      rejectionReason: reqItem.rejectionReason,
-    };
-  });
-
-  return res.json({
-    success: true,
-    data: result,
-  });
 });
 
+// =============================================================
+// GET /api/visitor-requests
+// List visitor requests with strict role and tenant isolation
+// =============================================================
+router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const user = req.user!;
+    const filters: any = { societyId: user.societyId };
+
+    if (user.role === 'RESIDENT') {
+      // Residents ONLY see their own visitor requests
+      filters.residentId = user.id;
+    }
+
+    const rows = await findVisitorRequestsJoined(filters);
+
+    const result = rows.map((r: any) => ({
+      id: r.id,
+      visitorId: r.visitorId,
+      visitor: {
+        id: r.visitorId,
+        name: r.visitorName,
+        mobile: r.visitorMobile,
+        purpose: r.purpose,
+        visitorType: r.visitorType,
+        photoUrl: `/api/visitor-requests/${r.id}/photo`,
+        photo: `/api/visitor-requests/${r.id}/photo`,
+        vehicleNumber: r.vehicleNumber,
+        deliveryCompany: r.deliveryCompany,
+      },
+      flatNumber: r.flatNumber,
+      buildingWing: r.buildingWing,
+      residentName: r.residentName,
+      gate: r.gateName,
+      status: r.status,
+      requestedAt: r.requestedAt,
+      respondedAt: r.respondedAt,
+      responseBy: r.responseBy,
+      rejectionReason: r.rejectionReason,
+    }));
+
+    return res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error: any) {
+    console.error('Error listing visitor requests:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to retrieve visitor requests' },
+    });
+  }
+});
+
+// =============================================================
 // POST /api/visitor-requests/:id/approve
 // Resident approves visitor entry
-router.post('/:id/approve', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN'), (req: AuthenticatedRequest, res: Response) => {
-  const { id } = req.params;
-  const db = getDb();
+// =============================================================
+router.post('/:id/approve', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = req.user!;
 
-  const reqIndex = db.visitorRequests.findIndex((r) => r.id === id);
-  if (reqIndex === -1) {
-    return res.status(404).json({
-      success: false,
-      error: { code: 'NOT_FOUND', message: 'Visitor request not found' },
+    const request = await findVisitorRequestById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Visitor request not found' },
+      });
+    }
+
+    // Tenant Isolation
+    if (request.societyId !== user.societyId) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Unauthorized society action' },
+      });
+    }
+
+    // Resident Ownership: Only the resident of the flat can approve
+    if (user.role === 'RESIDENT' && request.residentId !== user.id) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'You can only approve visitor requests for your own flat' },
+      });
+    }
+
+    // State conflict / Double decision prevention
+    if (request.status !== 'PENDING') {
+      return res.status(409).json({
+        success: false,
+        error: { code: 'STATE_CONFLICT', message: `Request is already in ${request.status} state` },
+      });
+    }
+
+    const updated = await updateVisitorRequestDecision(id, 'APPROVED', user.name);
+    if (!updated) {
+      return res.status(409).json({
+        success: false,
+        error: { code: 'STATE_CONFLICT', message: 'Request status could not be updated (concurrent update)' },
+      });
+    }
+
+    const visitor = await findVisitorById(request.visitorId);
+    const gate = await findGateById(request.gateId);
+
+    // Audit Log
+    await createAuditLog({
+      id: `audit_${uuidv4().slice(0, 8)}`,
+      actorId: user.id,
+      actorRole: user.role,
+      societyId: user.societyId,
+      requestId: id,
+      action: 'RESIDENT_APPROVED',
+      entityType: 'VISITOR_REQUEST',
+      entityId: id,
+      metadata: JSON.stringify({ residentName: user.name, visitorName: visitor?.name }),
+      ipAddress: req.ip,
     });
-  }
 
-  const request = db.visitorRequests[reqIndex];
-
-  // Race condition protection: ensure status is PENDING
-  if (request.status !== 'PENDING') {
-    return res.status(400).json({
-      success: false,
-      error: { code: 'STATE_CONFLICT', message: `Request is already in ${request.status} state` },
-    });
-  }
-
-  const now = new Date().toISOString();
-  request.status = 'APPROVED';
-  request.respondedAt = now;
-  request.responseBy = req.user?.name || 'Resident';
-
-  const visitor = db.visitors.find((v) => v.id === request.visitorId);
-
-  // Audit Log
-  db.auditLogs.push({
-    id: `audit_${uuidv4().slice(0, 8)}`,
-    actorId: req.user!.id,
-    actorRole: req.user!.role,
-    action: 'VISITOR_APPROVED',
-    entityType: 'VISITOR_REQUEST',
-    entityId: id,
-    timestamp: now,
-  });
-
-  saveDb();
-
-  // Emit Real-time Socket Event to Guard and Admin
-  emitVisitorDecision({
-    request,
-    visitor,
-    residentId: request.residentId,
-    societyId: request.societyId,
-    status: 'APPROVED',
-  });
-
-  return res.json({
-    success: true,
-    data: {
-      id: request.id,
+    // Emit Realtime Socket.IO Decision Event to Guard, Resident, and Admin
+    emitVisitorDecision({
+      requestId: id,
+      guardId: request.guardId,
+      residentId: request.residentId,
+      societyId: request.societyId,
+      visitorName: visitor?.name || 'Visitor',
+      flatNumber: user.flatNumber || 'A-402',
+      gateName: gate?.name || 'Main Gate',
       status: 'APPROVED',
-      respondedAt: now,
-    },
-  });
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        id,
+        status: 'APPROVED',
+        respondedAt: new Date().toISOString(),
+      },
+    });
+  } catch (error: any) {
+    console.error('Error approving request:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to approve visitor request' },
+    });
+  }
 });
 
+// =============================================================
 // POST /api/visitor-requests/:id/reject
 // Resident rejects visitor entry
-router.post('/:id/reject', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN'), (req: AuthenticatedRequest, res: Response) => {
-  const { id } = req.params;
-  const { reason } = req.body;
-  const db = getDb();
+// =============================================================
+router.post('/:id/reject', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const user = req.user!;
 
-  const reqIndex = db.visitorRequests.findIndex((r) => r.id === id);
-  if (reqIndex === -1) {
-    return res.status(404).json({
-      success: false,
-      error: { code: 'NOT_FOUND', message: 'Visitor request not found' },
+    const request = await findVisitorRequestById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Visitor request not found' },
+      });
+    }
+
+    // Tenant Isolation
+    if (request.societyId !== user.societyId) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Unauthorized society action' },
+      });
+    }
+
+    // Resident Ownership
+    if (user.role === 'RESIDENT' && request.residentId !== user.id) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'You can only reject visitor requests for your own flat' },
+      });
+    }
+
+    // State conflict prevention
+    if (request.status !== 'PENDING') {
+      return res.status(409).json({
+        success: false,
+        error: { code: 'STATE_CONFLICT', message: `Request is already in ${request.status} state` },
+      });
+    }
+
+    const rejectionReason = reason || 'Denied by resident';
+    const updated = await updateVisitorRequestDecision(id, 'REJECTED', user.name, rejectionReason);
+    if (!updated) {
+      return res.status(409).json({
+        success: false,
+        error: { code: 'STATE_CONFLICT', message: 'Request status could not be updated (concurrent update)' },
+      });
+    }
+
+    const visitor = await findVisitorById(request.visitorId);
+    const gate = await findGateById(request.gateId);
+
+    // Audit Log
+    await createAuditLog({
+      id: `audit_${uuidv4().slice(0, 8)}`,
+      actorId: user.id,
+      actorRole: user.role,
+      societyId: user.societyId,
+      requestId: id,
+      action: 'RESIDENT_REJECTED',
+      entityType: 'VISITOR_REQUEST',
+      entityId: id,
+      metadata: JSON.stringify({ residentName: user.name, visitorName: visitor?.name, reason: rejectionReason }),
+      ipAddress: req.ip,
     });
-  }
 
-  const request = db.visitorRequests[reqIndex];
-
-  // Race condition protection: ensure status is PENDING
-  if (request.status !== 'PENDING') {
-    return res.status(400).json({
-      success: false,
-      error: { code: 'STATE_CONFLICT', message: `Request is already in ${request.status} state` },
-    });
-  }
-
-  const now = new Date().toISOString();
-  request.status = 'REJECTED';
-  request.respondedAt = now;
-  request.responseBy = req.user?.name || 'Resident';
-  request.rejectionReason = reason || 'Denied by resident';
-
-  const visitor = db.visitors.find((v) => v.id === request.visitorId);
-
-  // Audit Log
-  db.auditLogs.push({
-    id: `audit_${uuidv4().slice(0, 8)}`,
-    actorId: req.user!.id,
-    actorRole: req.user!.role,
-    action: 'VISITOR_REJECTED',
-    entityType: 'VISITOR_REQUEST',
-    entityId: id,
-    metadata: JSON.stringify({ reason: request.rejectionReason }),
-    timestamp: now,
-  });
-
-  saveDb();
-
-  // Emit Real-time Socket Event to Guard and Admin
-  emitVisitorDecision({
-    request,
-    visitor,
-    residentId: request.residentId,
-    societyId: request.societyId,
-    status: 'REJECTED',
-    rejectionReason: request.rejectionReason,
-  });
-
-  return res.json({
-    success: true,
-    data: {
-      id: request.id,
+    // Emit Realtime Socket.IO Decision Event
+    emitVisitorDecision({
+      requestId: id,
+      guardId: request.guardId,
+      residentId: request.residentId,
+      societyId: request.societyId,
+      visitorName: visitor?.name || 'Visitor',
+      flatNumber: user.flatNumber || 'A-402',
+      gateName: gate?.name || 'Main Gate',
       status: 'REJECTED',
-      rejectionReason: request.rejectionReason,
-      respondedAt: now,
-    },
-  });
+      rejectionReason,
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        id,
+        status: 'REJECTED',
+        rejectionReason,
+        respondedAt: new Date().toISOString(),
+      },
+    });
+  } catch (error: any) {
+    console.error('Error rejecting request:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to reject visitor request' },
+    });
+  }
 });
 
 export default router;
+

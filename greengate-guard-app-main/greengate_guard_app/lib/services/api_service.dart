@@ -5,10 +5,64 @@ import 'package:http/http.dart' as http;
 class ApiService {
   // Base URL configuration (Supports Localhost, Android Emulator 10.0.2.2, or LAN IP)
   static String baseUrl = 'http://localhost:5000/api';
-  static const String authToken = 'guard_token';
+  static String? _authToken;
 
   static void setBaseUrl(String url) {
     baseUrl = url;
+  }
+
+  static void setAuthToken(String token) {
+    _authToken = token;
+  }
+
+  static String get authToken => _authToken ?? 'guard_token';
+
+  // Guard Login with Backend Authentication
+  static Future<Map<String, dynamic>?> loginGuard({
+    required String guardIdOrPhone,
+    required String pin,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/guard/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'guardId': guardIdOrPhone.trim(),
+          'mobile': guardIdOrPhone.trim(),
+          'pin': pin.trim(),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body);
+        if (json['success'] == true && json['token'] != null) {
+          setAuthToken(json['token']);
+          return json;
+        }
+      } else {
+        print('Guard Login Failed [${response.statusCode}]: ${response.body}');
+      }
+    } catch (e) {
+      print('Exception during guard login: $e');
+    }
+    return null;
+  }
+
+  // Fetch Directory (Wings & Flats)
+  static Future<Map<String, dynamic>?> fetchDirectory() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/visitor-requests/directory'),
+        headers: {'Authorization': 'Bearer $authToken'},
+      );
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body);
+        return json['data'];
+      }
+    } catch (e) {
+      print('Error fetching directory: $e');
+    }
+    return null;
   }
 
   // Submit Visitor Entry with Photo Upload
@@ -86,3 +140,4 @@ class ApiService {
     return null;
   }
 }
+

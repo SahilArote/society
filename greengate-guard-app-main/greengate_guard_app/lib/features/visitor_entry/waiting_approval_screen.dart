@@ -28,46 +28,37 @@ class WaitingApprovalScreen extends StatefulWidget {
 }
 
 class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
-  Timer? _autoApproveTimer;
-
   @override
   void initState() {
     super.initState();
-    _startAutoResponseSimulation();
+    widget.visitorRepo.addListener(_handleRepoUpdate);
   }
 
-  // Internal test simulation: Automatically simulates resident approval after 10s if screen remains open
-  void _startAutoResponseSimulation() {
-    _autoApproveTimer = Timer(const Duration(seconds: 10), () {
-      if (mounted && widget.request.status == VisitorStatus.pending) {
-        _simulateDecision(true);
-      }
-    });
-  }
-
-  Future<void> _simulateDecision(bool isApproved) async {
-    _autoApproveTimer?.cancel();
-    await widget.visitorRepo.simulateResidentDecision(
-      requestId: widget.request.id,
-      isApproved: isApproved,
-      reason: isApproved ? null : 'Entry denied by resident (Simulated)',
+  void _handleRepoUpdate() {
+    final current = widget.visitorRepo.allRequests.firstWhere(
+      (r) => r.id == widget.request.id,
+      orElse: () => widget.request,
     );
+
     if (!mounted) return;
-    if (isApproved) {
+
+    if (current.status == VisitorStatus.approved) {
+      widget.visitorRepo.removeListener(_handleRepoUpdate);
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => EntryApprovedScreen(
-            request: widget.request,
+            request: current,
             visitorRepo: widget.visitorRepo,
             guardRepo: widget.guardRepo,
           ),
         ),
       );
-    } else {
+    } else if (current.status == VisitorStatus.rejected) {
+      widget.visitorRepo.removeListener(_handleRepoUpdate);
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => EntryRejectedScreen(
-            request: widget.request,
+            request: current,
             visitorRepo: widget.visitorRepo,
             guardRepo: widget.guardRepo,
           ),
@@ -76,18 +67,28 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
     }
   }
 
+  Future<void> _simulateDecision(bool isApproved) async {
+    await widget.visitorRepo.simulateResidentDecision(
+      requestId: widget.request.id,
+      isApproved: isApproved,
+      reason: isApproved ? null : 'Entry denied by resident (Manual Test)',
+    );
+  }
+
   @override
   void dispose() {
-    _autoApproveTimer?.cancel();
+    widget.visitorRepo.removeListener(_handleRepoUpdate);
     super.dispose();
   }
 
+
   Future<void> _cancelRequest() async {
-    _autoApproveTimer?.cancel();
+    widget.visitorRepo.removeListener(_handleRepoUpdate);
     await widget.visitorRepo.cancelRequest(widget.request.id);
     if (!mounted) return;
     Navigator.of(context).pop();
   }
+
 
   @override
   Widget build(BuildContext context) {

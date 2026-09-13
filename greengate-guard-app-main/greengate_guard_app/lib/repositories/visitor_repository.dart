@@ -327,7 +327,12 @@ class VisitorRepository extends ChangeNotifier {
       deliveryCompany: deliveryCompany,
     );
 
-    final newId = apiResult != null ? apiResult['id'] : 'REQ-${1000 + _requests.length + 1}';
+    if (apiResult == null || apiResult['id'] == null) {
+      throw Exception('Backend server rejected the request or network is unavailable. Please ensure valid flat and credentials.');
+    }
+
+    final newId = apiResult['id'];
+
 
     final request = VisitorRequest(
       id: newId,

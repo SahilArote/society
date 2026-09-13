@@ -8,11 +8,16 @@ export interface AuthUser {
   id: string;
   name: string;
   mobile: string;
+  email?: string;
   role: UserRole;
   societyId: string;
   flatId?: string;
+  flatNumber?: string;
+  wing?: string;
   gateId?: string;
+  gateName?: string;
 }
+
 
 export interface VisitorPayload {
   name: string;

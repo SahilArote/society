@@ -1,0 +1,118 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+  }
+
+  html {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+    height: 100%;
+  }
+
+  body {
+    @apply bg-slate-950 text-slate-900;
+    min-height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  #root {
+    min-height: 100%;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Ensure inputs and editable fields always allow text selection */
+  input, textarea, [contenteditable="true"], .selectable {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+  }
+
+  /* Remove default focus outline, add accessible ring */
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary-500;
+  }
+}
+
+@layer components {
+  /* Native mobile momentum scrolling container */
+  .mobile-scroll-container {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .mobile-scroll-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Skeleton shimmer effect */
+  .skeleton {
+    @apply bg-slate-200 rounded;
+    background: linear-gradient(
+      90deg,
+      theme('colors.slate.200') 0%,
+      theme('colors.slate.100') 40%,
+      theme('colors.slate.200') 80%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s ease-in-out infinite;
+  }
+
+  /* Touch-friendly tap area (min 44px) */
+  .tap-target {
+    @apply relative flex items-center justify-center;
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Native Button Press effect */
+  .btn-press {
+    @apply transition-transform duration-100 ease-out active:scale-[0.97];
+  }
+
+  /* Native Card Press effect */
+  .card-pressable {
+    @apply transition-all duration-150 ease-out active:scale-[0.98] active:bg-slate-50;
+  }
+
+  /* Status pulse */
+  .status-pulse {
+    animation: pulseSubtle 2s ease-in-out infinite;
+  }
+
+  /* Number plate styling */
+  .number-plate {
+    @apply font-bold tracking-wider text-xs bg-amber-50 border border-amber-300 rounded-md px-2.5 py-1 text-slate-800 inline-flex items-center gap-1.5 shadow-sm;
+    font-family: 'Inter', monospace;
+  }
+
+  /* Mobile grouped inset section */
+  .mobile-inset-group {
+    @apply bg-white rounded-2xl border border-slate-100/90 shadow-sm overflow-hidden divide-y divide-slate-100;
+  }
+}
+
+@layer utilities {
+  /* Safe area utilities - adapts cleanly between desktop (0px) and mobile notch/gesture bar */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}

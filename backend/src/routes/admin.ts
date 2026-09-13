@@ -1,71 +1,87 @@
 import { Router, Response } from 'express';
-import { getDb } from '../database/db';
+import { findVisitorRequestsJoined } from '../database/db';
+import { getMysqlPool } from '../database/mysql';
 import { authenticateToken, AuthenticatedRequest, authorizeRoles } from '../middleware/auth';
+
 
 const router = Router();
 
 // GET /api/admin/activity
-// Live activity feed for admin (METADATA ONLY, NO PHOTO)
-router.get('/activity', authenticateToken, authorizeRoles('ADMIN'), (req: AuthenticatedRequest, res: Response) => {
-  const db = getDb();
-  const societyId = req.user?.societyId || 'soc_greengate';
+// Live activity feed for admin (METADATA ONLY, STRICTLY NO VISITOR PHOTO)
+router.get('/activity', authenticateToken, authorizeRoles('ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const societyId = req.user!.societyId;
+    const rows = await findVisitorRequestsJoined({ societyId, limit: 30 });
 
-  const requests = db.visitorRequests
-    .filter((r) => r.societyId === societyId)
-    .sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime())
-    .slice(0, 20);
+    // Exclude photo data completely for admin activity per requirements
+    const activity = rows.map((r: any) => ({
+      id: r.id,
+      visitorName: r.visitorName || 'Visitor',
+      purpose: r.purpose || 'Personal',
+      visitorType: r.visitorType || 'guest',
+      flatNumber: r.flatNumber || 'A-402',
+      residentName: r.residentName || 'Sahil Arote',
+      gateName: r.gateName || 'Main Gate',
+      guardName: r.guardName || 'Gate Security',
+      status: r.status,
+      requestedAt: r.requestedAt,
+      respondedAt: r.respondedAt,
+      responseBy: r.responseBy,
+      rejectionReason: r.rejectionReason,
+    }));
 
-  const activity = requests.map((reqItem) => {
-    const visitor = db.visitors.find((v) => v.id === reqItem.visitorId);
-    const flat = db.flats.find((f) => f.id === reqItem.flatId);
-    const resident = db.users.find((u) => u.id === reqItem.residentId);
-    const gate = db.gates.find((g) => g.id === reqItem.gateId);
-
-    return {
-      id: reqItem.id,
-      visitorName: visitor?.name || 'Visitor',
-      purpose: visitor?.purpose || 'Personal',
-      visitorType: visitor?.visitorType || 'guest',
-      flatNumber: flat?.flatNumber || 'A-402',
-      residentName: resident?.name || 'Sahil Arote',
-      gateName: gate?.name || 'Main Gate',
-      status: reqItem.status,
-      requestedAt: reqItem.requestedAt,
-      respondedAt: reqItem.respondedAt,
-      responseBy: reqItem.responseBy,
-      rejectionReason: reqItem.rejectionReason,
-      // NOTE: Photo intentionally excluded per requirements 18 & 40
-    };
-  });
-
-  return res.json({
-    success: true,
-    data: activity,
-  });
+    return res.json({
+      success: true,
+      data: activity,
+    });
+  } catch (error: any) {
+    console.error('Error fetching admin activity:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to fetch admin activity' },
+    });
+  }
 });
 
 // GET /api/admin/stats
-router.get('/stats', authenticateToken, authorizeRoles('ADMIN'), (req: AuthenticatedRequest, res: Response) => {
-  const db = getDb();
-  const societyId = req.user?.societyId || 'soc_greengate';
+router.get('/stats', authenticateToken, authorizeRoles('ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const societyId = req.user!.societyId;
+    const pool = await getMysqlPool();
+    if (!pool) throw new Error('Database pool unavailable');
 
-  const requests = db.visitorRequests.filter((r) => r.societyId === societyId);
-  const flats = db.flats.filter((f) => f.societyId === societyId);
-  const residents = db.users.filter((u) => u.societyId === societyId && u.role === 'RESIDENT');
+    const [flatRows]: any = await pool.query('SELECT COUNT(*) as cnt FROM flats WHERE society_id = ?', [societyId]);
+    const [residentRows]: any = await pool.query("SELECT COUNT(*) as cnt FROM users WHERE society_id = ? AND role = 'RESIDENT'", [societyId]);
+    const [requestRows]: any = await pool.query('SELECT status, COUNT(*) as cnt FROM visitor_requests WHERE society_id = ? GROUP BY status', [societyId]);
 
-  return res.json({
-    success: true,
-    data: {
-      totalFlats: flats.length,
-      occupiedFlats: flats.length,
-      vacantFlats: 0,
-      totalResidents: residents.length,
-      visitorsToday: requests.length,
-      pendingApprovals: requests.filter((r) => r.status === 'PENDING').length,
-      approvedCount: requests.filter((r) => r.status === 'APPROVED').length,
-      rejectedCount: requests.filter((r) => r.status === 'REJECTED').length,
-    },
-  });
+    const statusCounts: Record<string, number> = {};
+    let totalRequests = 0;
+    for (const r of requestRows) {
+      statusCounts[r.status] = r.cnt;
+      totalRequests += r.cnt;
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        totalFlats: flatRows[0]?.cnt || 0,
+        occupiedFlats: flatRows[0]?.cnt || 0,
+        vacantFlats: 0,
+        totalResidents: residentRows[0]?.cnt || 0,
+        visitorsToday: totalRequests,
+        pendingApprovals: statusCounts['PENDING'] || 0,
+        approvedCount: statusCounts['APPROVED'] || 0,
+        rejectedCount: statusCounts['REJECTED'] || 0,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error fetching admin stats:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to fetch admin statistics' },
+    });
+  }
 });
 
 export default router;
+

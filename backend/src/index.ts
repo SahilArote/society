@@ -24,11 +24,8 @@ app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve Uploaded Visitor Photos securely
-const uploadDir = path.resolve(__dirname, '../uploads/visitor-photos');
-app.use('/api/uploads/visitor-photos', express.static(uploadDir));
-
 // Register Routes
+
 app.use('/api/auth', authRoutes);
 app.use('/api/visitor-requests', visitorRequestRoutes);
 app.use('/api/admin', adminRoutes);

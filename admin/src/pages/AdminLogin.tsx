@@ -4,6 +4,8 @@ import { motion } from 'framer-motion';
 import { Shield, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { ThemeToggle } from '../components/ThemeToggle';
 
+import { adminLogin } from '../services/api';
+
 export default function AdminLogin() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('admin@greengate.in');
@@ -16,15 +18,16 @@ export default function AdminLogin() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    await new Promise(r => setTimeout(r, 900));
-    if (email === 'admin@greengate.in' && password === 'admin123') {
-      localStorage.setItem('gg_admin_auth', 'true');
+    try {
+      await adminLogin(email, password);
       navigate('/dashboard');
-    } else {
-      setError('Invalid email or password. Try admin@greengate.in / admin123');
+    } catch (err: any) {
+      setError(err.message || 'Invalid email or password. Try admin@greengate.in / admin123');
+    } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div style={{
