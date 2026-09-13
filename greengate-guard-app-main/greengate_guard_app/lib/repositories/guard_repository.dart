@@ -15,6 +15,8 @@ class GuardRepository extends ChangeNotifier {
 
   Guard? get currentGuard => _currentGuard;
   bool get isAuthenticated => _isAuthenticated;
+  StorageService get storage => _storage;
+
 
   void _loadInitialState() {
     _isAuthenticated = _storage.isLoggedIn();

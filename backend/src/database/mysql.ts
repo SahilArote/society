@@ -15,30 +15,31 @@ export function isMysqlConfigured(): boolean {
 export async function getMysqlPool(): Promise<mysql.Pool | null> {
   if (connectionPool) return connectionPool;
 
-  let host = process.env.MYSQL_HOST || 'localhost';
-  let port = parseInt(process.env.MYSQL_PORT || '3306');
-  let user = process.env.MYSQL_USER || 'root';
-  let password = process.env.MYSQL_PASSWORD || '';
-  let database = process.env.MYSQL_DATABASE || 'greengate_db';
-
-  if (process.env.DATABASE_URL) {
-    try {
-      const parsed = new URL(process.env.DATABASE_URL);
-      host = parsed.hostname;
-      port = parsed.port ? parseInt(parsed.port) : 3306;
-      user = decodeURIComponent(parsed.username);
-      password = decodeURIComponent(parsed.password);
-      database = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
-    } catch (e: any) {
-      console.warn(`[MySQL] Failed to parse DATABASE_URL: ${e.message}`);
-    }
-  }
-
-  if (!password && !process.env.MYSQL_PASSWORD && !process.env.DATABASE_URL && process.env.USE_MYSQL !== 'true') {
-    return null;
-  }
-
   try {
+    if (process.env.DATABASE_URL) {
+      connectionPool = mysql.createPool({
+        uri: process.env.DATABASE_URL,
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0,
+        multipleStatements: true,
+      });
+      const connection = await connectionPool.getConnection();
+      console.log(`[MySQL] Successfully connected to MySQL via DATABASE_URL`);
+      connection.release();
+      return connectionPool;
+    }
+
+    let host = process.env.MYSQL_HOST || 'localhost';
+    let port = parseInt(process.env.MYSQL_PORT || '3306');
+    let user = process.env.MYSQL_USER || 'root';
+    let password = process.env.MYSQL_PASSWORD || '';
+    let database = process.env.MYSQL_DATABASE || 'greengate_db';
+
+    if (!password && !process.env.MYSQL_PASSWORD && process.env.USE_MYSQL !== 'true') {
+      return null;
+    }
+
     connectionPool = mysql.createPool({
       host,
       port,
@@ -65,7 +66,7 @@ export async function getMysqlPool(): Promise<mysql.Pool | null> {
 export async function runMysqlMigrations() {
   const pool = await getMysqlPool();
   if (!pool) {
-    console.warn('[MySQL] Pool not initialized. Skipping migrations.');
+    console.log('[MySQL] MySQL not connected. Skipping migrations.');
     return;
   }
 
@@ -87,10 +88,13 @@ export async function runMysqlMigrations() {
       .filter((s) => s.length > 0);
 
     for (const stmt of statements) {
+      if (process.env.DATABASE_URL && (stmt.startsWith('CREATE DATABASE') || stmt.startsWith('USE '))) {
+        continue;
+      }
       try {
         await pool.query(stmt);
       } catch (e: any) {
-        // Ignore benign warnings like duplicate index
+        // Ignore benign warnings like duplicate index or table exists
         if (!e.message.includes('Duplicate key') && !e.message.includes('already exists')) {
           console.error(`[MySQL] Statement error on [${stmt.slice(0, 60).replace(/\n/g, ' ')}...]: ${e.message}`);
         }
@@ -113,53 +117,45 @@ export async function seedMysqlData(pool: mysql.Pool) {
       return;
     }
 
-    console.log('[MySQL] Seeding production records into MySQL...');
+    console.log('[MySQL] Seeding clean production records into MySQL (3 Real Users)...');
     const adminPasswordHash = bcrypt.hashSync('admin123', 10);
     const guardPinHash = bcrypt.hashSync('1234', 10);
 
     // 1. Society
     await pool.query(
       `INSERT INTO societies (id, name, address, status) VALUES (?, ?, ?, ?)`,
-      ['soc_greengate', 'Green Valley Residency', 'Plot 42, Security Enclave, Cyber City', 'ACTIVE']
+      ['soc_greengate', 'Green Gate Residency', 'Plot 42, Main Road', 'ACTIVE']
     );
 
     // 2. Gates
     await pool.query(
       `INSERT INTO gates (id, society_id, name, location, status) VALUES 
-       ('gate_main', 'soc_greengate', 'Main Gate', 'North Entrance', 'OPERATIONAL'),
-       ('gate_back', 'soc_greengate', 'Back Gate', 'South Entrance', 'OPERATIONAL')`
+       ('gate_main', 'soc_greengate', 'Main Gate', 'Main Entrance', 'OPERATIONAL')`
     );
 
-    // 3. Users
+    // 3. Exactly 3 Real Users (Admin, Guard, Resident Sahil)
     await pool.query(
       `INSERT INTO users (id, name, mobile, email, password_hash, pin_hash, role, society_id, status) VALUES 
-       ('res_sahil', 'Sahil Arote', '9876543210', 'sahil@greengate.com', NULL, NULL, 'RESIDENT', 'soc_greengate', 'ACTIVE'),
-       ('res_amit', 'Dr. Amit Sharma', '9820044821', 'amit@greengate.com', NULL, NULL, 'RESIDENT', 'soc_greengate', 'ACTIVE'),
-       ('res_priya', 'Priya Sharma', '9810122334', 'priya@greengate.com', NULL, NULL, 'RESIDENT', 'soc_greengate', 'ACTIVE'),
-       ('res_rajesh', 'Rajesh Rao', '9822144556', 'rajesh@greengate.com', NULL, NULL, 'RESIDENT', 'soc_greengate', 'ACTIVE'),
-       ('guard_ramesh', 'Ramesh Singh', '9800011122', 'ramesh@greengate.com', NULL, ?, 'GUARD', 'soc_greengate', 'ACTIVE'),
-       ('admin_user', 'Admin Secretary', '9999988888', 'admin@greengate.in', ?, NULL, 'ADMIN', 'soc_greengate', 'ACTIVE')`,
-      [guardPinHash, adminPasswordHash]
+       ('admin_user', 'Admin', '9999988888', 'admin@greengate.in', ?, NULL, 'ADMIN', 'soc_greengate', 'ACTIVE'),
+       ('guard_ramesh', 'Ramesh Singh', '9800011122', 'guard@greengate.in', NULL, ?, 'GUARD', 'soc_greengate', 'ACTIVE'),
+       ('res_sahil', 'Sahil Arote', '9876543210', 'sahil@greengate.in', NULL, NULL, 'RESIDENT', 'soc_greengate', 'ACTIVE')`,
+      [adminPasswordHash, guardPinHash]
     );
 
-    // 4. Flats
+    // 4. Flat for Sahil
     await pool.query(
       `INSERT INTO flats (id, society_id, flat_number, wing, floor, resident_id) VALUES 
-       ('flat_a402', 'soc_greengate', 'A-402', 'Tower A', 4, 'res_sahil'),
-       ('flat_b402', 'soc_greengate', 'B-402', 'Tower B', 4, 'res_amit'),
-       ('flat_a101', 'soc_greengate', 'A-101', 'Tower A', 1, 'res_priya'),
-       ('flat_a104', 'soc_greengate', 'A-104', 'Tower A', 1, 'res_rajesh')`
+       ('flat_a402', 'soc_greengate', 'A-402', 'Tower A', 4, 'res_sahil')`
     );
 
-    // 5. Guard record
+    // 5. Guard record for Ramesh
     await pool.query(
       `INSERT INTO guards (id, user_id, gate_id, shift, status) VALUES 
-       ('g_record_1', 'guard_ramesh', 'gate_main', 'Morning Shift (07:00 AM - 03:30 PM)', 'ON_DUTY')`
+       ('g_record_1', 'guard_ramesh', 'gate_main', 'Morning Shift (07:00 AM - 07:00 PM)', 'ON_DUTY')`
     );
 
-    console.log('[MySQL] Production seed data successfully populated in MySQL!');
+    console.log('[MySQL] Clean 3-user production data successfully populated in MySQL!');
   } catch (err: any) {
     console.error('[MySQL] Seeding error:', err.message);
   }
 }
-

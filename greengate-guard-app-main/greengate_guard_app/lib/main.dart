@@ -4,6 +4,7 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/splash_screen.dart';
 import 'repositories/guard_repository.dart';
 import 'services/storage_service.dart';
+import 'services/api_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,10 +26,12 @@ void main() async {
   );
 
   final storage = await StorageService.init();
+  ApiService.setBaseUrl(storage.getServerUrl());
   final guardRepo = GuardRepository(storage);
 
   runApp(GreenGateGuardApp(guardRepo: guardRepo));
 }
+
 
 class GreenGateGuardApp extends StatelessWidget {
   final GuardRepository guardRepo;

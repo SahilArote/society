@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { authSession } from './authSession';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://society-d521.onrender.com';
 
 let socket: Socket | null = null;
 

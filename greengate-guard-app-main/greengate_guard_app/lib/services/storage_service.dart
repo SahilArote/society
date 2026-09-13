@@ -8,6 +8,7 @@ class StorageService {
   static const String _keyGuardData = 'guard_data';
   static const String _keyGuardPin = 'guard_pin';
   static const String _keyVisitorRequests = 'visitor_requests';
+  static const String _keyServerUrl = 'server_base_url';
 
   final SharedPreferences _prefs;
 
@@ -17,6 +18,15 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     return StorageService(prefs);
   }
+
+  String getServerUrl() {
+    return _prefs.getString(_keyServerUrl) ?? 'https://society-d521.onrender.com/api';
+  }
+
+  Future<void> setServerUrl(String url) async {
+    await _prefs.setString(_keyServerUrl, url.trim());
+  }
+
 
   bool isLoggedIn() {
     return _prefs.getBool(_keyIsLoggedIn) ?? false;

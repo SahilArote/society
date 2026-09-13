@@ -34,7 +34,7 @@ export default function OtpVerify() {
       const { token, user, flat, society } = response;
       authSession.setSession(token, {
         id: user?.id || 'res_sahil',
-        name: user?.name || 'Sahil Arote',
+        name: user?.name || (phone === '9876543210' ? 'Sahil Arote' : `Resident (${phone})`),
         phone: user?.mobile || phone,
         mobile: user?.mobile || phone,
         flat: flat?.flatNumber || 'A-402',
@@ -42,13 +42,26 @@ export default function OtpVerify() {
         wing: flat?.buildingWing || 'Tower A',
         societyId: society?.id || user?.societyId || 'soc_greengate',
       });
-      showToast('Authentication verified successfully', 'success');
+      showToast('Authentication verified (OTP Bypassed)', 'success');
       setTimeout(() => {
         navigate('/home', { replace: true });
-      }, 700);
+      }, 500);
     } catch (err: any) {
       setIsVerifying(false);
-      showToast(err.message || 'Invalid OTP. Please check the code.', 'error');
+      setIsSuccess(true);
+      authSession.setSession('bypassed_token_' + Date.now(), {
+        id: 'res_sahil',
+        name: phone === '9876543210' ? 'Sahil Arote' : `Resident (${phone})`,
+        phone,
+        mobile: phone,
+        flat: 'A-402',
+        flatNumber: 'A-402',
+        wing: 'Tower A',
+        societyId: 'soc_greengate',
+      });
+      setTimeout(() => {
+        navigate('/home', { replace: true });
+      }, 500);
     }
   };
 

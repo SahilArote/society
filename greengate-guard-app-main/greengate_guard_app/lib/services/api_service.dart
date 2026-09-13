@@ -3,9 +3,10 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // Base URL configuration (Supports Localhost, Android Emulator 10.0.2.2, or LAN IP)
-  static String baseUrl = 'http://localhost:5000/api';
+  // Base URL configuration (Supports Localhost, LAN IP, or Cloud domain)
+  static String baseUrl = 'https://society-d521.onrender.com/api';
   static String? _authToken;
+
 
   static void setBaseUrl(String url) {
     baseUrl = url;
