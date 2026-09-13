@@ -20,12 +20,25 @@ function isMysqlConfigured() {
 async function getMysqlPool() {
     if (connectionPool)
         return connectionPool;
-    const host = process.env.MYSQL_HOST || 'localhost';
-    const port = parseInt(process.env.MYSQL_PORT || '3306');
-    const user = process.env.MYSQL_USER || 'root';
-    const password = process.env.MYSQL_PASSWORD || '';
-    const database = process.env.MYSQL_DATABASE || 'greengate_db';
-    if (!process.env.MYSQL_PASSWORD && !process.env.DATABASE_URL && process.env.USE_MYSQL !== 'true') {
+    let host = process.env.MYSQL_HOST || 'localhost';
+    let port = parseInt(process.env.MYSQL_PORT || '3306');
+    let user = process.env.MYSQL_USER || 'root';
+    let password = process.env.MYSQL_PASSWORD || '';
+    let database = process.env.MYSQL_DATABASE || 'greengate_db';
+    if (process.env.DATABASE_URL) {
+        try {
+            const parsed = new URL(process.env.DATABASE_URL);
+            host = parsed.hostname;
+            port = parsed.port ? parseInt(parsed.port) : 3306;
+            user = decodeURIComponent(parsed.username);
+            password = decodeURIComponent(parsed.password);
+            database = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
+        }
+        catch (e) {
+            console.warn(`[MySQL] Failed to parse DATABASE_URL: ${e.message}`);
+        }
+    }
+    if (!password && !process.env.MYSQL_PASSWORD && !process.env.DATABASE_URL && process.env.USE_MYSQL !== 'true') {
         return null;
     }
     try {
