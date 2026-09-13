@@ -100,6 +100,11 @@ export async function runMysqlMigrations() {
         }
       }
     }
+
+    try {
+      await pool.query('ALTER TABLE visitors MODIFY COLUMN purpose TEXT');
+    } catch (_) {}
+
     console.log('[MySQL] Schema migrations execution cycle complete.');
 
     // Run Initial Seed Data if society table empty

@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS `visitors` (
   `id` VARCHAR(64) NOT NULL PRIMARY KEY,
   `name` VARCHAR(255) NOT NULL,
   `mobile` VARCHAR(32) DEFAULT NULL,
-  `purpose` VARCHAR(64) NOT NULL,
+  `purpose` TEXT NOT NULL,
   `visitor_type` VARCHAR(64) NOT NULL,
   `photo_key` VARCHAR(255) DEFAULT NULL,
   `photo_storage_type` VARCHAR(32) DEFAULT 'VAULT',

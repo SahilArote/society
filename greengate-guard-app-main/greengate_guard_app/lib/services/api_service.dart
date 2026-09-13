@@ -7,9 +7,17 @@ class ApiService {
   static String baseUrl = 'https://society-d521.onrender.com/api';
   static String? _authToken;
 
-
   static void setBaseUrl(String url) {
-    baseUrl = url;
+    var clean = url.trim();
+    while (clean.endsWith('/')) {
+      clean = clean.substring(0, clean.length - 1);
+    }
+    if (clean.isNotEmpty && !clean.endsWith('/api')) {
+      clean = '$clean/api';
+    }
+    if (clean.isNotEmpty) {
+      baseUrl = clean;
+    }
   }
 
   static void setAuthToken(String token) {
@@ -17,6 +25,22 @@ class ApiService {
   }
 
   static String get authToken => _authToken ?? 'guard_token';
+
+  static Map<String, dynamic>? _safeParseJson(String body) {
+    final trimmed = body.trim();
+    if (trimmed.isEmpty || trimmed.startsWith('<') || trimmed.toLowerCase().startsWith('<!doctype')) {
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   static Future<String> ensureAuthToken() async {
     if (_authToken != null && _authToken!.isNotEmpty && _authToken != 'guard_token') {
@@ -45,11 +69,13 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
-        final token = json['token'] ?? json['data']?['token'];
-        if (json['success'] == true && token != null) {
-          setAuthToken(token.toString());
-          return json;
+        final json = _safeParseJson(response.body);
+        if (json != null) {
+          final token = json['token'] ?? json['data']?['token'];
+          if (json['success'] == true && token != null) {
+            setAuthToken(token.toString());
+            return json;
+          }
         }
       } else {
         print('Guard Login Failed [${response.statusCode}]: ${response.body}');
@@ -69,8 +95,8 @@ class ApiService {
         headers: {'Authorization': 'Bearer $authToken'},
       );
       if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
-        return json['data'];
+        final json = _safeParseJson(response.body);
+        return json?['data'];
       } else {
         print('Error fetching directory [${response.statusCode}]: ${response.body}');
       }
@@ -102,15 +128,15 @@ class ApiService {
       request.headers['Authorization'] = 'Bearer $authToken';
 
       request.fields['name'] = name;
-      if (phoneNumber != null) request.fields['mobile'] = phoneNumber;
+      if (phoneNumber != null && phoneNumber.isNotEmpty) request.fields['mobile'] = phoneNumber;
       request.fields['purpose'] = purpose;
       request.fields['visitorType'] = visitorType;
       request.fields['buildingWing'] = buildingWing;
       request.fields['flatNumber'] = flatNumber;
       request.fields['residentName'] = residentName;
       request.fields['residentPhone'] = residentPhone;
-      if (vehicleNumber != null) request.fields['vehicleNumber'] = vehicleNumber;
-      if (deliveryCompany != null) request.fields['deliveryCompany'] = deliveryCompany;
+      if (vehicleNumber != null && vehicleNumber.isNotEmpty) request.fields['vehicleNumber'] = vehicleNumber;
+      if (deliveryCompany != null && deliveryCompany.isNotEmpty) request.fields['deliveryCompany'] = deliveryCompany;
 
       // Attach Photo File if present
       if (photoPath != null && photoPath.isNotEmpty) {
@@ -126,19 +152,21 @@ class ApiService {
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final json = jsonDecode(response.body);
-        return json['data'];
+        final json = _safeParseJson(response.body);
+        if (json != null && json['data'] != null) {
+          return json['data'];
+        }
+        return {'id': 'REQ-${DateTime.now().millisecondsSinceEpoch}'};
       } else {
         print('API Error [${response.statusCode}]: ${response.body}');
-        try {
-          final json = jsonDecode(response.body);
-          if (json['error'] != null && json['error']['message'] != null) {
-            throw Exception(json['error']['message']);
-          }
-        } on Exception {
-          rethrow;
-        } catch (_) {}
-        return null;
+        final json = _safeParseJson(response.body);
+        if (json != null && json['error'] != null && json['error']['message'] != null) {
+          throw Exception(json['error']['message']);
+        }
+        if (response.body.trim().startsWith('<') || response.statusCode == 404) {
+          throw Exception('Backend API endpoint error [HTTP ${response.statusCode}]. Please check backend URL.');
+        }
+        throw Exception('Failed to submit visitor request [HTTP ${response.statusCode}]');
       }
     } catch (e) {
       print('Network/API exception during visitor submission: $e');
@@ -155,8 +183,8 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
-        return json['data'];
+        final json = _safeParseJson(response.body);
+        return json?['data'];
       }
     } catch (e) {
       print('Error fetching requests: $e');
@@ -164,4 +192,3 @@ class ApiService {
     return null;
   }
 }
-
