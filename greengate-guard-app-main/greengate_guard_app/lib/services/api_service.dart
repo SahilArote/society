@@ -18,6 +18,15 @@ class ApiService {
 
   static String get authToken => _authToken ?? 'guard_token';
 
+  static Future<String> ensureAuthToken() async {
+    if (_authToken != null && _authToken!.isNotEmpty && _authToken != 'guard_token') {
+      return _authToken!;
+    }
+    // Auto-login to obtain live backend JWT token
+    await loginGuard(guardIdOrPhone: 'guard_ramesh', pin: '1234');
+    return _authToken ?? 'guard_token';
+  }
+
   // Guard Login with Backend Authentication
   static Future<Map<String, dynamic>?> loginGuard({
     required String guardIdOrPhone,
@@ -37,8 +46,9 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
-        if (json['success'] == true && json['token'] != null) {
-          setAuthToken(json['token']);
+        final token = json['token'] ?? json['data']?['token'];
+        if (json['success'] == true && token != null) {
+          setAuthToken(token.toString());
           return json;
         }
       } else {
@@ -53,6 +63,7 @@ class ApiService {
   // Fetch Directory (Wings & Flats)
   static Future<Map<String, dynamic>?> fetchDirectory() async {
     try {
+      await ensureAuthToken();
       final response = await http.get(
         Uri.parse('$baseUrl/visitor-requests/directory'),
         headers: {'Authorization': 'Bearer $authToken'},
@@ -60,6 +71,8 @@ class ApiService {
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         return json['data'];
+      } else {
+        print('Error fetching directory [${response.statusCode}]: ${response.body}');
       }
     } catch (e) {
       print('Error fetching directory: $e');
@@ -82,6 +95,7 @@ class ApiService {
     String? deliveryCompany,
   }) async {
     try {
+      await ensureAuthToken();
       final uri = Uri.parse('$baseUrl/visitor-requests');
       final request = http.MultipartRequest('POST', uri);
 

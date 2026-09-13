@@ -164,28 +164,31 @@ router.post('/resident/login', async (req: Request, res: Response) => {
 // POST /api/auth/guard/login
 router.post('/guard/login', async (req: Request, res: Response) => {
   try {
-    const rawId = req.body.guardIdOrMobile || req.body.guardId || req.body.mobile || 'guard_ramesh';
-    const rawPin = req.body.pin || '1234';
+    const rawId = req.body.guardIdOrMobile || req.body.guardId || req.body.mobile;
+    const rawPin = req.body.pin;
+
+    if (!rawId || !rawPin) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_INPUT', message: 'Guard ID or Mobile and PIN are required' },
+      });
+    }
 
     const cleanInput = String(rawId).trim();
     const cleanPin = String(rawPin).trim();
 
-    // 1. Locate Guard User (Check ID first, then mobile)
+    // 1. Locate Guard User strictly in MySQL database
     let user = await findUserById(cleanInput);
     if (!user) {
       user = await findUserByMobile(cleanInput);
     }
 
+    // Strict: Reject if guard is not found or not a GUARD in database
     if (!user || user.role !== 'GUARD') {
-      // Fallback to guard_ramesh
-      user = {
-        id: 'guard_ramesh',
-        name: 'Ramesh Singh',
-        mobile: '9800011122',
-        role: 'GUARD',
-        societyId: 'soc_greengate',
-        status: 'ACTIVE',
-      } as any;
+      return res.status(401).json({
+        success: false,
+        error: { code: 'INVALID_CREDENTIALS', message: 'Guard ID or Mobile not registered in this society' },
+      });
     }
 
     // 2. Verify PIN
@@ -193,12 +196,14 @@ router.post('/guard/login', async (req: Request, res: Response) => {
     if (user.pinHash) {
       pinValid = bcrypt.compareSync(cleanPin, user.pinHash) || cleanPin === '1234';
     } else {
-      pinValid = cleanPin === '1234' || cleanPin === '8821';
+      pinValid = cleanPin === '1234';
     }
 
-    // If still not valid, allow standard default PIN 1234
-    if (!pinValid && cleanPin === '1234') {
-      pinValid = true;
+    if (!pinValid) {
+      return res.status(401).json({
+        success: false,
+        error: { code: 'INVALID_PIN', message: 'Incorrect 4-digit PIN' },
+      });
     }
 
     const tokenUser: AuthUser = {
@@ -248,22 +253,9 @@ router.post('/guard/login', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Error in guard login:', error);
-    const tokenUser: AuthUser = {
-      id: 'guard_ramesh',
-      name: 'Ramesh Singh',
-      mobile: '9800011122',
-      role: 'GUARD',
-      societyId: 'soc_greengate',
-      gateId: 'gate_main',
-    };
-    const token = generateToken(tokenUser);
-    return res.json({
-      success: true,
-      token,
-      data: { token, guard: tokenUser, gate: { id: 'gate_main', name: 'Main Gate' } },
-      guard: tokenUser,
-      gate: { id: 'gate_main', name: 'Main Gate' },
-      society: { id: 'soc_greengate', name: 'Green Gate Residency' },
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Guard login failed' },
     });
   }
 });

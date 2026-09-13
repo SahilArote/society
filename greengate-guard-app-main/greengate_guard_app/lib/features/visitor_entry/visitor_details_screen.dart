@@ -48,37 +48,51 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
   bool _isSending = false;
   String? _validationError;
 
+  bool _isLoadingDirectory = false;
+
   @override
   void initState() {
     super.initState();
+    widget.visitorRepo.addListener(_onRepoUpdated);
     _loadDirectory();
-  }
-
-  Future<void> _loadDirectory() async {
-    if (widget.visitorRepo.wings.isEmpty) {
-      await widget.visitorRepo.fetchDirectoryFromBackend();
-    }
-    if (!mounted) return;
-    if (widget.visitorRepo.wings.isNotEmpty) {
-      final firstWing = widget.visitorRepo.wings.first;
-      final flats = widget.visitorRepo.wingFlats[firstWing] ?? [];
-      setState(() {
-        _selectedWing = firstWing;
-        if (flats.isNotEmpty) {
-          _selectedFlat = flats.first.flatNumber;
-          _selectedResidentName = flats.first.primaryResident?.name ?? 'Resident';
-          _selectedResidentPhone = flats.first.primaryResident?.phoneNumber ?? '';
-        }
-      });
-    }
   }
 
   @override
   void dispose() {
+    widget.visitorRepo.removeListener(_onRepoUpdated);
     _nameController.dispose();
     _phoneController.dispose();
     _purposeController.dispose();
     super.dispose();
+  }
+
+  void _onRepoUpdated() {
+    if (!mounted) return;
+    if (_selectedWing.isEmpty && widget.visitorRepo.wings.isNotEmpty) {
+      _applyFirstWing();
+    }
+  }
+
+  void _applyFirstWing() {
+    if (widget.visitorRepo.wings.isEmpty) return;
+    final firstWing = widget.visitorRepo.wings.first;
+    final flats = widget.visitorRepo.wingFlats[firstWing] ?? [];
+    setState(() {
+      _selectedWing = firstWing;
+      if (flats.isNotEmpty) {
+        _selectedFlat = flats.first.flatNumber;
+        _selectedResidentName = flats.first.primaryResident?.name ?? 'Resident';
+        _selectedResidentPhone = flats.first.primaryResident?.phoneNumber ?? '';
+      }
+    });
+  }
+
+  Future<void> _loadDirectory() async {
+    setState(() => _isLoadingDirectory = true);
+    await widget.visitorRepo.fetchDirectoryFromBackend();
+    if (!mounted) return;
+    setState(() => _isLoadingDirectory = false);
+    _applyFirstWing();
   }
 
   void _onWingChanged(String wing) {
@@ -422,43 +436,72 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
                       style: TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: widget.visitorRepo.wings.map((wing) {
-                        final isSelected = _selectedWing == wing;
-                        return Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: SizedBox(
-                              height: 52, // 52px button height
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isSelected ? AppColors.primary : AppColors.surfaceLow,
-                                  foregroundColor: isSelected ? Colors.white : AppColors.textPrimary,
-                                  elevation: isSelected ? 2 : 0,
-                                  side: BorderSide(
-                                    color: isSelected ? AppColors.primaryDark : AppColors.border,
-                                    width: 1.5,
+                    if (widget.visitorRepo.wings.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceLow,
+                          borderRadius: AppDimensions.roundedMd,
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          children: [
+                            if (_isLoadingDirectory)
+                              const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            else
+                              const Icon(Icons.info_outline, size: 18, color: AppColors.textSecondary),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Text(
+                                'Loading flats from database...',
+                                style: TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: _loadDirectory,
+                              child: const Text('Refresh', style: TextStyle(fontWeight: FontWeight.w800)),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Row(
+                        children: widget.visitorRepo.wings.map((wing) {
+                          final isSelected = _selectedWing == wing;
+                          return Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: SizedBox(
+                                height: 52, // 52px button height
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isSelected ? AppColors.primary : AppColors.surfaceLow,
+                                    foregroundColor: isSelected ? Colors.white : AppColors.textPrimary,
+                                    elevation: isSelected ? 2 : 0,
+                                    side: BorderSide(
+                                      color: isSelected ? AppColors.primaryDark : AppColors.border,
+                                      width: 1.5,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: AppDimensions.roundedMd,
+                                    ),
+                                    padding: EdgeInsets.zero,
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: AppDimensions.roundedMd,
-                                  ),
-                                  padding: EdgeInsets.zero,
-                                ),
-                                onPressed: () => _onWingChanged(wing),
-                                child: Text(
-                                  wing.replaceFirst('Tower ', 'Wing '),
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                    color: isSelected ? Colors.white : AppColors.textPrimary,
+                                  onPressed: () => _onWingChanged(wing),
+                                  child: Text(
+                                    wing.replaceFirst('Tower ', 'Wing '),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: isSelected ? Colors.white : AppColors.textPrimary,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
+                          );
+                        }).toList(),
+                      ),
 
                     const SizedBox(height: 16),
 

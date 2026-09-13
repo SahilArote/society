@@ -74,16 +74,10 @@ class GuardRepository extends ChangeNotifier {
       return true;
     }
 
-    // 2. Offline / Local fallback
-    final storedPin = _storage.getPin();
-    if (cleanInput.isNotEmpty && (cleanPin == storedPin || cleanPin == '1234' || cleanPin == '8821')) {
-      _isAuthenticated = true;
-      _currentGuard ??= _defaultGuard;
-      await _storage.setLoggedIn(true);
-      await _storage.saveGuard(_currentGuard!);
-      notifyListeners();
-      return true;
-    }
+    // Strict verification: If not authenticated by database API, reject!
+    _isAuthenticated = false;
+    await _storage.setLoggedIn(false);
+    notifyListeners();
     return false;
   }
 
