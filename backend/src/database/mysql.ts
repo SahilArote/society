@@ -23,7 +23,14 @@ export async function getMysqlPool(): Promise<mysql.Pool | null> {
         connectionLimit: 10,
         queueLimit: 0,
         multipleStatements: true,
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 10000,
       });
+
+      (connectionPool as any).on('error', (err: any) => {
+        console.error('[MySQL Pool Error]', err);
+      });
+
       const connection = await connectionPool.getConnection();
       console.log(`[MySQL] Successfully connected to MySQL via DATABASE_URL`);
       connection.release();
@@ -50,6 +57,12 @@ export async function getMysqlPool(): Promise<mysql.Pool | null> {
       connectionLimit: 10,
       queueLimit: 0,
       multipleStatements: true,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 10000,
+    });
+
+    (connectionPool as any).on('error', (err: any) => {
+      console.error('[MySQL Pool Error]', err);
     });
 
     const connection = await connectionPool.getConnection();

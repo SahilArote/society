@@ -18,7 +18,7 @@ import {
   createAuditLog,
 } from '../database/db';
 import { authenticateToken, AuthenticatedRequest, authorizeRoles } from '../middleware/auth';
-import { uploadVisitorPhoto } from '../middleware/upload';
+import { uploadVisitorPhoto, isValidImageBuffer } from '../middleware/upload';
 import { uploadVisitorPhoto as uploadToStorageVault } from '../services/photoStorageService';
 import { emitVisitorCreated, emitVisitorDecision } from '../services/socketService';
 
@@ -150,6 +150,16 @@ router.post(
       // 3. Process Visitor Photo Upload
       let photoStorageResult: any = null;
       if (req.file) {
+        if (!isValidImageBuffer(req.file.buffer)) {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'INVALID_IMAGE_CONTENT',
+              message: 'Uploaded file does not contain a valid image signature.',
+            },
+          });
+        }
+
         photoStorageResult = await uploadToStorageVault(
           req.file.buffer,
           req.file.originalname,

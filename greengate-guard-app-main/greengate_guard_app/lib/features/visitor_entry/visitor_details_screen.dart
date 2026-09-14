@@ -131,6 +131,25 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
       return;
     }
 
+    if (_selectedWing.trim().isEmpty) {
+      if (widget.visitorRepo.wings.isNotEmpty) {
+        _applyFirstWing();
+      } else {
+        setState(() => _validationError = 'Please select a building / wing');
+        return;
+      }
+    }
+
+    if (_selectedFlat.trim().isEmpty) {
+      final flats = widget.visitorRepo.wingFlats[_selectedWing] ?? [];
+      if (flats.isNotEmpty) {
+        _updateFlatSelection(flats.first.flatNumber);
+      } else {
+        setState(() => _validationError = 'Please select a valid destination flat');
+        return;
+      }
+    }
+
     setState(() {
       _isSending = true;
       _validationError = null;

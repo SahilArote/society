@@ -28,6 +28,11 @@ async function getMysqlPool() {
                 connectionLimit: 10,
                 queueLimit: 0,
                 multipleStatements: true,
+                enableKeepAlive: true,
+                keepAliveInitialDelay: 10000,
+            });
+            connectionPool.on('error', (err) => {
+                console.error('[MySQL Pool Error]', err);
             });
             const connection = await connectionPool.getConnection();
             console.log(`[MySQL] Successfully connected to MySQL via DATABASE_URL`);
@@ -52,6 +57,11 @@ async function getMysqlPool() {
             connectionLimit: 10,
             queueLimit: 0,
             multipleStatements: true,
+            enableKeepAlive: true,
+            keepAliveInitialDelay: 10000,
+        });
+        connectionPool.on('error', (err) => {
+            console.error('[MySQL Pool Error]', err);
         });
         const connection = await connectionPool.getConnection();
         console.log(`[MySQL] Successfully connected to MySQL at ${host}:${port}/${database}`);

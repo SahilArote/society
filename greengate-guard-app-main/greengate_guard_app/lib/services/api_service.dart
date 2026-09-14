@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 class ApiService {
   // Base URL configuration (Supports Localhost, LAN IP, or Cloud domain)
@@ -111,23 +112,47 @@ class ApiService {
 
       request.headers['Authorization'] = 'Bearer $authToken';
 
-      request.fields['name'] = name;
-      if (phoneNumber != null) request.fields['mobile'] = phoneNumber;
-      request.fields['purpose'] = purpose;
-      request.fields['visitorType'] = visitorType;
-      request.fields['buildingWing'] = buildingWing;
-      request.fields['flatNumber'] = flatNumber;
-      request.fields['residentName'] = residentName;
-      request.fields['residentPhone'] = residentPhone;
-      if (vehicleNumber != null) request.fields['vehicleNumber'] = vehicleNumber;
-      if (deliveryCompany != null) request.fields['deliveryCompany'] = deliveryCompany;
+      request.fields['name'] = name.trim();
+      if (phoneNumber != null && phoneNumber.trim().isNotEmpty) {
+        request.fields['mobile'] = phoneNumber.trim();
+      }
+      request.fields['purpose'] = purpose.trim();
+      request.fields['visitorType'] = visitorType.trim();
+      request.fields['buildingWing'] = buildingWing.trim();
+      request.fields['flatNumber'] = flatNumber.trim();
+      request.fields['residentName'] = residentName.trim();
+      request.fields['residentPhone'] = residentPhone.trim();
+      if (vehicleNumber != null && vehicleNumber.trim().isNotEmpty) {
+        request.fields['vehicleNumber'] = vehicleNumber.trim();
+      }
+      if (deliveryCompany != null && deliveryCompany.trim().isNotEmpty) {
+        request.fields['deliveryCompany'] = deliveryCompany.trim();
+      }
 
-      // Attach Photo File if present
+      // Attach Photo File if present with explicit MIME type
       if (photoPath != null && photoPath.isNotEmpty) {
         final file = File(photoPath);
         if (await file.exists()) {
+          final ext = photoPath.split('.').last.toLowerCase();
+          final String subType;
+          if (ext == 'png') {
+            subType = 'png';
+          } else if (ext == 'webp') {
+            subType = 'webp';
+          } else if (ext == 'heic') {
+            subType = 'heic';
+          } else if (ext == 'heif') {
+            subType = 'heif';
+          } else {
+            subType = 'jpeg';
+          }
+
           request.files.add(
-            await http.MultipartFile.fromPath('photo', photoPath),
+            await http.MultipartFile.fromPath(
+              'photo',
+              photoPath,
+              contentType: MediaType('image', subType),
+            ),
           );
         }
       }
@@ -142,13 +167,24 @@ class ApiService {
         print('API Error [${response.statusCode}]: ${response.body}');
         try {
           final json = jsonDecode(response.body);
-          if (json['error'] != null && json['error']['message'] != null) {
-            throw Exception(json['error']['message']);
+          if (json is Map<String, dynamic> && json['error'] != null) {
+            final msg = json['error']['message'] ?? json['error']['code'];
+            if (msg != null) {
+              throw Exception(msg.toString());
+            }
           }
         } on Exception {
           rethrow;
         } catch (_) {}
-        return null;
+
+        if (response.statusCode == 404) {
+          throw Exception('Backend API endpoint not found [HTTP 404]. Please verify backend server.');
+        } else if (response.statusCode == 413) {
+          throw Exception('Photo exceeds the maximum allowed size of 10MB.');
+        } else if (response.statusCode >= 500) {
+          throw Exception('Backend server error [HTTP ${response.statusCode}]. Please try again.');
+        }
+        throw Exception('Failed to submit visitor request [HTTP ${response.statusCode}].');
       }
     } catch (e) {
       print('Network/API exception during visitor submission: $e');

@@ -116,6 +116,15 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
         // 3. Process Visitor Photo Upload
         let photoStorageResult = null;
         if (req.file) {
+            if (!(0, upload_1.isValidImageBuffer)(req.file.buffer)) {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'INVALID_IMAGE_CONTENT',
+                        message: 'Uploaded file does not contain a valid image signature.',
+                    },
+                });
+            }
             photoStorageResult = await (0, photoStorageService_1.uploadVisitorPhoto)(req.file.buffer, req.file.originalname, req.file.mimetype);
         }
         else if (req.body.photoPath && fs_1.default.existsSync(req.body.photoPath)) {

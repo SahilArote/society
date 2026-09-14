@@ -3,16 +3,13 @@
 -- Version: 1.0.0
 -- ============================================================
 
-CREATE DATABASE IF NOT EXISTS `greengate_db` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `greengate_db`;
-
 -- 1. Societies Table
 CREATE TABLE IF NOT EXISTS `societies` (
   `id` VARCHAR(64) NOT NULL PRIMARY KEY,
   `name` VARCHAR(255) NOT NULL,
   `address` TEXT NOT NULL,
   `status` VARCHAR(32) DEFAULT 'ACTIVE',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 2. Gates Table
@@ -36,8 +33,8 @@ CREATE TABLE IF NOT EXISTS `users` (
   `role` ENUM('RESIDENT', 'GUARD', 'ADMIN') NOT NULL,
   `society_id` VARCHAR(64) NOT NULL,
   `status` VARCHAR(32) DEFAULT 'ACTIVE',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NULL DEFAULT NULL,
   FOREIGN KEY (`society_id`) REFERENCES `societies`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -78,7 +75,7 @@ CREATE TABLE IF NOT EXISTS `visitors` (
   `photo_url` TEXT DEFAULT NULL,
   `vehicle_number` VARCHAR(64) DEFAULT NULL,
   `delivery_company` VARCHAR(128) DEFAULT NULL,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 7. Visitor Requests Table (Primary Workflow Table)
@@ -91,7 +88,7 @@ CREATE TABLE IF NOT EXISTS `visitor_requests` (
   `guard_id` VARCHAR(64) NOT NULL,
   `gate_id` VARCHAR(64) NOT NULL,
   `status` ENUM('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'EXPIRED') NOT NULL DEFAULT 'PENDING',
-  `requested_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `requested_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `responded_at` DATETIME DEFAULT NULL,
   `response_by` VARCHAR(255) DEFAULT NULL,
   `rejection_reason` TEXT DEFAULT NULL,
@@ -112,7 +109,7 @@ CREATE TABLE IF NOT EXISTS `notifications` (
   `message` TEXT NOT NULL,
   `related_entity_id` VARCHAR(64) DEFAULT NULL,
   `is_read` TINYINT(1) DEFAULT 0,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`recipient_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -128,7 +125,7 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
   `entity_id` VARCHAR(64) NOT NULL,
   `metadata` TEXT DEFAULT NULL,
   `ip_address` VARCHAR(64) DEFAULT NULL,
-  `timestamp` DATETIME DEFAULT CURRENT_TIMESTAMP
+  `timestamp` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 10. Announcements Table
@@ -140,7 +137,7 @@ CREATE TABLE IF NOT EXISTS `announcements` (
   `priority` VARCHAR(32) DEFAULT 'normal',
   `target` VARCHAR(64) DEFAULT 'all',
   `created_by` VARCHAR(64) NOT NULL,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`society_id`) REFERENCES `societies`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -151,7 +148,7 @@ CREATE TABLE IF NOT EXISTS `otp_records` (
   `otp` VARCHAR(8) NOT NULL,
   `expires_at` DATETIME NOT NULL,
   `used` TINYINT(1) DEFAULT 0,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- INDEXES FOR PERFORMANCE
