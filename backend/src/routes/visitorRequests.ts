@@ -10,6 +10,7 @@ import {
   createVisitor,
   findVisitorById,
   createVisitorRequest,
+  createVisitorWithRequestTransaction,
   findVisitorRequestById,
   findVisitorRequestsJoined,
   updateVisitorRequestDecision,
@@ -168,34 +169,34 @@ router.post(
         };
       }
 
-      // 4. Create Visitor Record in MySQL
+      // 4. Create Visitor and Visitor Request in a Single MySQL Transaction
       const visitorId = `vis_${uuidv4().slice(0, 8)}`;
-      const visitorRecord = await createVisitor({
-        id: visitorId,
-        name: name.trim(),
-        mobile: mobile ? mobile.trim() : undefined,
-        purpose: (purpose || 'personal').toLowerCase(),
-        visitorType: (visitorType || 'guest').toLowerCase(),
-        photoKey: photoStorageResult.photoKey,
-        photoStorageType: photoStorageResult.storageType,
-        photoMimeType: photoStorageResult.mimeType,
-        photoUrl: photoStorageResult.photoUrl,
-        vehicleNumber: vehicleNumber ? vehicleNumber.trim() : undefined,
-        deliveryCompany: deliveryCompany ? deliveryCompany.trim() : undefined,
-      });
-
-      // 5. Create Visitor Request in MySQL
       const requestId = `REQ-${uuidv4().slice(0, 8).toUpperCase()}`;
-      const requestRecord = await createVisitorRequest({
-        id: requestId,
-        societyId,
-        visitorId,
-        residentId: resident.id,
-        flatId: flat.id,
-        guardId,
-        gateId,
-        status: 'PENDING',
-      });
+
+      const { visitor: visitorRecord, request: requestRecord } = await createVisitorWithRequestTransaction(
+        {
+          id: visitorId,
+          name: name.trim(),
+          mobile: mobile ? mobile.trim() : undefined,
+          purpose: (purpose || 'personal').toLowerCase(),
+          visitorType: (visitorType || 'guest').toLowerCase(),
+          photoKey: photoStorageResult.photoKey,
+          photoStorageType: photoStorageResult.storageType,
+          photoMimeType: photoStorageResult.mimeType,
+          photoUrl: photoStorageResult.photoUrl,
+          vehicleNumber: vehicleNumber ? vehicleNumber.trim() : undefined,
+          deliveryCompany: deliveryCompany ? deliveryCompany.trim() : undefined,
+        },
+        {
+          id: requestId,
+          societyId,
+          residentId: resident.id,
+          flatId: flat.id,
+          guardId,
+          gateId,
+          status: 'PENDING',
+        }
+      );
 
       // 6. Create Resident Notification in MySQL
       let gateName = 'Main Gate';

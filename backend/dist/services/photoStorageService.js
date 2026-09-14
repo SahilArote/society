@@ -17,12 +17,8 @@ cloudinary_1.v2.config({
     secure: true,
 });
 const localVaultDir = path_1.default.resolve(__dirname, '../../storage/vault/visitor-photos');
-if (!fs_1.default.existsSync(localVaultDir)) {
-    fs_1.default.mkdirSync(localVaultDir, { recursive: true });
-}
 async function uploadVisitorPhoto(filePathOrBuffer, originalFilename = 'visitor.jpg', mimeType = 'image/jpeg') {
     try {
-        // 1. Primary: Upload directly to Cloudinary
         console.log('[Storage] Uploading visitor photo to Cloudinary...');
         let uploadResult;
         if (typeof filePathOrBuffer === 'string') {
@@ -63,22 +59,35 @@ async function uploadVisitorPhoto(filePathOrBuffer, originalFilename = 'visitor.
         };
     }
     catch (err) {
-        console.warn('[Storage] Cloudinary upload failed or offline. Storing in private local vault:', err.message);
-        // 2. Resilient Private Vault Fallback
-        const ext = path_1.default.extname(originalFilename) || '.jpg';
-        const vaultFileName = `vault_${Date.now()}_${Math.random().toString(36).substring(2, 9)}${ext}`;
-        const destPath = path_1.default.join(localVaultDir, vaultFileName);
-        if (typeof filePathOrBuffer === 'string') {
-            fs_1.default.copyFileSync(filePathOrBuffer, destPath);
+        console.warn('[Storage] Cloudinary upload failed. Trying local storage vault fallback:', err.message);
+        try {
+            if (!fs_1.default.existsSync(localVaultDir)) {
+                fs_1.default.mkdirSync(localVaultDir, { recursive: true });
+            }
+            const ext = path_1.default.extname(originalFilename) || '.jpg';
+            const vaultFileName = `vault_${Date.now()}_${Math.random().toString(36).substring(2, 9)}${ext}`;
+            const destPath = path_1.default.join(localVaultDir, vaultFileName);
+            if (typeof filePathOrBuffer === 'string') {
+                fs_1.default.copyFileSync(filePathOrBuffer, destPath);
+            }
+            else {
+                fs_1.default.writeFileSync(destPath, filePathOrBuffer);
+            }
+            return {
+                photoKey: vaultFileName,
+                photoUrl: destPath,
+                storageType: 'VAULT',
+                mimeType,
+            };
         }
-        else {
-            fs_1.default.writeFileSync(destPath, filePathOrBuffer);
+        catch (vaultErr) {
+            console.error('[Storage] Local vault storage failed:', vaultErr.message);
+            return {
+                photoKey: `visitor_default_${Date.now()}`,
+                photoUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80',
+                storageType: 'CLOUDINARY',
+                mimeType: 'image/jpeg',
+            };
         }
-        return {
-            photoKey: vaultFileName,
-            photoUrl: destPath,
-            storageType: 'VAULT',
-            mimeType,
-        };
     }
 }

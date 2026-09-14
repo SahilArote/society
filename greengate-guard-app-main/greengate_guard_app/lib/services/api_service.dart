@@ -9,22 +9,32 @@ class ApiService {
 
 
   static void setBaseUrl(String url) {
-    baseUrl = url;
+    String cleanUrl = url.trim();
+    if (cleanUrl.endsWith('/')) {
+      cleanUrl = cleanUrl.substring(0, cleanUrl.length - 1);
+    }
+    if (!cleanUrl.endsWith('/api')) {
+      cleanUrl = '$cleanUrl/api';
+    }
+    baseUrl = cleanUrl;
   }
 
   static void setAuthToken(String token) {
     _authToken = token;
   }
 
-  static String get authToken => _authToken ?? 'guard_token';
+  static String get authToken => _authToken ?? '';
 
   static Future<String> ensureAuthToken() async {
-    if (_authToken != null && _authToken!.isNotEmpty && _authToken != 'guard_token') {
+    if (_authToken != null && _authToken!.isNotEmpty) {
       return _authToken!;
     }
-    // Auto-login to obtain live backend JWT token
-    await loginGuard(guardIdOrPhone: 'guard_ramesh', pin: '1234');
-    return _authToken ?? 'guard_token';
+    // Auto-login with guard credentials to obtain live backend JWT token
+    final result = await loginGuard(guardIdOrPhone: 'guard_ramesh', pin: '1234');
+    if (result == null || _authToken == null || _authToken!.isEmpty) {
+      throw Exception('Authentication failed. Guard login required.');
+    }
+    return _authToken!;
   }
 
   // Guard Login with Backend Authentication

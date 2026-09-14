@@ -13,6 +13,7 @@ exports.findFlatsBySociety = findFlatsBySociety;
 exports.createVisitor = createVisitor;
 exports.findVisitorById = findVisitorById;
 exports.createVisitorRequest = createVisitorRequest;
+exports.createVisitorWithRequestTransaction = createVisitorWithRequestTransaction;
 exports.findVisitorRequestById = findVisitorRequestById;
 exports.findVisitorRequestsJoined = findVisitorRequestsJoined;
 exports.updateVisitorRequestDecision = updateVisitorRequestDecision;
@@ -175,27 +176,62 @@ async function findFlatByNumberAndWing(societyId, flatNumber, wing) {
     const pool = await (0, mysql_1.getMysqlPool)();
     if (!pool)
         return null;
-    let query = 'SELECT f.*, u.name as res_name, u.mobile as res_mobile FROM flats f LEFT JOIN users u ON f.resident_id = u.id WHERE f.society_id = ? AND UPPER(f.flat_number) = UPPER(?)';
-    const params = [societyId, flatNumber.trim()];
+    const cleanFlat = flatNumber.trim();
+    // 1. Try matching with flexible wing name (extracting wing letter e.g. 'A' from 'Wing A' or 'Tower A')
     if (wing && wing.trim()) {
-        query += ' AND LOWER(f.wing) = LOWER(?)';
-        params.push(wing.trim());
+        const cleanWing = wing.trim();
+        const wingLetter = cleanWing.replace(/^(Wing|Tower)\s*/i, '').trim();
+        const query = `
+      SELECT f.*, u.name as res_name, u.mobile as res_mobile 
+      FROM flats f 
+      LEFT JOIN users u ON f.resident_id = u.id 
+      WHERE f.society_id = ? 
+        AND UPPER(f.flat_number) = UPPER(?) 
+        AND (
+          LOWER(f.wing) = LOWER(?) 
+          OR f.wing LIKE ? 
+          OR LOWER(?) LIKE CONCAT('%', LOWER(f.wing), '%')
+        )
+      LIMIT 1
+    `;
+        const [rows] = await pool.query(query, [societyId, cleanFlat, cleanWing, `%${wingLetter}%`, cleanWing]);
+        if (rows && rows[0]) {
+            const r = rows[0];
+            return {
+                id: r.id,
+                societyId: r.society_id,
+                flatNumber: r.flat_number,
+                wing: r.wing,
+                floor: r.floor,
+                residentId: r.resident_id,
+                residentName: r.res_name,
+                residentMobile: r.res_mobile,
+            };
+        }
     }
-    query += ' LIMIT 1';
-    const [rows] = await pool.query(query, params);
-    if (!rows[0])
-        return null;
-    const r = rows[0];
-    return {
-        id: r.id,
-        societyId: r.society_id,
-        flatNumber: r.flat_number,
-        wing: r.wing,
-        floor: r.floor,
-        residentId: r.resident_id,
-        residentName: r.res_name,
-        residentMobile: r.res_mobile,
-    };
+    // 2. Fallback: match by flatNumber alone within the society
+    const fallbackQuery = `
+    SELECT f.*, u.name as res_name, u.mobile as res_mobile 
+    FROM flats f 
+    LEFT JOIN users u ON f.resident_id = u.id 
+    WHERE f.society_id = ? AND UPPER(f.flat_number) = UPPER(?)
+    LIMIT 1
+  `;
+    const [fbRows] = await pool.query(fallbackQuery, [societyId, cleanFlat]);
+    if (fbRows && fbRows[0]) {
+        const r = fbRows[0];
+        return {
+            id: r.id,
+            societyId: r.society_id,
+            flatNumber: r.flat_number,
+            wing: r.wing,
+            floor: r.floor,
+            residentId: r.resident_id,
+            residentName: r.res_name,
+            residentMobile: r.res_mobile,
+        };
+    }
+    return null;
 }
 async function findFlatByResidentId(residentId) {
     const pool = await (0, mysql_1.getMysqlPool)();
@@ -302,6 +338,53 @@ async function createVisitorRequest(data) {
         ...data,
         requestedAt: new Date().toISOString(),
     };
+}
+async function createVisitorWithRequestTransaction(visitorData, requestData) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        throw new Error('Database pool unavailable');
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        await connection.query(`INSERT INTO visitors (id, name, mobile, purpose, visitor_type, photo_key, photo_storage_type, photo_mime_type, photo_url, vehicle_number, delivery_company) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+            visitorData.id,
+            visitorData.name,
+            visitorData.mobile || null,
+            visitorData.purpose,
+            visitorData.visitorType,
+            visitorData.photoKey || null,
+            visitorData.photoStorageType || 'VAULT',
+            visitorData.photoMimeType || 'image/jpeg',
+            visitorData.photoUrl || null,
+            visitorData.vehicleNumber || null,
+            visitorData.deliveryCompany || null,
+        ]);
+        await connection.query(`INSERT INTO visitor_requests (id, society_id, visitor_id, resident_id, flat_id, guard_id, gate_id, status) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
+            requestData.id,
+            requestData.societyId,
+            visitorData.id,
+            requestData.residentId,
+            requestData.flatId,
+            requestData.guardId,
+            requestData.gateId,
+            requestData.status,
+        ]);
+        await connection.commit();
+        const now = new Date().toISOString();
+        return {
+            visitor: { ...visitorData, createdAt: now },
+            request: { ...requestData, visitorId: visitorData.id, requestedAt: now },
+        };
+    }
+    catch (err) {
+        await connection.rollback();
+        throw err;
+    }
+    finally {
+        connection.release();
+    }
 }
 async function findVisitorRequestById(id) {
     const pool = await (0, mysql_1.getMysqlPool)();

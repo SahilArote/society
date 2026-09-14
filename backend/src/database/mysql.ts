@@ -72,9 +72,21 @@ export async function runMysqlMigrations() {
 
   try {
     console.log('[MySQL] Running migrations from schema.sql...');
-    const schemaPath = path.resolve(__dirname, './schema.sql');
-    if (!fs.existsSync(schemaPath)) return;
+    const candidatePaths = [
+      path.resolve(__dirname, './schema.sql'),
+      path.resolve(__dirname, '../src/database/schema.sql'),
+      path.resolve(__dirname, '../../src/database/schema.sql'),
+      path.resolve(process.cwd(), 'src/database/schema.sql'),
+      path.resolve(process.cwd(), 'dist/database/schema.sql'),
+    ];
 
+    const schemaPath = candidatePaths.find((p) => fs.existsSync(p));
+    if (!schemaPath) {
+      console.warn('[MySQL] Could not find schema.sql in any expected candidate paths:', candidatePaths);
+      return;
+    }
+
+    console.log(`[MySQL] Found schema.sql at ${schemaPath}`);
     const sqlScript = fs.readFileSync(schemaPath, 'utf-8');
     // Strip multi-line and single-line SQL comments
     const cleanedSql = sqlScript
@@ -100,6 +112,12 @@ export async function runMysqlMigrations() {
         }
       }
     }
+
+    // Auto-migrate schema columns if table already exists
+    try {
+      await pool.query('ALTER TABLE visitors MODIFY COLUMN purpose VARCHAR(255) NOT NULL');
+    } catch (_) {}
+
     console.log('[MySQL] Schema migrations execution cycle complete.');
 
     // Run Initial Seed Data if society table empty

@@ -456,6 +456,85 @@ export async function createVisitorRequest(data: {
   };
 }
 
+export async function createVisitorWithRequestTransaction(
+  visitorData: {
+    id: string;
+    name: string;
+    mobile?: string;
+    purpose: string;
+    visitorType: string;
+    photoKey?: string;
+    photoStorageType?: string;
+    photoMimeType?: string;
+    photoUrl?: string;
+    vehicleNumber?: string;
+    deliveryCompany?: string;
+  },
+  requestData: {
+    id: string;
+    societyId: string;
+    residentId: string;
+    flatId: string;
+    guardId: string;
+    gateId: string;
+    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
+  }
+): Promise<{ visitor: VisitorRow; request: VisitorRequestRow }> {
+  const pool = await getMysqlPool();
+  if (!pool) throw new Error('Database pool unavailable');
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    await connection.query(
+      `INSERT INTO visitors (id, name, mobile, purpose, visitor_type, photo_key, photo_storage_type, photo_mime_type, photo_url, vehicle_number, delivery_company) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        visitorData.id,
+        visitorData.name,
+        visitorData.mobile || null,
+        visitorData.purpose,
+        visitorData.visitorType,
+        visitorData.photoKey || null,
+        visitorData.photoStorageType || 'VAULT',
+        visitorData.photoMimeType || 'image/jpeg',
+        visitorData.photoUrl || null,
+        visitorData.vehicleNumber || null,
+        visitorData.deliveryCompany || null,
+      ]
+    );
+
+    await connection.query(
+      `INSERT INTO visitor_requests (id, society_id, visitor_id, resident_id, flat_id, guard_id, gate_id, status) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        requestData.id,
+        requestData.societyId,
+        visitorData.id,
+        requestData.residentId,
+        requestData.flatId,
+        requestData.guardId,
+        requestData.gateId,
+        requestData.status,
+      ]
+    );
+
+    await connection.commit();
+
+    const now = new Date().toISOString();
+    return {
+      visitor: { ...visitorData, createdAt: now },
+      request: { ...requestData, visitorId: visitorData.id, requestedAt: now },
+    };
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 export async function findVisitorRequestById(id: string): Promise<VisitorRequestRow | null> {
   const pool = await getMysqlPool();
   if (!pool) return null;
