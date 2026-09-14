@@ -29,7 +29,15 @@ class StorageService {
   }
 
   String getServerUrl() {
-    return _prefs.getString(_keyServerUrl) ?? 'https://society-d521.onrender.com/api';
+    var url = _prefs.getString(_keyServerUrl) ?? 'https://society-d521.onrender.com/api';
+    var clean = url.trim();
+    while (clean.endsWith('/')) {
+      clean = clean.substring(0, clean.length - 1);
+    }
+    if (clean.isNotEmpty && !clean.endsWith('/api')) {
+      clean = '$clean/api';
+    }
+    return clean.isNotEmpty ? clean : 'https://society-d521.onrender.com/api';
   }
 
   Future<void> setServerUrl(String url) async {

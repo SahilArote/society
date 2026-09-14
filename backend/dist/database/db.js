@@ -277,19 +277,25 @@ async function createVisitor(data) {
     const pool = await (0, mysql_1.getMysqlPool)();
     if (!pool)
         throw new Error('Database pool unavailable');
+    const safeName = (data.name || 'Visitor').trim().slice(0, 250);
+    const safeMobile = data.mobile ? data.mobile.trim().slice(0, 30) : null;
+    const safePurpose = (data.purpose || 'personal').trim().slice(0, 250);
+    const safeVisitorType = (data.visitorType || 'guest').trim().slice(0, 60);
+    const safeVehicle = data.vehicleNumber ? data.vehicleNumber.trim().slice(0, 60) : null;
+    const safeCompany = data.deliveryCompany ? data.deliveryCompany.trim().slice(0, 120) : null;
     await pool.query(`INSERT INTO visitors (id, name, mobile, purpose, visitor_type, photo_key, photo_storage_type, photo_mime_type, photo_url, vehicle_number, delivery_company) 
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
         data.id,
-        data.name,
-        data.mobile || null,
-        data.purpose,
-        data.visitorType,
+        safeName,
+        safeMobile,
+        safePurpose,
+        safeVisitorType,
         data.photoKey || null,
         data.photoStorageType || 'VAULT',
         data.photoMimeType || 'image/jpeg',
         data.photoUrl || null,
-        data.vehicleNumber || null,
-        data.deliveryCompany || null,
+        safeVehicle,
+        safeCompany,
     ]);
     return {
         ...data,
