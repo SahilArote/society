@@ -155,6 +155,12 @@ async function runTestSuite(baseUrl = 'http://localhost:5000/api') {
     console.log('10. Resident Approves Visitor Request [200 JSON]:', approveRes.status === 200 && approveJson.data?.status === 'APPROVED' ? 'PASSED ✅' : 'FAILED ❌');
   }
 
+  // 11. Push Notification VAPID Key & Subscription Registration
+  const vapidRes = await fetch(`${baseUrl}/notifications/vapid-public-key`);
+  const vapidJson = await vapidRes.json();
+  const hasVapidKey = vapidRes.status === 200 && Boolean(vapidJson.data?.publicKey);
+  console.log('11. Push Notification VAPID Public Key [200 JSON]:', hasVapidKey ? 'PASSED ✅' : 'FAILED ❌');
+
   console.log('===============================================================');
   console.log('🏁 ALL TESTS COMPLETED SUCCESSFULLY!');
   console.log('===============================================================');

@@ -8,6 +8,8 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { fetchNotifications } from '../services/api';
 import { formatRelativeTime } from '../lib/utils';
 import { useToast } from '../hooks';
+import { triggerTestNotification } from '../services/notificationService';
+import { getStoredToken } from '../services/authSession';
 import type { Notification, NotificationType } from '../types';
 
 export default function Notifications() {
@@ -82,15 +84,27 @@ export default function Notifications() {
         title="Notifications"
         subtitle={unreadCount > 0 ? `${unreadCount} new alerts` : 'All caught up'}
         rightAction={
-          unreadCount > 0 ? (
+          <div className="flex items-center gap-1.5">
             <button
-              onClick={handleMarkAllRead}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-indigo-600 hover:bg-indigo-50 active:bg-indigo-100 text-xs font-bold focus:outline-none tap-target"
+              onClick={() => {
+                triggerTestNotification(getStoredToken() || undefined);
+                showToast('🔔 Testing doorbell ring and alerts...', 'info');
+              }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-xs font-bold transition-all"
+              title="Test Doorbell Ring"
             >
-              <CheckCheck className="w-3.5 h-3.5" />
-              <span>Mark all</span>
+              <span>Test Ring 🔔</span>
             </button>
-          ) : undefined
+            {unreadCount > 0 && (
+              <button
+                onClick={handleMarkAllRead}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-indigo-600 hover:bg-indigo-50 active:bg-indigo-100 text-xs font-bold focus:outline-none tap-target"
+              >
+                <CheckCheck className="w-3.5 h-3.5" />
+                <span>Mark all</span>
+              </button>
+            )}
+          </div>
         }
       />
 

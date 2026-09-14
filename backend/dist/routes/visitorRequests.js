@@ -12,6 +12,7 @@ const auth_1 = require("../middleware/auth");
 const upload_1 = require("../middleware/upload");
 const photoStorageService_1 = require("../services/photoStorageService");
 const socketService_1 = require("../services/socketService");
+const pushNotificationService_1 = require("../services/pushNotificationService");
 const router = (0, express_1.Router)();
 // =============================================================
 // GET /api/visitor-requests/directory
@@ -231,6 +232,31 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
         }
         catch (socketErr) {
             console.warn('[Backend Warning] Socket emit error:', socketErr);
+        }
+        // 9. Dispatch Native Web Push to Resident's Registered Devices
+        try {
+            (0, pushNotificationService_1.sendPushToUser)(resident.id, {
+                title: `🚨 Visitor at Gate: ${name}`,
+                body: `${name} is waiting at ${gateName} for Flat ${flat.flatNumber}. Tap to view photo and decide.`,
+                icon: '/brand/society-logo.png',
+                badge: '/icons/favicon-32.png',
+                tag: `visitor-${requestId}`,
+                data: {
+                    requestId,
+                    url: '/',
+                    visitorName: name,
+                    flatNumber: flat.flatNumber,
+                },
+                actions: [
+                    { action: 'approve', title: '✅ Allow Entry' },
+                    { action: 'reject', title: '❌ Deny Entry' },
+                ],
+            }).catch((err) => {
+                console.warn('[WebPush] Push dispatch warning:', err.message);
+            });
+        }
+        catch (pushErr) {
+            console.warn('[WebPush] Push dispatch error:', pushErr);
         }
         return res.status(201).json({
             success: true,

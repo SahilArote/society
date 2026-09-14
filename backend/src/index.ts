@@ -10,6 +10,7 @@ import { FileValidationError } from './middleware/upload';
 import authRoutes from './routes/auth';
 import visitorRequestRoutes from './routes/visitorRequests';
 import adminRoutes from './routes/admin';
+import notificationRoutes from './routes/notifications';
 
 dotenv.config();
 
@@ -38,6 +39,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/visitor-requests', visitorRequestRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Unmatched API Routes Handler (Never return HTML)
 app.use('/api/*', (req: Request, res: Response) => {

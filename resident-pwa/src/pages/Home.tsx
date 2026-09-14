@@ -16,6 +16,12 @@ import {
 import { useToast } from '../hooks';
 import { fetchVisitorRequests, approveVisitorRequest, rejectVisitorRequest, fetchNotifications, getSecurePhotoUrl } from '../services/api';
 import { initResidentSocket } from '../services/socket';
+import {
+  triggerVisitorNotification,
+  requestNotificationPermission,
+  getNotificationPermission,
+} from '../services/notificationService';
+import { getStoredToken } from '../services/authSession';
 import type { Visitor, Announcement } from '../types';
 
 export default function Home() {
@@ -26,6 +32,9 @@ export default function Home() {
   const [recentVisitors, setRecentVisitors] = useState<Visitor[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [selectedVisitorForSheet, setSelectedVisitorForSheet] = useState<Visitor | null>(null);
+  const [showNotifBanner, setShowNotifBanner] = useState<boolean>(() => {
+    return getNotificationPermission() === 'default';
+  });
 
   const loadData = async () => {
     try {
@@ -104,6 +113,18 @@ export default function Home() {
 
         setPendingVisitors((prev) => [newVisitor, ...prev.filter((p) => p.id !== newVisitor.id)]);
         showToast(`🔔 New Visitor at Gate: ${newVisitor.name}`, 'info');
+
+        // Play doorbell chime, vibrate, and trigger native system push notification
+        triggerVisitorNotification(
+          {
+            requestId: newVisitor.id,
+            visitorName: newVisitor.name,
+            gateName: newVisitor.gate,
+            flatNumber: newVisitor.flatNumber,
+            photoUrl: newVisitor.photoUrl,
+          },
+          getStoredToken() || undefined
+        );
       },
       (updatedData) => {
         if (updatedData.status !== 'PENDING') {
@@ -117,6 +138,17 @@ export default function Home() {
       // Socket managed globally
     };
   }, []);
+
+  const handleEnablePush = async () => {
+    const token = getStoredToken();
+    const granted = await requestNotificationPermission(token || undefined);
+    if (granted) {
+      showToast('🔔 Gate notifications and doorbell chime active!', 'success');
+      setShowNotifBanner(false);
+    } else {
+      showToast('Notification permission was dismissed or denied in browser settings', 'info');
+    }
+  };
 
   const handleAllow = async (id: string) => {
     try {
@@ -146,6 +178,49 @@ export default function Home() {
       <AppHeader isHome />
 
       <PageContainer className="space-y-4 pt-3 pb-24">
+        {/* Gate Ring & Push Notification Activation Banner */}
+        <AnimatePresence>
+          {showNotifBanner && (
+            <motion.section
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-3.5 rounded-2xl shadow-sm border border-emerald-500/30 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-lg shrink-0">
+                    🔔
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-xs leading-tight text-white truncate">
+                      Enable Gate Ring Alerts
+                    </p>
+                    <p className="text-[11px] text-emerald-100/90 truncate">
+                      Get instant door chimes when visitors arrive
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleEnablePush}
+                    className="px-3 py-1.5 bg-white text-emerald-800 font-bold text-xs rounded-xl shadow-xs hover:bg-emerald-50 active:scale-95 transition-all"
+                  >
+                    Enable
+                  </button>
+                  <button
+                    onClick={() => setShowNotifBanner(false)}
+                    className="text-white/70 hover:text-white text-xs p-1"
+                    title="Dismiss"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </motion.section>
+          )}
+        </AnimatePresence>
+
         {/* Section 1: Urgent Visitor Approval */}
         <AnimatePresence>
           {pendingVisitors.length > 0 && (

@@ -5,6 +5,7 @@ import {
   Heart,
   Car,
   Bell,
+  Volume2,
   HelpCircle,
   Shield,
   FileText,
@@ -18,12 +19,19 @@ import { BottomSheet } from '../components/ui/BottomSheet';
 import { Button } from '../components/ui/Button';
 import { useToast } from '../hooks';
 import { useAuth } from '../context/AuthContext';
+import { getStoredToken } from '../services/authSession';
+import {
+  getNotificationPermission,
+  requestNotificationPermission,
+  triggerTestNotification,
+} from '../services/notificationService';
 
 export default function Profile() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { user, logoutSession } = useAuth();
   const [showLogoutSheet, setShowLogoutSheet] = useState(false);
+  const [notifStatus, setNotifStatus] = useState(() => getNotificationPermission());
 
   const handleLogoutConfirm = () => {
     setShowLogoutSheet(false);
@@ -32,19 +40,36 @@ export default function Profile() {
     navigate('/login', { replace: true });
   };
 
+  const handleToggleNotifications = async () => {
+    const token = getStoredToken();
+    const granted = await requestNotificationPermission(token || undefined);
+    setNotifStatus(getNotificationPermission());
+    if (granted) {
+      showToast('🔔 Gate notifications and chime active!', 'success');
+    } else {
+      showToast('Please allow notifications in your browser address bar permissions', 'info');
+    }
+  };
+
+  const handleTestDoorbell = async () => {
+    const token = getStoredToken();
+    await triggerTestNotification(token || undefined);
+    showToast('🔔 Playing gate doorbell chime and test alert...', 'info');
+  };
+
   const displayName = user?.name || 'Resident';
   const displayFlat = user?.flatNumber ? `Flat ${user.flatNumber}` : 'Unit';
   const displayWing = user?.wing ? ` (${user.wing})` : '';
   const displaySociety = user?.societyName || 'Green Gate Residency';
   const displayMobile = user?.mobile || '';
 
-  const homeRows = [
+  const propertyRows = [
     {
       icon: Building2,
       iconBg: 'bg-indigo-50 text-indigo-600',
-      label: 'My Flat & Unit',
+      label: 'Society Unit',
       value: `${displayFlat}${displayWing}`,
-      onClick: () => navigate('/flat'),
+      onClick: () => showToast(`${displaySociety} • ${displayFlat}`, 'info'),
     },
     {
       icon: Heart,
@@ -65,9 +90,17 @@ export default function Profile() {
   const appRows = [
     {
       icon: Bell,
+      iconBg: notifStatus === 'granted' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600',
+      label: 'Gate Push Alerts & Chime',
+      value: notifStatus === 'granted' ? 'Active 🔔' : 'Tap to Enable',
+      onClick: handleToggleNotifications,
+    },
+    {
+      icon: Volume2,
       iconBg: 'bg-blue-50 text-blue-600',
-      label: 'Notifications',
-      onClick: () => navigate('/notifications'),
+      label: 'Test Gate Doorbell Ring',
+      value: 'Play Ring 🔔',
+      onClick: handleTestDoorbell,
     },
     {
       icon: HelpCircle,
@@ -123,7 +156,7 @@ export default function Profile() {
             My Home
           </span>
           <div className="bg-white rounded-2xl border border-slate-200/60 shadow-2xs divide-y divide-slate-100 overflow-hidden">
-            {homeRows.map((row) => {
+            {propertyRows.map((row) => {
               const Icon = row.icon;
               return (
                 <div

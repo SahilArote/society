@@ -139,3 +139,129 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
 });
+
+// =============================================================
+// PUSH EVENT: Receive Background Push Notifications from Server
+// =============================================================
+self.addEventListener('push', (event) => {
+  let payload = {
+    title: '🚨 Visitor at Gate',
+    body: 'A visitor is waiting at the gate for approval.',
+    icon: '/brand/society-logo.png',
+    badge: '/icons/favicon-32.png',
+    tag: `gate-alert-${Date.now()}`,
+    data: { url: '/' },
+  };
+
+  if (event.data) {
+    try {
+      const json = event.data.json();
+      payload = { ...payload, ...json };
+    } catch (e) {
+      payload.body = event.data.text() || payload.body;
+    }
+  }
+
+  const notificationOptions = {
+    body: payload.body,
+    icon: payload.icon || '/brand/society-logo.png',
+    badge: payload.badge || '/icons/favicon-32.png',
+    image: payload.image,
+    tag: payload.tag || `gate-alert-${Date.now()}`,
+    renotify: true,
+    requireInteraction: true,
+    vibrate: [300, 100, 300, 100, 400],
+    data: payload.data || { url: '/' },
+    actions: payload.actions || [
+      { action: 'approve', title: '✅ Allow Entry' },
+      { action: 'reject', title: '❌ Deny Entry' },
+    ],
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, notificationOptions)
+  );
+});
+
+// =============================================================
+// NOTIFICATION CLICK: Handle Actions & Deep Linking to PWA
+// =============================================================
+self.addEventListener('notificationclick', (event) => {
+  const notification = event.notification;
+  const action = event.action;
+  const data = notification.data || {};
+  const requestId = data.requestId;
+
+  notification.close();
+
+  // 1. Direct "Allow Entry" Action from Lock Screen / Notification
+  if (action === 'approve' && requestId) {
+    event.waitUntil(
+      fetch(`/api/visitor-requests/${requestId}/approve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${data.token || ''}`,
+        },
+        body: JSON.stringify({}),
+      })
+        .then(() => {
+          return self.registration.showNotification('Entry Allowed ✅', {
+            body: `Visitor entry approved for request ${requestId}.`,
+            icon: '/brand/society-logo.png',
+            badge: '/icons/favicon-32.png',
+            tag: `approved-${requestId}`,
+          });
+        })
+        .catch((err) => {
+          console.warn('[SW Notification] Quick approve error:', err);
+        })
+    );
+    return;
+  }
+
+  // 2. Direct "Deny Entry" Action from Lock Screen / Notification
+  if (action === 'reject' && requestId) {
+    event.waitUntil(
+      fetch(`/api/visitor-requests/${requestId}/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${data.token || ''}`,
+        },
+        body: JSON.stringify({ reason: 'Entry denied by resident' }),
+      })
+        .then(() => {
+          return self.registration.showNotification('Entry Denied ❌', {
+            body: `Visitor entry denied for request ${requestId}.`,
+            icon: '/brand/society-logo.png',
+            badge: '/icons/favicon-32.png',
+            tag: `rejected-${requestId}`,
+          });
+        })
+        .catch((err) => {
+          console.warn('[SW Notification] Quick reject error:', err);
+        })
+    );
+    return;
+  }
+
+  // 3. Notification Body Click: Focus existing client or open PWA root
+  const targetUrl = data.url || '/';
+  event.waitUntil(
+    clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windowClients) => {
+        for (const client of windowClients) {
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            client.navigate(targetUrl);
+            return client.focus();
+          }
+        }
+        if (clients.openWindow) {
+          return clients.openWindow(targetUrl);
+        }
+      })
+  );
+});
+
