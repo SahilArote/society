@@ -26,10 +26,10 @@ export function SplashScreen({ onComplete, minDurationMs = 350 }: SplashScreenPr
           initial={{ opacity: 1 }}
           exit={{ opacity: 0, scale: 1.03 }}
           transition={{ duration: 0.35, ease: 'easeInOut' }}
-          className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-primary-700 text-white p-8 overflow-hidden select-none"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-gradient-to-br from-indigo-700 via-indigo-600 to-purple-800 text-white p-8 overflow-hidden select-none"
         >
           {/* Subtle ambient glow */}
-          <div className="absolute top-1/3 w-72 h-72 rounded-full bg-primary-500/25 blur-3xl pointer-events-none" />
+          <div className="absolute top-1/3 w-72 h-72 rounded-full bg-indigo-400/25 blur-3xl pointer-events-none" />
 
           {/* Spacer */}
           <div className="pt-safe" />
@@ -49,7 +49,7 @@ export function SplashScreen({ onComplete, minDurationMs = 350 }: SplashScreenPr
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.3 }}
-              className="text-2xl font-black tracking-tight text-white"
+              className="text-3xl font-black tracking-tight text-white"
             >
               {BRAND_CONFIG.name}
             </motion.h1>
@@ -58,9 +58,9 @@ export function SplashScreen({ onComplete, minDurationMs = 350 }: SplashScreenPr
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.3 }}
-              className="text-xs font-semibold text-indigo-100 uppercase tracking-widest mt-1"
+              className="text-xs font-semibold text-indigo-100 tracking-wider mt-1.5"
             >
-              Resident Application
+              {BRAND_CONFIG.tagline}
             </motion.p>
           </div>
 
@@ -71,11 +71,11 @@ export function SplashScreen({ onComplete, minDurationMs = 350 }: SplashScreenPr
             transition={{ delay: 0.4, duration: 0.3 }}
             className="pb-safe text-center"
           >
-            <p className="text-xs font-medium text-indigo-200">
-              GreenGate Society Platform
+            <p className="text-xs font-semibold text-indigo-200">
+              NexGate Security Platform
             </p>
-            <p className="text-[10px] text-indigo-300/70 mt-0.5">
-              Secure Residential Gate Network
+            <p className="text-[10px] text-indigo-300/80 mt-0.5 font-medium">
+              Next-Gen Residential Access Control
             </p>
           </motion.div>
         </motion.div>

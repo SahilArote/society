@@ -30,8 +30,8 @@ class GuardRepository extends ChangeNotifier {
   static const Guard _defaultGuard = Guard(
     id: 'guard_ramesh',
     name: 'Ramesh Singh',
-    badgeNumber: 'GG-SEC-01',
-    societyName: 'Green Gate Residency',
+    badgeNumber: 'NX-SEC-01',
+    societyName: 'NexGate Residency',
     assignedGate: 'Main Gate',
     shift: 'Morning Shift (07:00 AM - 07:00 PM)',
   );
@@ -62,8 +62,8 @@ class GuardRepository extends ChangeNotifier {
       _currentGuard = Guard(
         id: g['id'] ?? cleanInput,
         name: g['name'] ?? 'Ramesh Singh',
-        badgeNumber: 'GG-SEC-01',
-        societyName: soc['name'] ?? 'Green Gate Residency',
+        badgeNumber: 'NX-SEC-01',
+        societyName: soc['name'] ?? 'NexGate Residency',
         assignedGate: gate['name'] ?? 'Main Gate',
         shift: g['shift'] ?? 'Morning Shift (07:00 AM - 07:00 PM)',
       );

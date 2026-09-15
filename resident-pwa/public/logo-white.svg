@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" fill="none">
+  <defs>
+    <linearGradient id="nexgate-white-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1" />
+      <stop offset="100%" stop-color="#8B5CF6" />
+    </linearGradient>
+  </defs>
+  <!-- Icon Mark -->
+  <g transform="translate(10, 10)">
+    <rect width="60" height="60" rx="14" fill="url(#nexgate-white-grad)"/>
+    <rect x="14" y="14" width="8" height="32" rx="3" fill="#FFFFFF"/>
+    <rect x="38" y="14" width="8" height="32" rx="3" fill="#FFFFFF"/>
+    <polygon points="22,17 22,27 38,43 38,33" fill="#FFFFFF"/>
+    <circle cx="30" cy="30" r="3" fill="#06B6D4"/>
+  </g>
+  <!-- Wordmark in White for Dark Mode -->
+  <text x="85" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', 'Inter', sans-serif" font-size="28" font-weight="800" fill="#FFFFFF" letter-spacing="-0.5">Nex<tspan fill="#818CF8">Gate</tspan></text>
+  <text x="86" y="59" font-family="-apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', 'Inter', sans-serif" font-size="10" font-weight="600" fill="#94A3B8" letter-spacing="1.2">SMART ACCESS • SAFER LIVING</text>
+</svg>

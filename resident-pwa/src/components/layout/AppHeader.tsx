@@ -41,7 +41,7 @@ export function AppHeader({
 
   const displayName = user?.name || 'Resident';
   const displayFlat = user?.flatNumber ? `Flat ${user.flatNumber}` : 'Unit';
-  const displaySociety = user?.societyName || 'Green Gate Residency';
+  const displaySociety = user?.societyName || 'NexGate Residency';
 
   return (
     <header

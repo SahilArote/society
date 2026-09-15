@@ -72,7 +72,7 @@ export function PwaInstallSheet({
               <div>
                 <h4 className="text-base font-bold text-slate-900">Ready to Install</h4>
                 <p className="text-xs text-slate-500 max-w-xs mx-auto mt-1">
-                  Tap below to add GreenGate to your phone's home screen.
+                  Tap below to add NexGate to your phone's home screen.
                 </p>
               </div>
               <Button
@@ -127,7 +127,7 @@ export function PwaInstallSheet({
                   <div>
                     <h4 className="text-xs font-bold text-slate-900">3. Tap "Add" in top-right</h4>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Confirm by tapping Add. The Society icon will appear on your iPhone screen!
+                      Confirm by tapping Add. The NexGate icon will appear on your iPhone screen!
                     </p>
                   </div>
                 </div>

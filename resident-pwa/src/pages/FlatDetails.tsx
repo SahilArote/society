@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 export default function FlatDetails() {
   const { user } = useAuth();
 
-  const societyName = user?.societyName || 'Green Gate Society';
+  const societyName = user?.societyName || 'NexGate Society';
   const wing = user?.wing || 'Tower A';
   const flatNumber = user?.flatNumber || 'Flat';
 

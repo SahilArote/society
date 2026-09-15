@@ -48,49 +48,60 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo Container
-            Container(
-              width: 96,
-              height: 96,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color.fromRGBO(79, 70, 229, 0.12),
-                    blurRadius: 20,
-                    offset: Offset(0, 6),
+            // Polished Logo Container with subtle entrance
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.85, end: 1.0),
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeOutCubic,
+              builder: (context, scale, child) {
+                return Transform.scale(
+                  scale: scale,
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(26),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color.fromRGBO(79, 70, 229, 0.16),
+                          blurRadius: 28,
+                          offset: Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.shield,
+                        size: 48,
+                        color: AppColors.primary,
+                      ),
+                    ),
                   ),
-                ],
-              ),
-              child: Image.asset(
-                'assets/images/logo.png',
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => const Icon(
-                  Icons.shield,
-                  size: 48,
-                  color: AppColors.primary,
-                ),
-              ),
+                );
+              },
             ),
             const SizedBox(height: 24),
             const Text(
-              'GreenGate Guard',
+              'NexGate',
               style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
                 color: AppColors.textPrimary,
                 letterSpacing: -0.5,
               ),
             ),
             const SizedBox(height: 6),
             const Text(
-              'Gate Security & Visitor Management',
+              'Smart Access. Safer Living.',
               style: TextStyle(
                 fontSize: 14,
                 color: AppColors.textSecondary,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.2,
               ),
             ),
             const SizedBox(height: 48),

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Primary (Deep Indigo / Purple for high outdoor contrast)
-  static const Color primary = Color(0xFF4338CA);
-  static const Color primaryDark = Color(0xFF312E81);
+  // Primary & Secondary (Aligned with nex-build.com Enterprise AI & Security palette)
+  static const Color primary = Color(0xFF4F46E5);
+  static const Color primaryDark = Color(0xFF3730A3);
   static const Color primaryLight = Color(0xFFEEF2FF);
   static const Color primaryContainer = Color(0xFFE0E7FF);
+  static const Color secondary = Color(0xFF7C3AED);
+  static const Color accent = Color(0xFF06B6D4);
 
   // Success / Approved (High Contrast Emerald Green)
   static const Color success = Color(0xFF059669);

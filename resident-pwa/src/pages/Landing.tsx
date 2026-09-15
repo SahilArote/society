@@ -103,7 +103,7 @@ export default function Landing() {
               {BRAND_CONFIG.name}
             </h1>
             <p className="text-sm text-indigo-100/90 font-medium">
-              Smart Society Security & Access
+              Smart Access. Safer Living.
             </p>
           </motion.div>
         </div>
@@ -113,10 +113,10 @@ export default function Landing() {
       <div className="px-5 py-6 max-w-md mx-auto w-full flex-1 flex flex-col justify-center -mt-6 z-20">
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-6 text-center">
           <h2 className="text-lg font-bold text-slate-900 mb-1.5">
-            Your Society, Smarter & Safer
+            Smart Access. Safer Living.
           </h2>
           <p className="text-xs text-slate-500 leading-relaxed">
-            Manage visitors, family members, vehicles and residential security right from your mobile device.
+            Manage visitors, approvals, family members, and gate access directly from your phone.
           </p>
         </div>
 
@@ -187,7 +187,7 @@ export default function Landing() {
       {/* Footer */}
       <div className="py-4 text-center border-t border-slate-100 bg-slate-50/80">
         <p className="text-[11px] text-slate-400">
-          GreenGate Residential Security Platform · Works on iOS & Android
+          NexGate Residential Security Platform · Works on iOS & Android
         </p>
       </div>
 

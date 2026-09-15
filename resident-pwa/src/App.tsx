@@ -33,7 +33,7 @@ function RootEntry() {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-sm font-semibold text-slate-500">Connecting to GreenGate...</div>;
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-sm font-semibold text-slate-500">Connecting to NexGate...</div>;
   }
 
   if (isStandalone) {

@@ -1,18 +1,21 @@
 /**
- * Centralized Branding Configuration (Single Source of Truth)
- * All UI components, PWA helpers, and meta tags must reference this config.
+ * Centralized NexGate Branding Configuration (Single Source of Truth)
+ * Aligned with the modern tech visual identity of nex-build.com
  */
 
 export const BRAND_CONFIG = {
-  name: 'Society',
-  shortName: 'Society',
-  tagline: 'Your Society, Smarter & Safer',
-  description: 'Manage visitors, family, vehicles and security right from your mobile device.',
+  name: 'NexGate',
+  shortName: 'NexGate',
+  tagline: 'Smart Access. Safer Living.',
+  description: 'NexGate — Next-generation residential gate security and real-time visitor access management.',
   
   // Official Logo Assets (production-ready public paths)
   logo: {
     src: '/brand/society-logo.png',
-    alt: 'Society Official Logo',
+    vector: '/logo.svg',
+    mark: '/logo-mark.svg',
+    white: '/logo-white.svg',
+    alt: 'NexGate Official Logo',
     icon192: '/icons/icon-192.png',
     icon512: '/icons/icon-512.png',
     favicon: '/favicon.svg',
@@ -20,6 +23,8 @@ export const BRAND_CONFIG = {
   },
 
   themeColor: '#4F46E5',
+  secondaryColor: '#7C3AED',
+  accentColor: '#06B6D4',
   backgroundColor: '#F8FAFC',
 };
 

@@ -36,7 +36,7 @@ export default function Profile() {
   const handleLogoutConfirm = () => {
     setShowLogoutSheet(false);
     logoutSession();
-    showToast('Signed out of GreenGate portal', 'info');
+    showToast('Signed out of NexGate portal', 'info');
     navigate('/login', { replace: true });
   };
 
@@ -60,7 +60,7 @@ export default function Profile() {
   const displayName = user?.name || 'Resident';
   const displayFlat = user?.flatNumber ? `Flat ${user.flatNumber}` : 'Unit';
   const displayWing = user?.wing ? ` (${user.wing})` : '';
-  const displaySociety = user?.societyName || 'Green Gate Residency';
+  const displaySociety = user?.societyName || 'NexGate Residency';
   const displayMobile = user?.mobile || '';
 
   const propertyRows = [
@@ -115,7 +115,7 @@ export default function Profile() {
       icon: Shield,
       iconBg: 'bg-slate-100 text-slate-600',
       label: 'Privacy Policy',
-      onClick: () => showToast('GreenGate complies with Digital Personal Data Protection', 'info'),
+      onClick: () => showToast('NexGate complies with Digital Personal Data Protection', 'info'),
     },
     {
       icon: FileText,
@@ -253,7 +253,7 @@ export default function Profile() {
         </div>
 
         <div className="text-center pt-1 pb-4">
-          <p className="text-[10px] font-semibold text-slate-400">GreenGate Resident PWA · Live Connected</p>
+          <p className="text-[10px] font-semibold text-slate-400">NexGate Resident PWA · Live Connected</p>
         </div>
       </PageContainer>
 

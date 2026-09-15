@@ -36,8 +36,8 @@ export default function InviteVisitor() {
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: 'GreenGate Visitor Pass',
-        text: `Visitor Pass for ${name} at Green Valley Residency (Flat A-402) on ${date} at ${time}.`,
+        title: 'NexGate Visitor Pass',
+        text: `Visitor Pass for ${name} at NexGate Residency on ${date} at ${time}.`,
         url: window.location.href,
       }).catch(() => {});
     } else {

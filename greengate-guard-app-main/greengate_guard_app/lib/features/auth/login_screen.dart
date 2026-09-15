@@ -204,16 +204,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'GreenGate Guard',
+                            'NexGate',
                             style: TextStyle(
-                              fontSize: 19,
+                              fontSize: 20,
                               fontWeight: FontWeight.w800,
                               color: AppColors.textPrimary,
                               letterSpacing: -0.3,
                             ),
                           ),
                           Text(
-                            'Gate Security Terminal',
+                            'Gate Terminal · Smart Access',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,

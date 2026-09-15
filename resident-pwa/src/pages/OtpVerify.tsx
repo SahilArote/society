@@ -61,7 +61,7 @@ export default function OtpVerify() {
         flatId: user.flatId || flat?.id,
         flatNumber: user.flatNumber || flat?.flatNumber || 'Unit',
         wing: user.wing || flat?.buildingWing || '',
-        societyName: society?.name || 'Green Gate Residency',
+        societyName: society?.name || 'NexGate Residency',
       };
 
       loginSession(token, sessionUser);
@@ -194,7 +194,7 @@ export default function OtpVerify() {
       {/* Safety Notice */}
       <div className="pb-4 text-center">
         <p className="text-[11px] text-slate-400">
-          GreenGate uses secure, backend-verified authentication
+          NexGate uses secure, backend-verified authentication
         </p>
       </div>
     </div>

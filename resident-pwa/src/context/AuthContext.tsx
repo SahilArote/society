@@ -45,7 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           flatId: meData.flatId,
           flatNumber: meData.flatNumber,
           wing: meData.wing,
-          societyName: meData.societyName || 'Green Gate Residency',
+          societyName: meData.societyName || 'NexGate Residency',
         };
         setUser(updatedUser);
         setAuthSession(token, updatedUser);

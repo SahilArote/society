@@ -1,7 +1,7 @@
 {
-  "name": "Society",
-  "short_name": "Society",
-  "description": "Your Society, Smarter & Safer - Manage visitors, family, vehicles and security.",
+  "name": "NexGate",
+  "short_name": "NexGate",
+  "description": "NexGate — Smart Access. Safer Living. Real-time residential security and visitor approvals.",
   "start_url": "/?source=pwa",
   "scope": "/",
   "id": "/",

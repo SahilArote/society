@@ -126,7 +126,7 @@ export default function PwaInstall() {
                 <div>
                   <h3 className="text-xs font-semibold text-slate-900">Launch from Home Screen</h3>
                   <p className="text-[11px] text-slate-500 mt-0.5 leading-normal">
-                    Open GreenGate anytime like a native mobile app.
+                    Open NexGate anytime like a native mobile app.
                   </p>
                 </div>
               </div>
@@ -164,7 +164,7 @@ export default function PwaInstall() {
                 <div>
                   <h3 className="text-xs font-semibold text-slate-900">Tap "Add"</h3>
                   <p className="text-[11px] text-slate-500 mt-0.5 leading-normal">
-                    Tap Add in the top-right corner to place GreenGate on your home screen.
+                    Tap Add in the top-right corner to place NexGate on your home screen.
                   </p>
                 </div>
               </div>
@@ -187,7 +187,7 @@ export default function PwaInstall() {
               : isInstalling
               ? 'Installing App...'
               : isInstallable
-              ? 'Install GreenGate App'
+              ? 'Install NexGate App'
               : activeTab === 'ios'
               ? 'Follow iOS Steps Above'
               : 'Proceed to Sign In'}

@@ -25,7 +25,7 @@ export function DesktopSidebar() {
 
   const userName = user?.name || 'Resident';
   const flatNumber = user?.flatNumber || '';
-  const societyName = user?.societyName || 'GreenGate Society';
+  const societyName = user?.societyName || 'NexGate Society';
 
   return (
     <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-slate-200 min-h-screen p-5 flex-shrink-0 sticky top-0 h-screen overflow-y-auto">

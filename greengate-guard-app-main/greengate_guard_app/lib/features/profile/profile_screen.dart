@@ -143,8 +143,8 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final guard = guardRepo.currentGuard;
     final guardName = guard?.name ?? 'Ramesh Singh';
-    final guardId = guard?.badgeNumber ?? 'GG-SEC-01';
-    final society = guard?.societyName ?? 'Green Gate Residency';
+    final guardId = guard?.badgeNumber ?? 'NX-SEC-01';
+    final society = guard?.societyName ?? 'NexGate Residency';
     final gate = guard?.assignedGate ?? 'Main Gate';
     final shift = guard?.shift ?? 'Morning Shift (07:00 AM - 07:00 PM)';
 

@@ -75,7 +75,7 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final guard = guardRepo.currentGuard;
     final guardName = guard?.name ?? 'Ramesh Singh';
-    final societyName = guard?.societyName ?? 'Green Gate Residency';
+    final societyName = guard?.societyName ?? 'NexGate Residency';
     final gateName = guard?.assignedGate ?? 'Main Gate';
 
     return Scaffold(

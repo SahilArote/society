@@ -1,4 +1,4 @@
-// PWA Resident Push Notification & Chime Service for GreenGate
+// PWA Resident Push Notification & Chime Service for NexGate
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://society-d521.onrender.com/api';
 
@@ -245,7 +245,7 @@ export async function triggerTestNotification(token?: string): Promise<void> {
         { action: 'dismiss', title: 'Dismiss' },
       ],
     };
-    await registration.showNotification('🔔 GreenGate Gate Alert Test', testOptions);
+    await registration.showNotification('🔔 NexGate Gate Alert Test', testOptions);
   }
 
   if (token) {

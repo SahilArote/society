@@ -30,7 +30,7 @@ export default function Login() {
     } catch (err: any) {
       console.error('Login error:', err);
       if (err instanceof ApiError && (err.status === 404 || err.code === 'USER_NOT_FOUND')) {
-        setError('Account not found. This mobile number is not registered with GreenGate. Please contact your society administrator.');
+        setError('Account not found. This mobile number is not registered with NexGate. Please contact your society administrator.');
       } else {
         setError(err.message || 'Account not found. Please verify your mobile number with your society administrator.');
       }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'society-app-v2.0.0';
+const CACHE_NAME = 'nexgate-v1.0.0';
 
 // Static assets to pre-cache on install
 const PRECACHE_ASSETS = [
