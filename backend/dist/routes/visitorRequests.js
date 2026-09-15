@@ -244,14 +244,10 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
                 tag: `visitor-${requestId}`,
                 data: {
                     requestId,
-                    url: `/visitor-approval/${requestId}`,
+                    url: '/home',
                     visitorName: name,
                     flatNumber: flat.flatNumber,
                 },
-                actions: [
-                    { action: 'approve', title: '✅ Allow Entry' },
-                    { action: 'reject', title: '❌ Deny Entry' },
-                ],
             }).catch((err) => {
                 console.warn('[WebPush] Push dispatch warning:', err.message);
             });

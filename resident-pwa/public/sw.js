@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexgate-v1.0.1';
+const CACHE_NAME = 'nexgate-v1.0.2';
 
 // Static assets to pre-cache on install
 const PRECACHE_ASSETS = [
@@ -148,10 +148,9 @@ self.addEventListener('push', (event) => {
 
   let payload = {
     title: '🚨 Visitor at Gate',
-    body: 'A visitor is waiting at the gate for approval.',
+    body: 'A visitor is waiting at the gate. Tap to open Home.',
     icon: origin + '/icons/icon-192.png',
     badge: origin + '/icons/favicon-32.png',
-    tag: `gate-alert-${Date.now()}`,
     data: { url: '/home' },
   };
 
@@ -164,14 +163,16 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  const reqId = payload.data?.requestId || payload.requestId;
-  // Deep-link to visitor approval if available
-  let targetUrl = payload.data?.url;
-  if (!targetUrl || targetUrl === '/') {
-    targetUrl = reqId ? `/visitor-approval/${reqId}` : '/home';
-  }
+  // Broadcast to all active clients for instant in-app top popup banner
+  clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+    for (const client of windowClients) {
+      client.postMessage({
+        type: 'PUSH_NOTIFICATION_RECEIVED',
+        payload: payload,
+      });
+    }
+  });
 
-  // Ensure absolute URLs for icons on Android
   const iconUrl = payload.icon
     ? (payload.icon.startsWith('http') ? payload.icon : origin + payload.icon)
     : origin + '/icons/icon-192.png';
@@ -193,21 +194,18 @@ self.addEventListener('push', (event) => {
     icon: iconUrl,
     badge: badgeUrl,
     image: imageUrl,
-    tag: payload.tag || (reqId ? `visitor-${reqId}` : `gate-alert-${Date.now()}`),
+    tag: `gate-alert-${Date.now()}`,
     renotify: true,
     requireInteraction: true,
     silent: false,
-    timestamp: payload.timestamp || Date.now(),
-    vibrate: payload.vibrate || [300, 150, 300, 150, 500],
+    timestamp: Date.now(),
+    vibrate: [500, 200, 500, 200, 500],
     data: {
-      ...(payload.data || {}),
-      requestId: reqId,
-      url: targetUrl,
+      url: '/home',
+      requestId: payload.data?.requestId || payload.requestId,
+      visitorName: payload.data?.visitorName || payload.visitorName,
+      flatNumber: payload.data?.flatNumber || payload.flatNumber,
     },
-    actions: payload.actions || [
-      { action: 'approve', title: '✅ Allow Entry' },
-      { action: 'reject', title: '❌ Deny Entry' },
-    ],
   };
 
   event.waitUntil(
@@ -216,79 +214,12 @@ self.addEventListener('push', (event) => {
 });
 
 // =============================================================
-// NOTIFICATION CLICK: Handle Actions & Deep Linking to PWA
+// NOTIFICATION CLICK: Open Home Page Always
 // =============================================================
 self.addEventListener('notificationclick', (event) => {
-  const notification = event.notification;
-  const action = event.action;
-  const data = notification.data || {};
-  const requestId = data.requestId;
+  event.notification.close();
   const origin = self.location.origin;
-
-  notification.close();
-
-  // 1. Direct "Allow Entry" Action from Lock Screen / Notification
-  if (action === 'approve' && requestId) {
-    event.waitUntil(
-      fetch(`/api/visitor-requests/${requestId}/approve`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${data.token || ''}`,
-        },
-        body: JSON.stringify({}),
-      })
-        .then(() => {
-          return self.registration.showNotification('Entry Allowed ✅', {
-            body: `Visitor entry approved for request ${requestId}.`,
-            icon: origin + '/icons/icon-192.png',
-            badge: origin + '/icons/favicon-32.png',
-            tag: `approved-${requestId}`,
-            silent: false,
-            vibrate: [200, 100, 200],
-          });
-        })
-        .catch((err) => {
-          console.warn('[SW Notification] Quick approve error:', err);
-        })
-    );
-    return;
-  }
-
-  // 2. Direct "Deny Entry" Action from Lock Screen / Notification
-  if (action === 'reject' && requestId) {
-    event.waitUntil(
-      fetch(`/api/visitor-requests/${requestId}/reject`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${data.token || ''}`,
-        },
-        body: JSON.stringify({ reason: 'Entry denied by resident' }),
-      })
-        .then(() => {
-          return self.registration.showNotification('Entry Denied ❌', {
-            body: `Visitor entry denied for request ${requestId}.`,
-            icon: origin + '/icons/icon-192.png',
-            badge: origin + '/icons/favicon-32.png',
-            tag: `rejected-${requestId}`,
-            silent: false,
-            vibrate: [200, 100, 200],
-          });
-        })
-        .catch((err) => {
-          console.warn('[SW Notification] Quick reject error:', err);
-        })
-    );
-    return;
-  }
-
-  // 3. Notification Body Click: Focus existing client or open visitor approval screen
-  let targetPath = data.url;
-  if (!targetPath || targetPath === '/') {
-    targetPath = requestId ? `/visitor-approval/${requestId}` : '/home';
-  }
-  const fullTargetUrl = new URL(targetPath, origin).href;
+  const fullTargetUrl = new URL('/home', origin).href;
 
   event.waitUntil(
     clients

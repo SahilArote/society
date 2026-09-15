@@ -4,6 +4,7 @@ import { ResponsiveShell } from './components/layout/ResponsiveShell';
 import { PublicLayout } from './components/layout/PublicLayout';
 import { SplashScreen } from './components/common/SplashScreen';
 import { PwaUpdateBanner } from './components/common/PwaUpdateBanner';
+import { VisitorHeadsUpPopup } from './components/common/VisitorHeadsUpPopup';
 import { ToastProvider } from './components/ui/Toast';
 import { pwaInstallManager } from './services/pwaInstallManager';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -89,6 +90,7 @@ export default function App() {
         <PwaUpdateBanner />
         {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
         <BrowserRouter>
+          <VisitorHeadsUpPopup />
           <Routes>
             <Route path="/" element={<RootEntry />} />
 

@@ -193,12 +193,8 @@ export async function sendPushToUser(
     renotify: true,
     requireInteraction: true,
     timestamp: Date.now(),
-    vibrate: [300, 150, 300, 150, 500],
-    data: payload.data || { url: '/' },
-    actions: payload.actions || [
-      { action: 'approve', title: '✅ Allow Entry' },
-      { action: 'reject', title: '❌ Deny Entry' },
-    ],
+    vibrate: [500, 200, 500, 200, 500],
+    data: payload.data || { url: '/home' },
   });
 
   let sentCount = 0;

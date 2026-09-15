@@ -181,11 +181,26 @@ export async function triggerVisitorNotification(
   // 2. Vibrate device (Android/Mobile)
   if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
     try {
-      navigator.vibrate([250, 100, 250, 100, 400]);
+      navigator.vibrate([500, 200, 500]);
     } catch (_) {}
   }
 
-  // 3. Display native notification via Service Worker
+  // 3. Dispatch In-App Heads-Up Top Popup Banner across PWA
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('nexgate-visitor-popup', {
+        detail: {
+          requestId: data.requestId,
+          visitorName: data.visitorName,
+          gateName: data.gateName || 'Main Gate',
+          flatNumber: data.flatNumber || '',
+          photoUrl: data.photoUrl,
+        },
+      })
+    );
+  }
+
+  // 4. Display native notification via Service Worker
   if (!isNotificationSupported() || Notification.permission !== 'granted') {
     return;
   }
@@ -195,7 +210,7 @@ export async function triggerVisitorNotification(
     const title = `🚨 Visitor at Gate: ${data.visitorName}`;
     const body = `${data.visitorName} is waiting at ${data.gateName || 'Main Gate'}${
       data.flatNumber ? ` for Flat ${data.flatNumber}` : ''
-    }. Tap to approve or decline entry.`;
+    }. Tap to open Home.`;
 
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const options: any = {
@@ -203,21 +218,17 @@ export async function triggerVisitorNotification(
       icon: `${origin}/icons/icon-192.png`,
       badge: `${origin}/icons/favicon-32.png`,
       image: data.photoUrl,
-      tag: `visitor-${data.requestId}`,
+      tag: `gate-alert-${Date.now()}`,
       renotify: true,
       requireInteraction: true,
       silent: false,
       timestamp: Date.now(),
-      vibrate: [300, 150, 300, 150, 500],
+      vibrate: [500, 200, 500, 200, 500],
       data: {
         requestId: data.requestId,
         token: token || '',
-        url: `/visitor-approval/${data.requestId}`,
+        url: '/home',
       },
-      actions: [
-        { action: 'approve', title: '✅ Allow Entry' },
-        { action: 'reject', title: '❌ Deny Entry' },
-      ],
     };
 
     await registration.showNotification(title, options);
@@ -233,7 +244,24 @@ export async function triggerTestNotification(token?: string): Promise<void> {
   playDoorbellChime();
 
   if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-    navigator.vibrate([300, 150, 300, 150, 500]);
+    try {
+      navigator.vibrate([500, 200, 500]);
+    } catch (_) {}
+  }
+
+  // Trigger in-app top popup banner
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('nexgate-visitor-popup', {
+        detail: {
+          requestId: `REQ-TEST-${Date.now().toString().slice(-4)}`,
+          visitorName: 'Suresh Kumar (Delivery)',
+          gateName: 'Main Gate',
+          flatNumber: 'A-402',
+          purpose: 'Food Delivery',
+        },
+      })
+    );
   }
 
   if (isNotificationSupported() && Notification.permission === 'granted') {
@@ -248,12 +276,8 @@ export async function triggerTestNotification(token?: string): Promise<void> {
       requireInteraction: true,
       silent: false,
       timestamp: Date.now(),
-      vibrate: [300, 150, 300, 150, 500],
+      vibrate: [500, 200, 500],
       data: { url: '/home' },
-      actions: [
-        { action: 'open', title: 'Open App' },
-        { action: 'dismiss', title: 'Dismiss' },
-      ],
     };
     await registration.showNotification('🔔 NexGate Gate Alert Test', testOptions);
   }
