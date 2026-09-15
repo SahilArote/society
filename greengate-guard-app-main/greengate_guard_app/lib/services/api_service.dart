@@ -195,6 +195,7 @@ class ApiService {
   // Fetch Requests (History / Poll Status)
   static Future<List<dynamic>?> fetchVisitorRequests() async {
     try {
+      await ensureAuthToken();
       final response = await http.get(
         Uri.parse('$baseUrl/visitor-requests'),
         headers: {'Authorization': 'Bearer $authToken'},

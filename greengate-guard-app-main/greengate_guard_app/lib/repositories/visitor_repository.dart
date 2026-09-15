@@ -27,18 +27,17 @@ class VisitorRepository extends ChangeNotifier {
   }
 
   Future<void> _pollBackendStatus() async {
-    final pending = pendingRequests;
-    if (pending.isEmpty) return;
-
     final apiData = await ApiService.fetchVisitorRequests();
     if (apiData == null || apiData.isEmpty) return;
 
     bool updated = false;
     for (var item in apiData) {
-      final String id = item['id'];
-      final String statusStr = (item['status'] ?? '').toString().toLowerCase();
+      final String? id = item['id'];
+      if (id == null) continue;
 
+      final String statusStr = (item['status'] ?? '').toString().toLowerCase();
       final index = _requests.indexWhere((r) => r.id == id);
+
       if (index != -1) {
         final currentReq = _requests[index];
         VisitorStatus newStatus = currentReq.status;
@@ -47,9 +46,15 @@ class VisitorRepository extends ChangeNotifier {
           newStatus = VisitorStatus.approved;
         } else if (statusStr == 'rejected') {
           newStatus = VisitorStatus.rejected;
+        } else if (statusStr == 'completed' || statusStr == 'entered') {
+          newStatus = VisitorStatus.completed;
         }
 
         if (newStatus != currentReq.status) {
+          final decisionTime = item['respondedAt'] != null
+              ? DateTime.tryParse(item['respondedAt'].toString())?.toLocal()
+              : DateTime.now();
+
           _requests[index] = VisitorRequest(
             id: currentReq.id,
             visitor: currentReq.visitor,
@@ -60,9 +65,10 @@ class VisitorRepository extends ChangeNotifier {
             purpose: currentReq.purpose,
             status: newStatus,
             requestTime: currentReq.requestTime,
-            decisionTime: DateTime.now(),
-            decisionBy: currentReq.residentName,
-            rejectionReason: item['rejectionReason'] ?? (newStatus == VisitorStatus.rejected ? 'Entry denied by resident' : null),
+            decisionTime: decisionTime,
+            decisionBy: item['responseBy'] ?? currentReq.residentName,
+            rejectionReason: item['rejectionReason'] ??
+                (newStatus == VisitorStatus.rejected ? 'Entry denied by resident' : null),
           );
           updated = true;
         }
@@ -226,24 +232,6 @@ class VisitorRepository extends ChangeNotifier {
     await _storage.saveRequests(_requests);
     notifyListeners();
     return request;
-  }
-
-  // Update status (Approve / Reject simulation)
-  Future<void> simulateResidentDecision({
-    required String requestId,
-    required bool isApproved,
-    String? reason,
-  }) async {
-    final index = _requests.indexWhere((r) => r.id == requestId);
-    if (index != -1) {
-      final req = _requests[index];
-      req.status = isApproved ? VisitorStatus.approved : VisitorStatus.rejected;
-      req.decisionTime = DateTime.now();
-      req.decisionBy = req.residentName;
-      req.rejectionReason = isApproved ? null : (reason ?? 'Entry denied by resident');
-      await _storage.saveRequests(_requests);
-      notifyListeners();
-    }
   }
 
   // Complete Entry
