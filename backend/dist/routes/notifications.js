@@ -110,14 +110,14 @@ router.post('/test-push', auth_1.authenticateToken, async (req, res) => {
     try {
         const user = req.user;
         const result = await (0, pushNotificationService_1.sendPushToUser)(user.id, {
-            title: '🔔 GreenGate Gate Alert Test',
+            title: '🔔 NexGate Gate Alert Test',
             body: `Doorbell test for ${user.name}. Your device is registered to receive instant visitor alerts!`,
-            icon: '/brand/society-logo.png',
+            icon: '/icons/icon-192.png',
             badge: '/icons/favicon-32.png',
             tag: `test-push-${Date.now()}`,
-            data: { url: '/', test: true },
+            data: { url: '/home', test: true },
             actions: [
-                { action: 'open', title: 'Open GreenGate' },
+                { action: 'open', title: 'Open NexGate' },
                 { action: 'dismiss', title: 'Dismiss' },
             ],
         });

@@ -149,11 +149,15 @@ async function sendPushToUser(userId, payload) {
     const notificationPayload = JSON.stringify({
         title: payload.title,
         body: payload.body,
-        icon: payload.icon || '/brand/society-logo.png',
+        icon: payload.icon || '/icons/icon-192.png',
         badge: payload.badge || '/icons/favicon-32.png',
         image: payload.image,
         tag: payload.tag || `notif_${Date.now()}`,
-        vibrate: [300, 100, 300, 100, 400],
+        silent: false,
+        renotify: true,
+        requireInteraction: true,
+        timestamp: Date.now(),
+        vibrate: [300, 150, 300, 150, 500],
         data: payload.data || { url: '/' },
         actions: payload.actions || [
             { action: 'approve', title: '✅ Allow Entry' },
@@ -165,8 +169,12 @@ async function sendPushToUser(userId, payload) {
     for (const sub of subscriptions) {
         try {
             await web_push_1.default.sendNotification(sub, notificationPayload, {
-                TTL: 60 * 60, // 1 hour
+                TTL: 60, // 60 seconds TTL ensures immediate delivery
                 urgency: 'high',
+                topic: 'visitor-alert',
+                headers: {
+                    Urgency: 'high',
+                },
             });
             sentCount++;
             console.log(`[WebPush] Notification dispatched successfully to endpoint: ${sub.endpoint.slice(0, 40)}...`);

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexgate-v1.0.0';
+const CACHE_NAME = 'nexgate-v1.0.1';
 
 // Static assets to pre-cache on install
 const PRECACHE_ASSETS = [
@@ -144,13 +144,15 @@ self.addEventListener('message', (event) => {
 // PUSH EVENT: Receive Background Push Notifications from Server
 // =============================================================
 self.addEventListener('push', (event) => {
+  const origin = self.location.origin;
+
   let payload = {
     title: '🚨 Visitor at Gate',
     body: 'A visitor is waiting at the gate for approval.',
-    icon: '/brand/society-logo.png',
-    badge: '/icons/favicon-32.png',
+    icon: origin + '/icons/icon-192.png',
+    badge: origin + '/icons/favicon-32.png',
     tag: `gate-alert-${Date.now()}`,
-    data: { url: '/' },
+    data: { url: '/home' },
   };
 
   if (event.data) {
@@ -162,16 +164,46 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  const reqId = payload.data?.requestId || payload.requestId;
+  // Deep-link to visitor approval if available
+  let targetUrl = payload.data?.url;
+  if (!targetUrl || targetUrl === '/') {
+    targetUrl = reqId ? `/visitor-approval/${reqId}` : '/home';
+  }
+
+  // Ensure absolute URLs for icons on Android
+  const iconUrl = payload.icon
+    ? (payload.icon.startsWith('http') ? payload.icon : origin + payload.icon)
+    : origin + '/icons/icon-192.png';
+  const badgeUrl = payload.badge
+    ? (payload.badge.startsWith('http') ? payload.badge : origin + payload.badge)
+    : origin + '/icons/favicon-32.png';
+  const imageUrl = payload.image
+    ? (payload.image.startsWith('http') ? payload.image : origin + payload.image)
+    : undefined;
+
+  // Options optimized for Android heads-up/top banner popup:
+  // - explicit vibration pattern
+  // - silent: false
+  // - requireInteraction: true
+  // - renotify: true
+  // - timestamp: Date.now()
   const notificationOptions = {
     body: payload.body,
-    icon: payload.icon || '/brand/society-logo.png',
-    badge: payload.badge || '/icons/favicon-32.png',
-    image: payload.image,
-    tag: payload.tag || `gate-alert-${Date.now()}`,
+    icon: iconUrl,
+    badge: badgeUrl,
+    image: imageUrl,
+    tag: payload.tag || (reqId ? `visitor-${reqId}` : `gate-alert-${Date.now()}`),
     renotify: true,
     requireInteraction: true,
-    vibrate: [300, 100, 300, 100, 400],
-    data: payload.data || { url: '/' },
+    silent: false,
+    timestamp: payload.timestamp || Date.now(),
+    vibrate: payload.vibrate || [300, 150, 300, 150, 500],
+    data: {
+      ...(payload.data || {}),
+      requestId: reqId,
+      url: targetUrl,
+    },
     actions: payload.actions || [
       { action: 'approve', title: '✅ Allow Entry' },
       { action: 'reject', title: '❌ Deny Entry' },
@@ -191,6 +223,7 @@ self.addEventListener('notificationclick', (event) => {
   const action = event.action;
   const data = notification.data || {};
   const requestId = data.requestId;
+  const origin = self.location.origin;
 
   notification.close();
 
@@ -208,9 +241,11 @@ self.addEventListener('notificationclick', (event) => {
         .then(() => {
           return self.registration.showNotification('Entry Allowed ✅', {
             body: `Visitor entry approved for request ${requestId}.`,
-            icon: '/brand/society-logo.png',
-            badge: '/icons/favicon-32.png',
+            icon: origin + '/icons/icon-192.png',
+            badge: origin + '/icons/favicon-32.png',
             tag: `approved-${requestId}`,
+            silent: false,
+            vibrate: [200, 100, 200],
           });
         })
         .catch((err) => {
@@ -234,9 +269,11 @@ self.addEventListener('notificationclick', (event) => {
         .then(() => {
           return self.registration.showNotification('Entry Denied ❌', {
             body: `Visitor entry denied for request ${requestId}.`,
-            icon: '/brand/society-logo.png',
-            badge: '/icons/favicon-32.png',
+            icon: origin + '/icons/icon-192.png',
+            badge: origin + '/icons/favicon-32.png',
             tag: `rejected-${requestId}`,
+            silent: false,
+            vibrate: [200, 100, 200],
           });
         })
         .catch((err) => {
@@ -246,20 +283,25 @@ self.addEventListener('notificationclick', (event) => {
     return;
   }
 
-  // 3. Notification Body Click: Focus existing client or open PWA root
-  const targetUrl = data.url || '/';
+  // 3. Notification Body Click: Focus existing client or open visitor approval screen
+  let targetPath = data.url;
+  if (!targetPath || targetPath === '/') {
+    targetPath = requestId ? `/visitor-approval/${requestId}` : '/home';
+  }
+  const fullTargetUrl = new URL(targetPath, origin).href;
+
   event.waitUntil(
     clients
       .matchAll({ type: 'window', includeUncontrolled: true })
       .then((windowClients) => {
         for (const client of windowClients) {
-          if (client.url.includes(self.location.origin) && 'focus' in client) {
-            client.navigate(targetUrl);
+          if (client.url.includes(origin) && 'focus' in client) {
+            client.navigate(fullTargetUrl);
             return client.focus();
           }
         }
         if (clients.openWindow) {
-          return clients.openWindow(targetUrl);
+          return clients.openWindow(fullTargetUrl);
         }
       })
   );

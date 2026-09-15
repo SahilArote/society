@@ -24,6 +24,7 @@ async function getMysqlPool() {
         if (process.env.DATABASE_URL) {
             connectionPool = promise_1.default.createPool({
                 uri: process.env.DATABASE_URL,
+                timezone: 'Z',
                 waitForConnections: true,
                 connectionLimit: 10,
                 queueLimit: 0,
@@ -31,11 +32,15 @@ async function getMysqlPool() {
                 enableKeepAlive: true,
                 keepAliveInitialDelay: 10000,
             });
+            connectionPool.on('connection', (connection) => {
+                connection.query("SET time_zone = '+00:00'");
+            });
             connectionPool.on('error', (err) => {
                 console.error('[MySQL Pool Error]', err);
             });
             const connection = await connectionPool.getConnection();
-            console.log(`[MySQL] Successfully connected to MySQL via DATABASE_URL`);
+            await connection.query("SET time_zone = '+00:00'");
+            console.log(`[MySQL] Successfully connected to MySQL via DATABASE_URL with UTC timezone`);
             connection.release();
             return connectionPool;
         }
@@ -53,6 +58,7 @@ async function getMysqlPool() {
             user,
             password,
             database,
+            timezone: 'Z',
             waitForConnections: true,
             connectionLimit: 10,
             queueLimit: 0,
@@ -60,11 +66,15 @@ async function getMysqlPool() {
             enableKeepAlive: true,
             keepAliveInitialDelay: 10000,
         });
+        connectionPool.on('connection', (connection) => {
+            connection.query("SET time_zone = '+00:00'");
+        });
         connectionPool.on('error', (err) => {
             console.error('[MySQL Pool Error]', err);
         });
         const connection = await connectionPool.getConnection();
-        console.log(`[MySQL] Successfully connected to MySQL at ${host}:${port}/${database}`);
+        await connection.query("SET time_zone = '+00:00'");
+        console.log(`[MySQL] Successfully connected to MySQL at ${host}:${port}/${database} with UTC timezone`);
         connection.release();
         return connectionPool;
     }

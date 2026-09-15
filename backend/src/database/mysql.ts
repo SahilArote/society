@@ -19,6 +19,7 @@ export async function getMysqlPool(): Promise<mysql.Pool | null> {
     if (process.env.DATABASE_URL) {
       connectionPool = mysql.createPool({
         uri: process.env.DATABASE_URL,
+        timezone: 'Z',
         waitForConnections: true,
         connectionLimit: 10,
         queueLimit: 0,
@@ -27,12 +28,17 @@ export async function getMysqlPool(): Promise<mysql.Pool | null> {
         keepAliveInitialDelay: 10000,
       });
 
+      (connectionPool as any).on('connection', (connection: any) => {
+        connection.query("SET time_zone = '+00:00'");
+      });
+
       (connectionPool as any).on('error', (err: any) => {
         console.error('[MySQL Pool Error]', err);
       });
 
       const connection = await connectionPool.getConnection();
-      console.log(`[MySQL] Successfully connected to MySQL via DATABASE_URL`);
+      await connection.query("SET time_zone = '+00:00'");
+      console.log(`[MySQL] Successfully connected to MySQL via DATABASE_URL with UTC timezone`);
       connection.release();
       return connectionPool;
     }
@@ -53,6 +59,7 @@ export async function getMysqlPool(): Promise<mysql.Pool | null> {
       user,
       password,
       database,
+      timezone: 'Z',
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
@@ -61,12 +68,17 @@ export async function getMysqlPool(): Promise<mysql.Pool | null> {
       keepAliveInitialDelay: 10000,
     });
 
+    (connectionPool as any).on('connection', (connection: any) => {
+      connection.query("SET time_zone = '+00:00'");
+    });
+
     (connectionPool as any).on('error', (err: any) => {
       console.error('[MySQL Pool Error]', err);
     });
 
     const connection = await connectionPool.getConnection();
-    console.log(`[MySQL] Successfully connected to MySQL at ${host}:${port}/${database}`);
+    await connection.query("SET time_zone = '+00:00'");
+    console.log(`[MySQL] Successfully connected to MySQL at ${host}:${port}/${database} with UTC timezone`);
     connection.release();
     return connectionPool;
   } catch (err: any) {

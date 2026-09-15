@@ -108,7 +108,7 @@ export default function Home() {
           status: 'pending',
           gate: newVisitorData.gateName || 'Main Gate',
           flatNumber: newVisitorData.flatNumber || '',
-          requestedAt: new Date(req.requestedAt || Date.now()),
+          requestedAt: new Date(newVisitorData.requestedAt || req.requestedAt || Date.now()),
         };
 
         setPendingVisitors((prev) => [newVisitor, ...prev.filter((p) => p.id !== newVisitor.id)]);

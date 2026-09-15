@@ -217,7 +217,9 @@ class VisitorRepository extends ChangeNotifier {
       residentPhone: residentPhone,
       purpose: purpose.isNotEmpty ? purpose : 'Visit to $flatNumber',
       status: VisitorStatus.pending,
-      requestTime: DateTime.now(),
+      requestTime: apiResult['requestedAt'] != null
+          ? (DateTime.tryParse(apiResult['requestedAt'].toString())?.toLocal() ?? DateTime.now())
+          : DateTime.now(),
     );
 
     _requests.insert(0, request);

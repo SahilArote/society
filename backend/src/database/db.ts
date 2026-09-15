@@ -512,9 +512,10 @@ export async function createVisitorWithRequestTransaction(
       ]
     );
 
+    const now = new Date();
     await connection.query(
-      `INSERT INTO visitor_requests (id, society_id, visitor_id, resident_id, flat_id, guard_id, gate_id, status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO visitor_requests (id, society_id, visitor_id, resident_id, flat_id, guard_id, gate_id, status, requested_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         requestData.id,
         requestData.societyId,
@@ -524,15 +525,16 @@ export async function createVisitorWithRequestTransaction(
         requestData.guardId,
         requestData.gateId,
         requestData.status,
+        now,
       ]
     );
 
     await connection.commit();
 
-    const now = new Date().toISOString();
+    const isoNow = now.toISOString();
     return {
-      visitor: { ...visitorData, createdAt: now },
-      request: { ...requestData, visitorId: visitorData.id, requestedAt: now },
+      visitor: { ...visitorData, createdAt: isoNow },
+      request: { ...requestData, visitorId: visitorData.id, requestedAt: isoNow },
     };
   } catch (err) {
     await connection.rollback();
@@ -557,8 +559,8 @@ export async function findVisitorRequestById(id: string): Promise<VisitorRequest
     guardId: r.guard_id,
     gateId: r.gate_id,
     status: r.status,
-    requestedAt: r.requested_at,
-    respondedAt: r.responded_at,
+    requestedAt: r.requested_at instanceof Date ? r.requested_at.toISOString() : (r.requested_at ? new Date(r.requested_at).toISOString() : r.requested_at),
+    respondedAt: r.responded_at instanceof Date ? r.responded_at.toISOString() : (r.responded_at ? new Date(r.responded_at).toISOString() : r.responded_at),
     responseBy: r.response_by,
     rejectionReason: r.rejection_reason,
   };
@@ -634,7 +636,11 @@ export async function findVisitorRequestsJoined(filters: {
   }
 
   const [rows]: any = await pool.query(query, params);
-  return rows;
+  return rows.map((r: any) => ({
+    ...r,
+    requestedAt: r.requestedAt instanceof Date ? r.requestedAt.toISOString() : (r.requestedAt ? new Date(r.requestedAt).toISOString() : r.requestedAt),
+    respondedAt: r.respondedAt instanceof Date ? r.respondedAt.toISOString() : (r.respondedAt ? new Date(r.respondedAt).toISOString() : r.respondedAt),
+  }));
 }
 
 export async function updateVisitorRequestDecision(

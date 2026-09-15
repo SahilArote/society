@@ -280,12 +280,13 @@ router.post(
         sendPushToUser(resident.id, {
           title: `🚨 Visitor at Gate: ${name}`,
           body: `${name} is waiting at ${gateName} for Flat ${flat.flatNumber}. Tap to view photo and decide.`,
-          icon: '/brand/society-logo.png',
+          icon: '/icons/icon-192.png',
           badge: '/icons/favicon-32.png',
+          image: `/api/visitor-requests/${requestId}/photo`,
           tag: `visitor-${requestId}`,
           data: {
             requestId,
-            url: '/',
+            url: `/visitor-approval/${requestId}`,
             visitorName: name,
             flatNumber: flat.flatNumber,
           },

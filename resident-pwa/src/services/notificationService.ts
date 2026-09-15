@@ -197,18 +197,22 @@ export async function triggerVisitorNotification(
       data.flatNumber ? ` for Flat ${data.flatNumber}` : ''
     }. Tap to approve or decline entry.`;
 
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const options: any = {
       body,
-      icon: '/brand/society-logo.png',
-      badge: '/icons/favicon-32.png',
+      icon: `${origin}/icons/icon-192.png`,
+      badge: `${origin}/icons/favicon-32.png`,
       image: data.photoUrl,
       tag: `visitor-${data.requestId}`,
       renotify: true,
       requireInteraction: true,
+      silent: false,
+      timestamp: Date.now(),
+      vibrate: [300, 150, 300, 150, 500],
       data: {
         requestId: data.requestId,
         token: token || '',
-        url: '/',
+        url: `/visitor-approval/${data.requestId}`,
       },
       actions: [
         { action: 'approve', title: '✅ Allow Entry' },
@@ -229,17 +233,23 @@ export async function triggerTestNotification(token?: string): Promise<void> {
   playDoorbellChime();
 
   if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-    navigator.vibrate([200, 100, 200]);
+    navigator.vibrate([300, 150, 300, 150, 500]);
   }
 
   if (isNotificationSupported() && Notification.permission === 'granted') {
     const registration = await navigator.serviceWorker.ready;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const testOptions: any = {
       body: 'Doorbell chime and push notifications are active on this device!',
-      icon: '/brand/society-logo.png',
-      badge: '/icons/favicon-32.png',
+      icon: `${origin}/icons/icon-192.png`,
+      badge: `${origin}/icons/favicon-32.png`,
       tag: `test-${Date.now()}`,
-      data: { url: '/' },
+      renotify: true,
+      requireInteraction: true,
+      silent: false,
+      timestamp: Date.now(),
+      vibrate: [300, 150, 300, 150, 500],
+      data: { url: '/home' },
       actions: [
         { action: 'open', title: 'Open App' },
         { action: 'dismiss', title: 'Dismiss' },

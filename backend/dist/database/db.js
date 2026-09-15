@@ -366,8 +366,9 @@ async function createVisitorWithRequestTransaction(visitorData, requestData) {
             visitorData.vehicleNumber || null,
             visitorData.deliveryCompany || null,
         ]);
-        await connection.query(`INSERT INTO visitor_requests (id, society_id, visitor_id, resident_id, flat_id, guard_id, gate_id, status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
+        const now = new Date();
+        await connection.query(`INSERT INTO visitor_requests (id, society_id, visitor_id, resident_id, flat_id, guard_id, gate_id, status, requested_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
             requestData.id,
             requestData.societyId,
             visitorData.id,
@@ -376,12 +377,13 @@ async function createVisitorWithRequestTransaction(visitorData, requestData) {
             requestData.guardId,
             requestData.gateId,
             requestData.status,
+            now,
         ]);
         await connection.commit();
-        const now = new Date().toISOString();
+        const isoNow = now.toISOString();
         return {
-            visitor: { ...visitorData, createdAt: now },
-            request: { ...requestData, visitorId: visitorData.id, requestedAt: now },
+            visitor: { ...visitorData, createdAt: isoNow },
+            request: { ...requestData, visitorId: visitorData.id, requestedAt: isoNow },
         };
     }
     catch (err) {
@@ -409,8 +411,8 @@ async function findVisitorRequestById(id) {
         guardId: r.guard_id,
         gateId: r.gate_id,
         status: r.status,
-        requestedAt: r.requested_at,
-        respondedAt: r.responded_at,
+        requestedAt: r.requested_at instanceof Date ? r.requested_at.toISOString() : (r.requested_at ? new Date(r.requested_at).toISOString() : r.requested_at),
+        respondedAt: r.responded_at instanceof Date ? r.responded_at.toISOString() : (r.responded_at ? new Date(r.responded_at).toISOString() : r.responded_at),
         responseBy: r.response_by,
         rejectionReason: r.rejection_reason,
     };
@@ -472,7 +474,11 @@ async function findVisitorRequestsJoined(filters) {
         params.push(filters.limit);
     }
     const [rows] = await pool.query(query, params);
-    return rows;
+    return rows.map((r) => ({
+        ...r,
+        requestedAt: r.requestedAt instanceof Date ? r.requestedAt.toISOString() : (r.requestedAt ? new Date(r.requestedAt).toISOString() : r.requestedAt),
+        respondedAt: r.respondedAt instanceof Date ? r.respondedAt.toISOString() : (r.respondedAt ? new Date(r.respondedAt).toISOString() : r.respondedAt),
+    }));
 }
 async function updateVisitorRequestDecision(id, status, responseBy, rejectionReason) {
     const pool = await (0, mysql_1.getMysqlPool)();

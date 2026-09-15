@@ -76,10 +76,17 @@ class VisitorRequest {
           (e) => e.name == json['status'] || (json['status'] == 'entered' && e == VisitorStatus.completed),
           orElse: () => VisitorStatus.pending,
         ),
-        requestTime: DateTime.parse(json['requestTime'] as String),
+        requestTime: (json['requestTime'] != null
+                ? DateTime.tryParse(json['requestTime'].toString())?.toLocal()
+                : (json['requestedAt'] != null
+                    ? DateTime.tryParse(json['requestedAt'].toString())?.toLocal()
+                    : null)) ??
+            DateTime.now(),
         decisionTime: json['decisionTime'] != null
-            ? DateTime.parse(json['decisionTime'] as String)
-            : null,
+            ? DateTime.tryParse(json['decisionTime'].toString())?.toLocal()
+            : (json['respondedAt'] != null
+                ? DateTime.tryParse(json['respondedAt'].toString())?.toLocal()
+                : null),
         decisionBy: json['decisionBy'] as String?,
         rejectionReason: json['rejectionReason'] as String?,
       );
