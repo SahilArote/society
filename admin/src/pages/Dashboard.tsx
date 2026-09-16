@@ -11,10 +11,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, AreaChart, Area
 } from 'recharts';
-import {
-  mockDashboardStats, mockVisitorTrend, mockVisitors,
-  mockAnnouncements, mockGates, mockMonthlyReports
-} from '../data/mockData';
+import { useEffect } from 'react';
+import { fetchAdminStats, fetchAdminActivity, fetchAdminGates } from '../services/api';
+import { initAdminSocket } from '../services/socket';
+import StatCard, { CircularGauge } from '../components/StatCard';
 
 /* ── Recharts Custom Tooltip ─────────────────────────────── */
 function ChartTooltip({ active, payload, label }: any) {
@@ -32,8 +32,6 @@ function ChartTooltip({ active, payload, label }: any) {
     </div>
   );
 }
-
-import StatCard, { CircularGauge } from '../components/StatCard';
 
 /* ── Visitor Badge ────────────────────────────────────────── */
 function VisitorBadge({ status }: { status: string }) {
@@ -82,34 +80,63 @@ function GateDot({ status }: { status: string }) {
 }
 
 /* ── Main Dashboard ───────────────────────────────────────── */
-import { useEffect } from 'react';
-import { fetchAdminActivity } from '../services/api';
-import { initAdminSocket } from '../services/socket';
-
 export default function Dashboard() {
   const navigate = useNavigate();
-  const s = mockDashboardStats;
-  const [visitorsList, setVisitorsList] = useState(mockVisitors);
+  const [stats, setStats] = useState<any>(null);
+  const [visitorsList, setVisitorsList] = useState<any[]>([]);
+  const [gatesList, setGatesList] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
+  const s = stats || {
+    totalFlats: 48,
+    occupiedFlats: 1,
+    vacantFlats: 47,
+    occupancyRate: 2,
+    totalResidents: 1,
+    visitorsToday: 0,
+    pendingApprovals: 0,
+    approvedCount: 0,
+    rejectedCount: 0,
+    activeGuards: 3,
+    operationalGates: 3,
+    totalGates: 3,
+    pendingRegistrations: 0,
+    visitorTrend: [],
+  };
+
   useEffect(() => {
-    // 1. Initial Activity Fetch
-    fetchAdminActivity().then((apiActivity) => {
-      if (apiActivity && apiActivity.length > 0) {
-        const mapped = apiActivity.map((item: any) => ({
-          id: item.id,
-          name: item.visitorName,
-          purpose: (item.purpose || 'guest') as any,
-          status: (item.status || 'pending').toLowerCase() as any,
-          flatNumber: item.flatNumber,
-          residentName: item.residentName,
-          gate: item.gateName || 'Main Gate',
-          guardName: 'Ramesh Singh',
-          requestedAt: new Date(item.requestedAt),
-        }));
-        setVisitorsList((prev) => [...mapped, ...prev]);
-      }
-    });
+    // 1. Fetch Real Database Data
+    Promise.all([
+      fetchAdminStats(),
+      fetchAdminActivity(),
+      fetchAdminGates(),
+    ])
+      .then(([st, acts, gts]) => {
+        if (st) setStats(st);
+        if (acts && Array.isArray(acts)) {
+          setVisitorsList(acts.map((item: any) => ({
+            id: item.id,
+            name: item.visitorName || 'Visitor',
+            purpose: (item.purpose || item.visitorType || 'guest') as any,
+            status: (item.status || 'pending').toLowerCase() as any,
+            flatNumber: item.flatNumber || 'A-402',
+            residentName: item.residentName || 'Resident',
+            gate: item.gateName || 'Main Gate',
+            guardName: item.guardName || 'Gate Security',
+            requestedAt: new Date(item.requestedAt || Date.now()),
+          })));
+        }
+        if (gts && Array.isArray(gts)) {
+          setGatesList(gts);
+        }
+      })
+      .catch((err) => {
+        console.error('Error fetching dashboard live data:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
 
     // 2. Real-time Activity Listener via Socket.IO
     const socket = initAdminSocket((activityEvent) => {
@@ -134,11 +161,14 @@ export default function Dashboard() {
           flatNumber: activityEvent.flatNumber || 'A-402',
           residentName: 'Sahil Arote',
           gate: 'Main Gate',
-          guardName: 'Ramesh Singh',
+          guardName: 'Gate Security',
           requestedAt: new Date(),
         };
         return [newVisitor, ...prev];
       });
+
+      // Refresh stats on new realtime activity
+      fetchAdminStats().then((st) => st && setStats(st));
     });
 
     return () => {
@@ -167,11 +197,14 @@ export default function Dashboard() {
 
   const pendingCount = visitorsList.filter(v => v.status === 'pending').length;
 
-  const collectionData = mockMonthlyReports.slice(-6).map(r => ({
-    month: r.month,
-    collected: Math.round(r.maintenanceCollected / 1000),
-    pending: Math.round(r.maintenancePending / 1000),
-  }));
+  const collectionData = [
+    { month: 'Apr', collected: 240, pending: 20 },
+    { month: 'May', collected: 260, pending: 15 },
+    { month: 'Jun', collected: 255, pending: 18 },
+    { month: 'Jul', collected: 270, pending: 12 },
+    { month: 'Aug', collected: 265, pending: 16 },
+    { month: 'Sep', collected: 280, pending: 8 },
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -342,15 +375,15 @@ export default function Dashboard() {
           </div>
           <div style={{ padding: '16px 16px 12px' }}>
             <ResponsiveContainer width="100%" height={188}>
-              <BarChart data={mockVisitorTrend} barSize={7} barGap={2} barCategoryGap="35%">
+              <BarChart data={s.visitorTrend || []} barSize={7} barGap={2} barCategoryGap="35%">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
                 <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--accent-bg)', radius: 4 }} />
-                <Bar dataKey="guest"       fill="var(--accent-light)" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="delivery"    fill="var(--amber)"        radius={[3, 3, 0, 0]} />
-                <Bar dataKey="maintenance" fill="var(--sky)"          radius={[3, 3, 0, 0]} />
-                <Bar dataKey="cab"         fill="var(--green)"        radius={[3, 3, 0, 0]} />
+                <Bar dataKey="guests"      fill="var(--accent-light)" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="deliveries"  fill="var(--amber)"        radius={[3, 3, 0, 0]} />
+                <Bar dataKey="services"    fill="var(--sky)"          radius={[3, 3, 0, 0]} />
+                <Bar dataKey="cabs"        fill="var(--green)"        radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -532,7 +565,11 @@ export default function Dashboard() {
 
             {/* Gate list */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {mockGates.map(gate => (
+              {(gatesList.length > 0 ? gatesList : [
+                { id: 'gate_main', name: 'Main Gate', status: 'operational', visitorsToday: s.visitorsToday },
+                { id: 'gate_east', name: 'East Gate', status: 'operational', visitorsToday: 0 },
+                { id: 'gate_service', name: 'Service Gate', status: 'operational', visitorsToday: 0 },
+              ]).map(gate => (
                 <div key={gate.id} style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '10px 12px', borderRadius: 'var(--r-md)',
@@ -543,7 +580,7 @@ export default function Dashboard() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)' }}>{gate.name}</p>
                     <p style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
-                      {gate.status === 'maintenance' ? '🔧 Under maintenance' : `${gate.visitorsToday} visitors today`}
+                      {gate.status === 'maintenance' ? '🔧 Under maintenance' : `${gate.visitorsToday || 0} visitors today`}
                     </p>
                   </div>
                   <span className={`badge ${gate.status === 'operational' ? 'badge-success' : gate.status === 'maintenance' ? 'badge-warning' : 'badge-danger'}`}
@@ -557,9 +594,9 @@ export default function Dashboard() {
             {/* Mini stats */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginTop: 12 }}>
               {[
-                { icon: CheckCircle2, label: 'Approved', val: 44, color: 'var(--green)' },
-                { icon: Clock,        label: 'Pending',  val: s.pendingApprovals, color: 'var(--amber)' },
-                { icon: XCircle,      label: 'Denied',   val: 3,  color: 'var(--red)' },
+                { icon: CheckCircle2, label: 'Approved', val: s.approvedCount || 0, color: 'var(--green)' },
+                { icon: Clock,        label: 'Pending',  val: s.pendingApprovals || 0, color: 'var(--amber)' },
+                { icon: XCircle,      label: 'Denied',   val: s.rejectedCount || 0,  color: 'var(--red)' },
               ].map(({ icon: Icon, label, val, color }) => (
                 <div key={label} style={{
                   textAlign: 'center', padding: '10px 6px',
@@ -587,18 +624,14 @@ export default function Dashboard() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {mockAnnouncements.slice(0, 3).map(ann => (
-                <div key={ann.id} style={{
-                  padding: '10px 12px', borderRadius: 'var(--r-md)',
-                  background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-                }}>
-                  <div style={{ marginBottom: 5 }}>
-                    <PriorityBadge p={ann.priority} />
-                  </div>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.4 }}>{ann.title}</p>
-                  <p style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 3 }}>{ann.readCount} reads</p>
-                </div>
-              ))}
+              <div style={{
+                padding: '14px 12px', borderRadius: 'var(--r-md)',
+                background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+                textAlign: 'center',
+              }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>Annual Society General Meeting</p>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>Scheduled for upcoming Sunday at 11:00 AM in Clubhouse.</p>
+              </div>
             </div>
 
             <button

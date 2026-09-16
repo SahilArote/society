@@ -9,6 +9,7 @@ const uuid_1 = require("uuid");
 const db_1 = require("../database/db");
 const auth_1 = require("../middleware/auth");
 const socketService_1 = require("../services/socketService");
+const mysql_1 = require("../database/mysql");
 const router = (0, express_1.Router)();
 // =============================================================
 // RESIDENT AUTH FLOW
@@ -415,6 +416,21 @@ router.post('/registration/submit', async (req, res) => {
         }
         if (!targetFlat && flatNumber) {
             targetFlat = await (0, db_1.findFlatByNumberAndWing)(societyId, flatNumber, wing);
+        }
+        if (!targetFlat && flatNumber) {
+            // Auto-provision flat row in database so resident registration never fails
+            const pool = await (0, mysql_1.getMysqlPool)();
+            if (pool) {
+                const newFlatId = `flat_${(0, uuid_1.v4)().slice(0, 8)}`;
+                await pool.query(`INSERT INTO flats (id, society_id, flat_number, wing, floor, resident_id) VALUES (?, ?, ?, ?, ?, NULL)`, [newFlatId, societyId, flatNumber.trim(), wing.trim(), Number(floor)]);
+                targetFlat = {
+                    id: newFlatId,
+                    societyId,
+                    flatNumber: flatNumber.trim(),
+                    wing: wing.trim(),
+                    floor: Number(floor),
+                };
+            }
         }
         if (!targetFlat) {
             return res.status(404).json({

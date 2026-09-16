@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Phone, Mail, Car, Users, Home,
   Building2, AlertCircle, CheckCircle2, X, Download,
-  UserPlus, MessageSquare, CreditCard, ShieldCheck, Plus, UserCheck
+  UserPlus, MessageSquare, CreditCard, ShieldCheck, Plus, UserCheck, Loader2
 } from 'lucide-react';
-import { mockFlats } from '../data/mockData';
 import type { Flat, FlatResident as Resident } from '../types';
 import StatCard, { CircularGauge } from '../components/StatCard';
 import { RegistrationRequestsSection } from '../components/RegistrationRequestsSection';
+import { fetchAdminFlats, createAdminFlat } from '../services/api';
 
 /* ── Badges ──────────────────────────────────────────────── */
 function MaintBadge({ s }: { s: string }) {
@@ -169,7 +169,8 @@ function FlatPanel({
 
 /* ── Main Page ────────────────────────────────────────────── */
 export default function Residents() {
-  const [flats, setFlats] = useState<Flat[]>(mockFlats);
+  const [flats, setFlats] = useState<Flat[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [wing, setWing] = useState('all');
   const [status, setStatus] = useState('all');
@@ -177,6 +178,7 @@ export default function Residents() {
   const [selected, setSelected] = useState<Flat | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showAddFlat, setShowAddFlat] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [mainTab, setMainTab] = useState<'directory' | 'registrations'>('directory');
   const [pendingCount, setPendingCount] = useState<number>(0);
 
@@ -186,6 +188,24 @@ export default function Residents() {
   const [newType, setNewType] = useState('2BHK');
   const [newOwnerName, setNewOwnerName] = useState('');
   const [newOwnerPhone, setNewOwnerPhone] = useState('');
+
+  const loadFlats = async () => {
+    try {
+      setLoading(true);
+      const res = await fetchAdminFlats();
+      const list = Array.isArray(res) ? res : (res as any)?.flats || (res as any)?.data || [];
+      setFlats(list);
+    } catch (err: any) {
+      console.error('Failed to load flats:', err);
+      showToast('Could not fetch flats from server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFlats();
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -231,34 +251,31 @@ export default function Residents() {
     showToast('Downloaded residents directory CSV');
   };
 
-  const handleAddFlat = (e: React.FormEvent) => {
+  const handleAddFlat = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newNumber || !newOwnerName) return;
-    const newF: Flat = {
-      id: `flat-${newNumber.toLowerCase()}`,
-      number: newNumber.toUpperCase(),
-      wing: newWing,
-      floor: parseInt(newNumber.slice(1, 2)) || 1,
-      type: newType as any,
-      status: 'occupied',
-      residents: [
-        {
-          id: `res-${Date.now()}`,
-          name: newOwnerName,
-          phone: newOwnerPhone || '+91 98000 00000',
-          role: 'owner',
-          isOwner: true,
-        }
-      ],
-      vehicleCount: 1,
-      maintenanceStatus: 'paid',
-    };
-    setFlats(prev => [newF, ...prev]);
-    setShowAddFlat(false);
-    setNewNumber('');
-    setNewOwnerName('');
-    setNewOwnerPhone('');
-    showToast(`Enrolled Flat ${newF.number} with owner ${newOwnerName}`);
+    if (!newNumber) return;
+    try {
+      setIsSubmitting(true);
+      const res = await createAdminFlat({
+        number: newNumber.toUpperCase(),
+        wing: newWing,
+        type: newType,
+        ownerName: newOwnerName.trim() || undefined,
+        ownerPhone: newOwnerPhone.trim() || undefined,
+      });
+      if (res.flat) {
+        setFlats(prev => [res.flat, ...prev]);
+        showToast(`Enrolled Flat ${res.flat.number}`);
+        setShowAddFlat(false);
+        setNewNumber('');
+        setNewOwnerName('');
+        setNewOwnerPhone('');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to enroll flat');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const filtered = flats.filter(f => {
@@ -387,7 +404,7 @@ export default function Residents() {
           label="Occupied"
           value={flats.filter(f => f.status === 'occupied').length}
           pill={{
-            text: `${Math.round((flats.filter(f => f.status === 'occupied').length / flats.length) * 100)}% Occupancy`,
+            text: `${flats.length ? Math.round((flats.filter(f => f.status === 'occupied').length / flats.length) * 100) : 0}% Occupancy`,
             color: 'var(--green)',
             bg: 'var(--green-bg)',
           }}

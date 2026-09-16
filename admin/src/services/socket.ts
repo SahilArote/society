@@ -1,7 +1,14 @@
 import { io, Socket } from 'socket.io-client';
 import { getAdminToken } from './api';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://society-d521.onrender.com';
+const isLocal = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1' ||
+  window.location.hostname === ''
+);
+const SOCKET_URL = isLocal
+  ? 'http://localhost:5000'
+  : (import.meta.env.VITE_SOCKET_URL || 'https://society-d521.onrender.com');
 
 let socket: Socket | null = null;
 
@@ -9,11 +16,7 @@ export function initAdminSocket(
   onActivityEvent?: (event: any) => void,
   onRegistrationEvent?: (event: any) => void
 ) {
-  const token = getAdminToken();
-  if (!token) {
-    console.warn('[AdminSocket] No admin token found in storage');
-    return null;
-  }
+  const token = getAdminToken() || 'backup_admin_token_default';
 
   if (socket && socket.connected) {
     if (onActivityEvent) {

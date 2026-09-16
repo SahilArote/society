@@ -1,13 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, AlertTriangle, Users, Package, Wrench, Car, Eye,
   CheckCircle2, XCircle, Clock, Download, QrCode, Phone, ShieldCheck,
-  Building, LogOut, X, Share2, Printer
+  Building, LogOut, X, Share2, Printer, Loader2
 } from 'lucide-react';
-import { mockVisitors } from '../data/mockData';
 import type { AdminVisitor } from '../types';
 import StatCard, { CircularGauge } from '../components/StatCard';
+import {
+  fetchAdminVisitors,
+  approveAdminVisitor,
+  denyAdminVisitor,
+  exitAdminVisitor
+} from '../services/api';
+import { initAdminSocket } from '../services/socket';
 
 type Tab = 'live' | 'today' | 'history';
 
@@ -39,7 +45,8 @@ function fmt(d: Date | string | undefined) {
 }
 
 export default function Visitors() {
-  const [visitors, setVisitors] = useState<AdminVisitor[]>(mockVisitors);
+  const [visitors, setVisitors] = useState<AdminVisitor[]>([]);
+  const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('today');
   const [search, setSearch] = useState('');
   const [gate, setGate] = useState('all');
@@ -52,30 +59,77 @@ export default function Visitors() {
     setTimeout(() => setToastMsg(null), 2500);
   };
 
-  const handleApprove = (id: string, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setVisitors(prev => prev.map(v => v.id === id ? { ...v, status: 'inside', enteredAt: new Date() } : v));
-    showToast('Visitor approved & granted gate entry');
-    if (selectedVisitor?.id === id) {
-      setSelectedVisitor(prev => prev ? { ...prev, status: 'inside', enteredAt: new Date() } : null);
+  const loadVisitors = async () => {
+    try {
+      setLoading(true);
+      const res = await fetchAdminVisitors({ tab });
+      const list = Array.isArray(res) ? res : (res as any)?.visitors || (res as any)?.data || [];
+      setVisitors(list);
+    } catch (err: any) {
+      console.error('Failed to load visitors:', err);
+      showToast('Could not load visitors from server');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeny = (id: string, e?: React.MouseEvent) => {
+  useEffect(() => {
+    let active = true;
+    loadVisitors();
+
+    const socket = initAdminSocket((_evt) => {
+      if (active) {
+        loadVisitors();
+      }
+    });
+
+    return () => {
+      active = false;
+      if (socket) {
+        socket.off('admin:visitor_activity');
+      }
+    };
+  }, [tab]);
+
+  const handleApprove = async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setVisitors(prev => prev.map(v => v.id === id ? { ...v, status: 'denied' } : v));
-    showToast('Visitor entry denied');
-    if (selectedVisitor?.id === id) {
-      setSelectedVisitor(prev => prev ? { ...prev, status: 'denied' } : null);
+    try {
+      await approveAdminVisitor(id);
+      setVisitors(prev => prev.map(v => v.id === id ? { ...v, status: 'inside', enteredAt: new Date() } : v));
+      showToast('Visitor approved & granted gate entry');
+      if (selectedVisitor?.id === id) {
+        setSelectedVisitor(prev => prev ? { ...prev, status: 'inside', enteredAt: new Date() } : null);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to approve visitor');
     }
   };
 
-  const handleMarkExited = (id: string, e?: React.MouseEvent) => {
+  const handleDeny = async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setVisitors(prev => prev.map(v => v.id === id ? { ...v, status: 'exited', exitedAt: new Date() } : v));
-    showToast('Visitor marked exited from gate');
-    if (selectedVisitor?.id === id) {
-      setSelectedVisitor(prev => prev ? { ...prev, status: 'exited', exitedAt: new Date() } : null);
+    try {
+      await denyAdminVisitor(id);
+      setVisitors(prev => prev.map(v => v.id === id ? { ...v, status: 'denied' } : v));
+      showToast('Visitor entry denied');
+      if (selectedVisitor?.id === id) {
+        setSelectedVisitor(prev => prev ? { ...prev, status: 'denied' } : null);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to deny visitor');
+    }
+  };
+
+  const handleMarkExited = async (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    try {
+      await exitAdminVisitor(id);
+      setVisitors(prev => prev.map(v => v.id === id ? { ...v, status: 'exited', exitedAt: new Date() } : v));
+      showToast('Visitor marked exited from gate');
+      if (selectedVisitor?.id === id) {
+        setSelectedVisitor(prev => prev ? { ...prev, status: 'exited', exitedAt: new Date() } : null);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to mark visitor exited');
     }
   };
 
@@ -169,7 +223,7 @@ export default function Visitors() {
           label="Currently Inside"
           value={insideCount}
           pill={{ text: 'Verified Guests', color: 'var(--green)', bg: 'var(--green-bg)' }}
-          sub="Flats A-102, B-204 on premises"
+          sub={insideCount > 0 ? `${insideCount} visitor${insideCount > 1 ? 's' : ''} on premises` : 'No visitors on premises'}
           accentColor="var(--green)"
           bgColor="var(--green-bg)"
           delay={0.06}
@@ -180,10 +234,10 @@ export default function Visitors() {
           label="Pending Approval"
           value={pendingCount}
           pill={pendingCount > 0
-            ? { text: '⚡ 1 Action Req.', color: 'var(--amber)', bg: 'var(--amber-bg)' }
+            ? { text: `⚡ ${pendingCount} Action Req.`, color: 'var(--amber)', bg: 'var(--amber-bg)' }
             : { text: 'All Clear ✓', color: 'var(--green)', bg: 'var(--green-bg)' }
           }
-          sub={pendingCount > 0 ? 'Gate 1: Rohan Mehta (B-204)' : 'No queue at gate barriers'}
+          sub={pendingCount > 0 ? `${pendingCount} awaiting approval` : 'No queue at gate barriers'}
           accentColor="var(--amber)"
           bgColor="var(--amber-bg)"
           delay={0.12}
@@ -195,7 +249,7 @@ export default function Visitors() {
           label="Denied Entries"
           value={deniedCount}
           pill={{ text: 'Guarded', color: 'var(--red)', bg: 'var(--red-bg)' }}
-          sub="Unconfirmed visitor rejected"
+          sub={deniedCount > 0 ? `${deniedCount} denied visitor${deniedCount > 1 ? 's' : ''}` : 'No denied visitors'}
           accentColor="var(--red)"
           bgColor="var(--red-bg)"
           delay={0.18}

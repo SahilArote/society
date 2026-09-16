@@ -3,10 +3,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   DoorOpen, Shield, Sun, Moon, Phone, Plus, Settings,
   Video, Radio, AlertCircle, CheckCircle2, Lock, Unlock,
-  X, UserCheck, Eye, RefreshCw
+  X, UserCheck, Eye, RefreshCw, Loader2
 } from 'lucide-react';
-import { mockGates, mockGuards } from '../data/mockData';
 import type { GuardShift, GuardStatus, Gate, Guard } from '../types';
+import {
+  fetchAdminGates,
+  toggleAdminGate,
+  fetchAdminGuards,
+  createAdminGuard
+} from '../services/api';
 
 const shiftCfg: Record<GuardShift, { label: string; icon: React.ElementType; color: string; bg: string; time: string }> = {
   morning: { label: 'Morning', icon: Sun,    color: 'var(--amber)',        bg: 'var(--amber-bg)',   time: '6 AM – 2 PM' },
@@ -22,17 +27,22 @@ const statusCfg: Record<GuardStatus, { cls: string; label: string }> = {
 
 // CCTV metadata for gates
 const gateCCTV: Record<string, { camId: string; detection: string; resolution: string; fps: number }> = {
-  'gate-1': { camId: 'CAM-01 / MAIN GATE', detection: 'VEHICLE: MH 12 AB 1234', resolution: '1080P', fps: 30 },
-  'gate-2': { camId: 'CAM-02 / EAST GATE', detection: 'PEDESTRIAN CLEAR', resolution: '1080P', fps: 30 },
-  'gate-3': { camId: 'CAM-03 / SERVICE GATE', detection: 'DELIVERY VAN (INSP)', resolution: '1080P', fps: 24 },
+  'gate_main':    { camId: 'CAM-01 / MAIN GATE', detection: 'VEHICLE: MH 12 AB 1234', resolution: '1080P', fps: 30 },
+  'gate_east':    { camId: 'CAM-02 / EAST GATE', detection: 'PEDESTRIAN CLEAR', resolution: '1080P', fps: 30 },
+  'gate_service': { camId: 'CAM-03 / SERVICE GATE', detection: 'DELIVERY VAN (INSP)', resolution: '1080P', fps: 24 },
+  'gate-1':       { camId: 'CAM-01 / MAIN GATE', detection: 'VEHICLE: MH 12 AB 1234', resolution: '1080P', fps: 30 },
+  'gate-2':       { camId: 'CAM-02 / EAST GATE', detection: 'PEDESTRIAN CLEAR', resolution: '1080P', fps: 30 },
+  'gate-3':       { camId: 'CAM-03 / SERVICE GATE', detection: 'DELIVERY VAN (INSP)', resolution: '1080P', fps: 24 },
 };
 
 export default function Gates() {
-  const [gates, setGates] = useState<Gate[]>(mockGates);
-  const [guards, setGuards] = useState<Guard[]>(mockGuards);
+  const [gates, setGates] = useState<Gate[]>([]);
+  const [guards, setGuards] = useState<Guard[]>([]);
+  const [loading, setLoading] = useState(true);
   const [shiftFilter, setShiftFilter] = useState<GuardShift | 'all'>('all');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showAddGuard, setShowAddGuard] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [cctvTime, setCctvTime] = useState('');
 
   // Add Guard Form
@@ -40,6 +50,27 @@ export default function Gates() {
   const [newGuardPhone, setNewGuardPhone] = useState('');
   const [newGuardGate, setNewGuardGate] = useState('Main Gate');
   const [newGuardShift, setNewGuardShift] = useState<GuardShift>('morning');
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [gatesRes, guardsRes] = await Promise.all([
+        fetchAdminGates(),
+        fetchAdminGuards(),
+      ]);
+      setGates(Array.isArray(gatesRes) ? gatesRes : (gatesRes as any)?.gates || []);
+      setGuards(Array.isArray(guardsRes) ? guardsRes : (guardsRes as any)?.guards || []);
+    } catch (err: any) {
+      console.error('Failed to load security infrastructure:', err);
+      showToast('Could not load security infrastructure from server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   useEffect(() => {
     const update = () => {
@@ -56,34 +87,42 @@ export default function Gates() {
     setTimeout(() => setToastMsg(null), 2500);
   };
 
-  const toggleGate = (gateId: string) => {
-    setGates(prev => prev.map(g => {
-      if (g.id === gateId) {
-        const nextStatus = g.status === 'operational' ? 'maintenance' : 'operational';
-        showToast(`${g.name} barrier ${nextStatus === 'operational' ? 'OPENED & ACTIVE' : 'LOCKED DOWN'}`);
-        return { ...g, status: nextStatus };
-      }
-      return g;
-    }));
+  const toggleGate = async (gateId: string) => {
+    const target = gates.find(g => g.id === gateId);
+    if (!target) return;
+    const nextStatus = target.status === 'operational' ? 'maintenance' : 'operational';
+    try {
+      await toggleAdminGate(gateId, nextStatus);
+      setGates(prev => prev.map(g => g.id === gateId ? { ...g, status: nextStatus } : g));
+      showToast(`${target.name} barrier ${nextStatus === 'operational' ? 'OPENED & ACTIVE' : 'LOCKED DOWN'}`);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update gate barrier status');
+    }
   };
 
-  const handleAddGuard = (e: React.FormEvent) => {
+  const handleAddGuard = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newGuardName) return;
-    const newG: Guard = {
-      id: `guard-${Date.now()}`,
-      name: newGuardName,
-      phone: newGuardPhone || '+91 99001 00000',
-      assignedGate: newGuardGate,
-      shift: newGuardShift,
-      status: 'on_duty',
-      joinedDate: new Date().toISOString().slice(0, 10),
-    };
-    setGuards(prev => [newG, ...prev]);
-    setShowAddGuard(false);
-    setNewGuardName('');
-    setNewGuardPhone('');
-    showToast(`Guard ${newG.name} registered and assigned to ${newGuardGate}`);
+    try {
+      setIsSubmitting(true);
+      const res = await createAdminGuard({
+        name: newGuardName.trim(),
+        phone: newGuardPhone.trim() || undefined,
+        assignedGate: newGuardGate,
+        shift: newGuardShift,
+      });
+      if (res.guard) {
+        setGuards(prev => [res.guard, ...prev]);
+        showToast(`Guard ${res.guard.name} registered and assigned to ${newGuardGate}`);
+        setShowAddGuard(false);
+        setNewGuardName('');
+        setNewGuardPhone('');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to enroll guard');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const filteredGuards = shiftFilter === 'all' ? guards : guards.filter(g => g.shift === shiftFilter);

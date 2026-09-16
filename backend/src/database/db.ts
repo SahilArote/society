@@ -1159,3 +1159,366 @@ export async function rejectResidentRegistration(
   }
 }
 
+// -------------------------------------------------------------
+// ADMIN DASHBOARD CORE DATABASE HELPERS
+// -------------------------------------------------------------
+
+export async function findGatesBySociety(societyId: string): Promise<any[]> {
+  const pool = await getMysqlPool();
+  if (!pool) return [];
+  const [rows]: any = await pool.query(
+    `SELECT g.*, 
+       (SELECT COUNT(*) FROM visitor_requests vr 
+        WHERE vr.gate_id = g.id 
+          AND DATE(vr.requested_at) = CURRENT_DATE()) as visitors_today
+     FROM gates g 
+     WHERE g.society_id = ?
+     ORDER BY g.name`,
+    [societyId]
+  );
+  return rows.map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    location: r.location,
+    status: (r.status || 'OPERATIONAL').toLowerCase(),
+    visitorsToday: Number(r.visitors_today || 0),
+  }));
+}
+
+export async function toggleGateStatus(gateId: string, status: string): Promise<boolean> {
+  const pool = await getMysqlPool();
+  if (!pool) return false;
+  await pool.query('UPDATE gates SET status = ? WHERE id = ?', [status.toUpperCase(), gateId]);
+  return true;
+}
+
+export async function findGuardsWithDetails(societyId: string): Promise<any[]> {
+  const pool = await getMysqlPool();
+  if (!pool) return [];
+  const [rows]: any = await pool.query(
+    `SELECT g.id as guard_id, g.user_id, g.shift, g.status as guard_status,
+            u.name, u.mobile, u.created_at as joined_date,
+            gt.name as gate_name
+     FROM guards g
+     INNER JOIN users u ON g.user_id = u.id
+     LEFT JOIN gates gt ON g.gate_id = gt.id
+     WHERE u.society_id = ?
+     ORDER BY u.name`,
+    [societyId]
+  );
+  return rows.map((r: any) => {
+    let normalizedShift = 'morning';
+    const sLower = (r.shift || '').toLowerCase();
+    if (sLower.includes('evening') || sLower.includes('afternoon')) normalizedShift = 'evening';
+    else if (sLower.includes('night')) normalizedShift = 'night';
+
+    let normalizedStatus = 'on_duty';
+    const stLower = (r.guard_status || '').toLowerCase();
+    if (stLower.includes('off')) normalizedStatus = 'off_duty';
+    else if (stLower.includes('leave')) normalizedStatus = 'on_leave';
+
+    return {
+      id: r.guard_id,
+      userId: r.user_id,
+      name: r.name,
+      phone: r.mobile ? `+91 ${r.mobile}` : '+91 99000 00000',
+      assignedGate: r.gate_name || 'Main Gate',
+      shift: normalizedShift,
+      rawShift: r.shift,
+      status: normalizedStatus,
+      joinedDate: r.joined_date ? new Date(r.joined_date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+    };
+  });
+}
+
+export async function createGuardRecord(data: {
+  societyId: string;
+  name: string;
+  mobile: string;
+  gateId?: string;
+  gateName?: string;
+  shift?: string;
+}): Promise<any> {
+  const pool = await getMysqlPool();
+  if (!pool) throw new Error('Database pool unavailable');
+
+  const cleanMobile = data.mobile.replace(/\D/g, '').slice(-10);
+  const userId = `guard_${cleanMobile}`;
+  const guardId = `grd_${Date.now()}`;
+
+  let targetGateId = data.gateId;
+  if (!targetGateId && data.gateName) {
+    const [gRows]: any = await pool.query('SELECT id FROM gates WHERE society_id = ? AND LOWER(name) LIKE ? LIMIT 1', [
+      data.societyId, `%${data.gateName.toLowerCase()}%`
+    ]);
+    if (gRows[0]) targetGateId = gRows[0].id;
+  }
+  if (!targetGateId) targetGateId = 'gate_main';
+
+  // 1. Insert User
+  await pool.query(
+    `INSERT INTO users (id, name, mobile, role, society_id, status)
+     VALUES (?, ?, ?, 'GUARD', ?, 'ACTIVE')
+     ON DUPLICATE KEY UPDATE name = VALUES(name)`,
+    [userId, data.name.trim(), cleanMobile, data.societyId]
+  );
+
+  // 2. Insert Guard
+  const shiftText = data.shift === 'evening' ? 'Evening Shift (02:00 PM - 10:00 PM)' :
+                    data.shift === 'night' ? 'Night Shift (10:00 PM - 06:00 AM)' :
+                    'Morning Shift (06:00 AM - 02:00 PM)';
+
+  await pool.query(
+    `INSERT INTO guards (id, user_id, gate_id, shift, status)
+     VALUES (?, ?, ?, ?, 'ON_DUTY')
+     ON DUPLICATE KEY UPDATE gate_id = VALUES(gate_id), shift = VALUES(shift), status = 'ON_DUTY'`,
+    [guardId, userId, targetGateId, shiftText]
+  );
+
+  return {
+    id: guardId,
+    userId,
+    name: data.name.trim(),
+    phone: `+91 ${cleanMobile}`,
+    assignedGate: data.gateName || 'Main Gate',
+    shift: data.shift || 'morning',
+    status: 'on_duty',
+    joinedDate: new Date().toISOString().slice(0, 10),
+  };
+}
+
+export async function findFlatsWithResidents(societyId: string): Promise<any[]> {
+  const pool = await getMysqlPool();
+  if (!pool) return [];
+
+  const [rows]: any = await pool.query(
+    `SELECT f.*, u.id as user_id, u.name as res_name, u.mobile as res_mobile, u.email as res_email
+     FROM flats f 
+     LEFT JOIN users u ON f.resident_id = u.id 
+     WHERE f.society_id = ? 
+     ORDER BY f.wing, f.floor, f.flat_number`,
+    [societyId]
+  );
+
+  return rows.map((r: any) => {
+    const isOccupied = !!r.resident_id && !!r.res_name;
+    const residents = isOccupied ? [
+      {
+        id: r.user_id || `res_${r.id}`,
+        name: r.res_name,
+        phone: r.res_mobile ? `+91 ${r.res_mobile}` : '',
+        email: r.res_email || '',
+        role: 'owner',
+        isOwner: true,
+      }
+    ] : [];
+
+    const type = r.flat_number.endsWith('01') || r.flat_number.endsWith('04') ? '3BHK' : '2BHK';
+
+    return {
+      id: r.id,
+      number: r.flat_number,
+      wing: r.wing.replace(/^Wing\s*/i, '').trim(),
+      fullWing: r.wing,
+      floor: Number(r.floor || 1),
+      type,
+      status: isOccupied ? 'occupied' : 'vacant',
+      residents,
+      vehicleCount: isOccupied ? 1 : 0,
+      maintenanceStatus: 'paid',
+      maintenanceDueAmount: 0,
+    };
+  });
+}
+
+export async function createFlatRecord(data: {
+  societyId: string;
+  flatNumber: string;
+  wing: string;
+  floor?: number;
+  ownerName?: string;
+  ownerPhone?: string;
+}): Promise<any> {
+  const pool = await getMysqlPool();
+  if (!pool) throw new Error('Database pool unavailable');
+
+  const cleanWing = data.wing.startsWith('Wing') ? data.wing : `Wing ${data.wing.trim()}`;
+  const flatNumber = data.flatNumber.trim().toUpperCase();
+  const flatId = `flat_${flatNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now()}`;
+  const floor = data.floor || parseInt(flatNumber.replace(/^\D+/, '').slice(0, -2)) || 1;
+
+  let residentId: string | null = null;
+  if (data.ownerName && data.ownerPhone) {
+    const cleanDigits = data.ownerPhone.replace(/\D/g, '').slice(-10);
+    if (cleanDigits.length === 10) {
+      residentId = `res_${cleanDigits}`;
+      await pool.query(
+        `INSERT INTO users (id, name, mobile, role, society_id, status)
+         VALUES (?, ?, ?, 'RESIDENT', ?, 'ACTIVE')
+         ON DUPLICATE KEY UPDATE name = VALUES(name)`,
+        [residentId, data.ownerName.trim(), cleanDigits, data.societyId]
+      );
+    }
+  }
+
+  await pool.query(
+    `INSERT INTO flats (id, society_id, flat_number, wing, floor, resident_id)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE resident_id = VALUES(resident_id), floor = VALUES(floor)`,
+    [flatId, data.societyId, flatNumber, cleanWing, floor, residentId]
+  );
+
+  return {
+    id: flatId,
+    number: flatNumber,
+    wing: cleanWing.replace(/^Wing\s*/i, '').trim(),
+    fullWing: cleanWing,
+    floor,
+    type: '2BHK',
+    status: residentId ? 'occupied' : 'vacant',
+    residents: residentId ? [
+      {
+        id: residentId,
+        name: data.ownerName!,
+        phone: data.ownerPhone!,
+        role: 'owner',
+        isOwner: true,
+      }
+    ] : [],
+    vehicleCount: residentId ? 1 : 0,
+    maintenanceStatus: 'paid',
+    maintenanceDueAmount: 0,
+  };
+}
+
+export async function findAdminVisitorLogs(societyId: string, filter?: {
+  tab?: string;
+  gate?: string;
+  search?: string;
+  limit?: number;
+}): Promise<any[]> {
+  const pool = await getMysqlPool();
+  if (!pool) return [];
+
+  let query = `
+    SELECT 
+      vr.id,
+      vr.society_id as societyId,
+      vr.status,
+      vr.requested_at as requestedAt,
+      vr.responded_at as respondedAt,
+      vr.entry_time as enteredAt,
+      vr.exit_time as exitedAt,
+      vr.response_by as responseBy,
+      vr.rejection_reason as rejectionReason,
+      v.id as visitorId,
+      v.name as visitorName,
+      v.mobile as visitorMobile,
+      v.purpose as purpose,
+      v.visitor_type as visitorType,
+      v.vehicle_number as vehicleNumber,
+      f.flat_number as flatNumber,
+      f.wing as buildingWing,
+      u_res.name as residentName,
+      COALESCE(u_grd.name, 'Gate Security') as guardName,
+      COALESCE(g.name, 'Main Gate') as gateName
+    FROM visitor_requests vr
+    INNER JOIN visitors v ON vr.visitor_id = v.id
+    LEFT JOIN flats f ON vr.flat_id = f.id
+    LEFT JOIN users u_res ON vr.resident_id = u_res.id
+    LEFT JOIN users u_grd ON vr.guard_id = u_grd.id
+    LEFT JOIN gates g ON vr.gate_id = g.id
+    WHERE vr.society_id = ?
+  `;
+
+  const params: any[] = [societyId];
+
+  if (filter?.tab === 'live') {
+    query += " AND (UPPER(vr.status) IN ('PENDING', 'INSIDE'))";
+  } else if (filter?.tab === 'today') {
+    query += " AND (DATE(vr.requested_at) = CURRENT_DATE() OR UPPER(vr.status) IN ('PENDING', 'INSIDE'))";
+  }
+
+  if (filter?.gate && filter.gate !== 'all') {
+    query += " AND (g.id = ? OR LOWER(g.name) = LOWER(?))";
+    params.push(filter.gate, filter.gate);
+  }
+
+  if (filter?.search && filter.search.trim()) {
+    const s = `%${filter.search.trim().toLowerCase()}%`;
+    query += " AND (LOWER(v.name) LIKE ? OR LOWER(f.flat_number) LIKE ? OR LOWER(v.mobile) LIKE ?)";
+    params.push(s, s, s);
+  }
+
+  query += ' ORDER BY vr.requested_at DESC';
+
+  if (filter?.limit) {
+    query += ' LIMIT ?';
+    params.push(Number(filter.limit));
+  } else {
+    query += ' LIMIT 100';
+  }
+
+  const [rows]: any = await pool.query(query, params);
+
+  return rows.map((r: any) => {
+    let normStatus = (r.status || 'pending').toLowerCase();
+    if (normStatus === 'rejected') normStatus = 'denied';
+
+    let normPurpose = (r.visitorType || r.purpose || 'guest').toLowerCase();
+    if (!['guest', 'delivery', 'maintenance', 'cab', 'other'].includes(normPurpose)) {
+      normPurpose = 'guest';
+    }
+
+    return {
+      id: r.id,
+      name: r.visitorName,
+      phone: r.visitorMobile || '',
+      purpose: normPurpose,
+      status: normStatus,
+      flatNumber: r.flatNumber || 'A-402',
+      residentName: r.residentName || 'Sahil Arote',
+      gate: r.gateName || 'Main Gate',
+      guardName: r.guardName || 'Ramesh Singh',
+      vehicleNumber: r.vehicleNumber || undefined,
+      requestedAt: r.requestedAt,
+      approvedAt: (normStatus === 'approved' || normStatus === 'inside' || normStatus === 'exited') ? (r.respondedAt || r.requestedAt) : undefined,
+      enteredAt: r.enteredAt || ((normStatus === 'inside' || normStatus === 'exited') ? (r.respondedAt || r.requestedAt) : undefined),
+      exitedAt: r.exitedAt || (normStatus === 'exited' ? r.respondedAt : undefined),
+      deniedAt: normStatus === 'denied' ? r.respondedAt : undefined,
+    };
+  });
+}
+
+export async function updateVisitorStatusByAdmin(requestId: string, action: 'approve' | 'deny' | 'exit', reason?: string): Promise<boolean> {
+  const pool = await getMysqlPool();
+  if (!pool) return false;
+
+  const now = new Date();
+  if (action === 'approve') {
+    await pool.query(
+      `UPDATE visitor_requests 
+       SET status = 'INSIDE', entry_time = ?, responded_at = ?, response_by = 'Society Admin'
+       WHERE id = ?`,
+      [now, now, requestId]
+    );
+  } else if (action === 'deny') {
+    await pool.query(
+      `UPDATE visitor_requests 
+       SET status = 'REJECTED', responded_at = ?, response_by = 'Society Admin', rejection_reason = ?
+       WHERE id = ?`,
+      [now, reason || 'Denied by Administrator', requestId]
+    );
+  } else if (action === 'exit') {
+    await pool.query(
+      `UPDATE visitor_requests 
+       SET status = 'EXITED', exit_time = ?
+       WHERE id = ?`,
+      [now, requestId]
+    );
+  }
+
+  return true;
+}
+
+
