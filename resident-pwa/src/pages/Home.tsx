@@ -20,6 +20,7 @@ import {
   triggerVisitorNotification,
   requestNotificationPermission,
   getNotificationPermission,
+  playDoorbellChime,
 } from '../services/notificationService';
 import { getStoredToken } from '../services/authSession';
 import type { Visitor, Announcement } from '../types';
@@ -114,17 +115,27 @@ export default function Home() {
         setPendingVisitors((prev) => [newVisitor, ...prev.filter((p) => p.id !== newVisitor.id)]);
         showToast(`🔔 New Visitor at Gate: ${newVisitor.name}`, 'info');
 
-        // Play doorbell chime, vibrate, and trigger native system push notification
-        triggerVisitorNotification(
-          {
-            requestId: newVisitor.id,
-            visitorName: newVisitor.name,
-            gateName: newVisitor.gate,
-            flatNumber: newVisitor.flatNumber,
-            photoUrl: newVisitor.photoUrl,
-          },
-          getStoredToken() || undefined
-        );
+        // Play doorbell chime and vibration for in-app alert
+        playDoorbellChime();
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+          try {
+            navigator.vibrate([500, 200, 500]);
+          } catch (_) {}
+        }
+
+        // Only trigger native notification if document is hidden to avoid duplicate notifications
+        if (typeof document !== 'undefined' && document.hidden) {
+          triggerVisitorNotification(
+            {
+              requestId: newVisitor.id,
+              visitorName: newVisitor.name,
+              gateName: newVisitor.gate,
+              flatNumber: newVisitor.flatNumber,
+              photoUrl: newVisitor.photoUrl,
+            },
+            getStoredToken() || undefined
+          );
+        }
       },
       (updatedData) => {
         if (updatedData.status !== 'PENDING') {

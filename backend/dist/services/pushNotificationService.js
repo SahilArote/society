@@ -54,26 +54,24 @@ async function savePushSubscription(userId, sub) {
     if (!sub || !sub.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) {
         throw new Error('Invalid PushSubscription payload');
     }
-    // 1. Cache in memory
+    // 1. Cache in memory - remove endpoint from ALL users to ensure exclusive device ownership
+    for (const [uid, subs] of memorySubscriptions.entries()) {
+        for (const s of subs) {
+            if (s.endpoint === sub.endpoint) {
+                subs.delete(s);
+            }
+        }
+    }
     if (!memorySubscriptions.has(userId)) {
         memorySubscriptions.set(userId, new Set());
     }
-    const userSubs = memorySubscriptions.get(userId);
-    // Remove existing sub with same endpoint
-    for (const s of userSubs) {
-        if (s.endpoint === sub.endpoint) {
-            userSubs.delete(s);
-        }
-    }
-    userSubs.add(sub);
-    // 2. Persist in MySQL
+    memorySubscriptions.get(userId).add(sub);
+    // 2. Persist in MySQL - clean any prior user subscription for this physical device
     try {
         const pool = await (0, mysql_1.getMysqlPool)();
         if (pool) {
             await ensurePushTable();
-            // Remove previous matching endpoint for this user
-            await pool.query('DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?', [
-                userId,
+            await pool.query('DELETE FROM push_subscriptions WHERE endpoint = ?', [
                 sub.endpoint,
             ]);
             await pool.query('INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?, ?)', [`sub_${(0, uuid_1.v4)().slice(0, 12)}`, userId, sub.endpoint, sub.keys.p256dh, sub.keys.auth]);

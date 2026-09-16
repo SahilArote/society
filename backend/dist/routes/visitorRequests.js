@@ -343,6 +343,66 @@ router.get('/:id/photo', auth_1.authenticateToken, async (req, res) => {
     }
 });
 // =============================================================
+// GET /api/visitor-requests/:id
+// Retrieve details of a specific visitor request
+// =============================================================
+router.get('/:id', auth_1.authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = req.user;
+        const r = await (0, db_1.findVisitorRequestJoinedById)(id);
+        if (!r) {
+            return res.status(404).json({
+                success: false,
+                error: { code: 'NOT_FOUND', message: 'Visitor request not found' },
+            });
+        }
+        // Role check: Resident can only view their own flat's requests
+        if (user.role === 'RESIDENT' && r.residentId && r.residentId !== user.id) {
+            return res.status(403).json({
+                success: false,
+                error: { code: 'FORBIDDEN', message: 'You are not authorized to view this visitor record' },
+            });
+        }
+        return res.json({
+            success: true,
+            data: {
+                id: r.id,
+                visitorId: r.visitorId,
+                visitor: {
+                    id: r.visitorId,
+                    name: r.visitorName,
+                    mobile: r.visitorMobile,
+                    purpose: r.purpose,
+                    visitorType: r.visitorType,
+                    photoUrl: `/api/visitor-requests/${r.id}/photo`,
+                    photo: `/api/visitor-requests/${r.id}/photo`,
+                    vehicleNumber: r.vehicleNumber,
+                    deliveryCompany: r.deliveryCompany,
+                },
+                flatNumber: r.flatNumber,
+                buildingWing: r.buildingWing,
+                residentName: r.residentName,
+                gate: r.gateName,
+                gateName: r.gateName,
+                guardName: r.guardName,
+                status: r.status,
+                requestedAt: r.requestedAt,
+                respondedAt: r.respondedAt,
+                responseBy: r.responseBy,
+                rejectionReason: r.rejectionReason,
+            },
+        });
+    }
+    catch (err) {
+        console.error('Error fetching visitor request by id:', err);
+        return res.status(500).json({
+            success: false,
+            error: { code: 'SERVER_ERROR', message: 'Failed to retrieve visitor record' },
+        });
+    }
+});
+// =============================================================
 // GET /api/visitor-requests
 // List visitor requests with strict role and tenant isolation
 // =============================================================

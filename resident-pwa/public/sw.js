@@ -163,16 +163,6 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  // Broadcast to all active clients for instant in-app top popup banner
-  clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-    for (const client of windowClients) {
-      client.postMessage({
-        type: 'PUSH_NOTIFICATION_RECEIVED',
-        payload: payload,
-      });
-    }
-  });
-
   const iconUrl = payload.icon
     ? (payload.icon.startsWith('http') ? payload.icon : origin + payload.icon)
     : origin + '/icons/icon-192.png';
@@ -183,18 +173,14 @@ self.addEventListener('push', (event) => {
     ? (payload.image.startsWith('http') ? payload.image : origin + payload.image)
     : undefined;
 
-  // Options optimized for Android heads-up/top banner popup:
-  // - explicit vibration pattern
-  // - silent: false
-  // - requireInteraction: true
-  // - renotify: true
-  // - timestamp: Date.now()
+  const notificationTag = payload.tag || (payload.data?.requestId ? `visitor-${payload.data.requestId}` : 'visitor-alert');
+
   const notificationOptions = {
     body: payload.body,
     icon: iconUrl,
     badge: badgeUrl,
     image: imageUrl,
-    tag: `gate-alert-${Date.now()}`,
+    tag: notificationTag,
     renotify: true,
     requireInteraction: true,
     silent: false,

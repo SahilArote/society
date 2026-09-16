@@ -185,22 +185,7 @@ export async function triggerVisitorNotification(
     } catch (_) {}
   }
 
-  // 3. Dispatch In-App Heads-Up Top Popup Banner across PWA
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(
-      new CustomEvent('nexgate-visitor-popup', {
-        detail: {
-          requestId: data.requestId,
-          visitorName: data.visitorName,
-          gateName: data.gateName || 'Main Gate',
-          flatNumber: data.flatNumber || '',
-          photoUrl: data.photoUrl,
-        },
-      })
-    );
-  }
-
-  // 4. Display native notification via Service Worker
+  // 3. Display native notification via Service Worker (if permission granted)
   if (!isNotificationSupported() || Notification.permission !== 'granted') {
     return;
   }
@@ -218,8 +203,8 @@ export async function triggerVisitorNotification(
       icon: `${origin}/icons/icon-192.png`,
       badge: `${origin}/icons/favicon-32.png`,
       image: data.photoUrl,
-      tag: `gate-alert-${Date.now()}`,
-      renotify: true,
+      tag: data.requestId ? `visitor-${data.requestId}` : 'visitor-alert',
+      renotify: false,
       requireInteraction: true,
       silent: false,
       timestamp: Date.now(),

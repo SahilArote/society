@@ -599,6 +599,50 @@ export async function findVisitorRequestById(id: string): Promise<VisitorRequest
   };
 }
 
+export async function findVisitorRequestJoinedById(id: string): Promise<any | null> {
+  const pool = await getMysqlPool();
+  if (!pool) return null;
+
+  const query = `
+    SELECT 
+      vr.id,
+      vr.society_id as societyId,
+      vr.status,
+      vr.requested_at as requestedAt,
+      vr.responded_at as respondedAt,
+      vr.response_by as responseBy,
+      vr.rejection_reason as rejectionReason,
+      v.id as visitorId,
+      v.name as visitorName,
+      v.mobile as visitorMobile,
+      v.purpose as purpose,
+      v.visitor_type as visitorType,
+      v.photo_key as photoKey,
+      v.photo_storage_type as photoStorageType,
+      v.photo_url as photoUrl,
+      v.vehicle_number as vehicleNumber,
+      v.delivery_company as deliveryCompany,
+      f.id as flatId,
+      f.flat_number as flatNumber,
+      f.wing as buildingWing,
+      u_res.id as residentId,
+      u_res.name as residentName,
+      u_grd.name as guardName,
+      g.name as gateName
+    FROM visitor_requests vr
+    INNER JOIN visitors v ON vr.visitor_id = v.id
+    LEFT JOIN flats f ON vr.flat_id = f.id
+    LEFT JOIN users u_res ON vr.resident_id = u_res.id
+    LEFT JOIN users u_grd ON vr.guard_id = u_grd.id
+    LEFT JOIN gates g ON vr.gate_id = g.id
+    WHERE vr.id = ?
+    LIMIT 1
+  `;
+
+  const [rows]: any = await pool.query(query, [id]);
+  return rows[0] || null;
+}
+
 export async function findVisitorRequestsJoined(filters: {
   societyId: string;
   residentId?: string;
