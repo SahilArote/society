@@ -16,7 +16,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _idController = TextEditingController(text: 'guard_ramesh');
+  final _idController = TextEditingController();
   final _pinController = TextEditingController();
   bool _obscurePin = true;
   bool _isLoading = false;

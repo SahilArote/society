@@ -25,11 +25,11 @@ class VisitorDetailsScreen extends StatefulWidget {
 }
 
 class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
-  final _nameController = TextEditingController(text: 'Suresh Kumar');
-  final _phoneController = TextEditingController(text: '+91 98765 12340');
-  final _purposeController = TextEditingController(text: 'Food Delivery');
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _purposeController = TextEditingController();
 
-  VisitorType _selectedType = VisitorType.delivery;
+  VisitorType _selectedType = VisitorType.guest;
   String _selectedCompany = 'Zomato';
   String _selectedWing = '';
   String _selectedFlat = '';
@@ -165,9 +165,11 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
         buildingWing: _selectedWing,
         flatNumber: _selectedFlat,
         residentName: _selectedResidentName,
-        residentPhone: _selectedResidentPhone,
-        purpose: _purposeController.text.trim(),
-      );
+        purpose: _purposeController.text.trim().isNotEmpty
+            ? _purposeController.text.trim()
+            : (_selectedType == VisitorType.delivery
+                ? (_selectedCompany.isNotEmpty ? _selectedCompany : 'Delivery')
+                : _selectedType.displayName),
 
       if (!mounted) return;
       setState(() => _isSending = false);
