@@ -116,8 +116,6 @@ export default function Family() {
             icon={Heart}
             title="No family members added"
             description="Add your family members so they can also authorize visitors and receive alerts."
-            actionLabel="Add Family Member"
-            onAction={() => navigate('/add-family')}
           />
         )}
 

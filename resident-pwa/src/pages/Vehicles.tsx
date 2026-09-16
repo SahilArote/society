@@ -132,8 +132,6 @@ export default function Vehicles() {
             icon={Car}
             title="No vehicles registered"
             description="Add your car or two-wheeler for automated security barrier recognition."
-            actionLabel="Add Vehicle"
-            onAction={() => navigate('/add-vehicle')}
           />
         )}
 
