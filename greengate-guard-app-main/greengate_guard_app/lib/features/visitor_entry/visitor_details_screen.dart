@@ -165,11 +165,13 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
         buildingWing: _selectedWing,
         flatNumber: _selectedFlat,
         residentName: _selectedResidentName,
+        residentPhone: _selectedResidentPhone,
         purpose: _purposeController.text.trim().isNotEmpty
             ? _purposeController.text.trim()
             : (_selectedType == VisitorType.delivery
                 ? (_selectedCompany.isNotEmpty ? _selectedCompany : 'Delivery')
                 : _selectedType.displayName),
+      );
 
       if (!mounted) return;
       setState(() => _isSending = false);
