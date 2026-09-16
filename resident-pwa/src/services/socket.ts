@@ -1,7 +1,18 @@
 import { io, Socket } from 'socket.io-client';
 import { getStoredToken, getStoredUser } from './authSession';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://society-d521.onrender.com';
+function resolveSocketUrl(): string {
+  let url = import.meta.env.VITE_SOCKET_URL || 'https://society-d521.onrender.com';
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http://')) {
+    url = url.replace(/^http:\/\//, 'https://');
+  }
+  if (url.includes('.onrender.com') && url.startsWith('http://')) {
+    url = url.replace(/^http:\/\//, 'https://');
+  }
+  return url;
+}
+
+const SOCKET_URL = resolveSocketUrl();
 
 let socket: Socket | null = null;
 

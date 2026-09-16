@@ -1,6 +1,17 @@
 import { getStoredToken } from './authSession';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://society-d521.onrender.com/api';
+function resolveApiBaseUrl(): string {
+  let url = import.meta.env.VITE_API_URL || 'https://society-d521.onrender.com/api';
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http://')) {
+    url = url.replace(/^http:\/\//, 'https://');
+  }
+  if (url.includes('.onrender.com') && url.startsWith('http://')) {
+    url = url.replace(/^http:\/\//, 'https://');
+  }
+  return url;
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 export class ApiError extends Error {
   code?: string;

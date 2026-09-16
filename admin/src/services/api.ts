@@ -1,11 +1,25 @@
-const isLocal = typeof window !== 'undefined' && (
-  window.location.hostname === 'localhost' ||
-  window.location.hostname === '127.0.0.1' ||
-  window.location.hostname === ''
-);
-const API_BASE_URL = isLocal
-  ? 'http://localhost:5000/api'
-  : (import.meta.env.VITE_API_URL || 'https://society-d521.onrender.com/api');
+function resolveApiBaseUrl(): string {
+  const isLocal = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === ''
+  );
+  let url = isLocal
+    ? 'http://localhost:5000/api'
+    : (import.meta.env.VITE_API_URL || 'https://society-d521.onrender.com/api');
+
+  // CRITICAL FIX: If running on HTTPS (such as Render https://society-mugc.onrender.com),
+  // always upgrade http:// to https:// to prevent browser blocking due to Mixed Content!
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http://')) {
+    url = url.replace(/^http:\/\//, 'https://');
+  }
+  if (url.includes('.onrender.com') && url.startsWith('http://')) {
+    url = url.replace(/^http:\/\//, 'https://');
+  }
+  return url;
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 export function getAdminToken(): string | null {
   return localStorage.getItem('gg_admin_token');
@@ -60,11 +74,19 @@ export async function adminLogin(email: string, password: string) {
 }
 
 async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+  let targetUrl = url;
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && targetUrl.startsWith('http://')) {
+    targetUrl = targetUrl.replace(/^http:\/\//, 'https://');
+  }
+  if (targetUrl.includes('.onrender.com') && targetUrl.startsWith('http://')) {
+    targetUrl = targetUrl.replace(/^http:\/\//, 'https://');
+  }
+
   let headers: Record<string, string> = {
     ...getAuthHeaders(),
     ...(options.headers as any),
   };
-  let res = await fetch(url, { ...options, headers });
+  let res = await fetch(targetUrl, { ...options, headers });
 
   if (res.status === 401 || res.status === 403) {
     try {
@@ -77,7 +99,7 @@ async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Re
       if (loginRes.ok && loginJson.success && loginJson.data?.token) {
         setAdminSession(loginJson.data.token, loginJson.data.user);
         headers['Authorization'] = `Bearer ${loginJson.data.token}`;
-        res = await fetch(url, { ...options, headers });
+        res = await fetch(targetUrl, { ...options, headers });
       }
     } catch (e) {
       console.warn('Auto re-login error:', e);
@@ -116,9 +138,7 @@ export async function fetchAdminActivity() {
 
 export async function fetchAdminRegistrations(status: string = 'ALL') {
   try {
-    const res = await fetch(`${API_BASE_URL}/admin/registrations?status=${status}`, {
-      headers: getAuthHeaders(),
-    });
+    const res = await fetchWithAuth(`${API_BASE_URL}/admin/registrations?status=${status}`);
     if (!res.ok) throw new Error(`HTTP error ${res.status}`);
     const json = await res.json();
     return json.data || [];
@@ -129,9 +149,8 @@ export async function fetchAdminRegistrations(status: string = 'ALL') {
 }
 
 export async function approveAdminRegistration(id: string) {
-  const res = await fetch(`${API_BASE_URL}/admin/registrations/${id}/approve`, {
+  const res = await fetchWithAuth(`${API_BASE_URL}/admin/registrations/${id}/approve`, {
     method: 'POST',
-    headers: getAuthHeaders(),
   });
   const json = await res.json();
   if (!res.ok || !json.success) {
@@ -141,9 +160,8 @@ export async function approveAdminRegistration(id: string) {
 }
 
 export async function rejectAdminRegistration(id: string, reason?: string) {
-  const res = await fetch(`${API_BASE_URL}/admin/registrations/${id}/reject`, {
+  const res = await fetchWithAuth(`${API_BASE_URL}/admin/registrations/${id}/reject`, {
     method: 'POST',
-    headers: getAuthHeaders(),
     body: JSON.stringify({ reason: reason?.trim() }),
   });
   const json = await res.json();
