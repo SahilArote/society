@@ -11,6 +11,7 @@ import authRoutes from './routes/auth';
 import visitorRequestRoutes from './routes/visitorRequests';
 import adminRoutes from './routes/admin';
 import notificationRoutes from './routes/notifications';
+import residentRoutes from './routes/resident';
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/visitor-requests', visitorRequestRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/resident', residentRoutes);
 
 // Unmatched API Routes Handler (Never return HTML)
 app.use('/api/*', (req: Request, res: Response) => {

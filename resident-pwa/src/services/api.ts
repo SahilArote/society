@@ -194,3 +194,103 @@ export async function fetchNotifications() {
     return [];
   }
 }
+
+// =============================================================
+// FAMILY MEMBERS & VEHICLES API METHODS
+// =============================================================
+
+export async function fetchFamilyMembers() {
+  const token = getStoredToken();
+  if (!token) return [];
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/resident/family-members`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return json.data || [];
+  } catch (e) {
+    console.error('Failed to fetch family members:', e);
+    return [];
+  }
+}
+
+export async function addFamilyMember(data: {
+  name: string;
+  relationship: string;
+  phone?: string;
+}) {
+  const token = getStoredToken();
+  if (!token) throw new ApiError('Not authenticated', 'UNAUTHORIZED', 401);
+
+  const res = await fetch(`${API_BASE_URL}/resident/family-members`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+export async function deleteFamilyMember(id: string) {
+  const token = getStoredToken();
+  if (!token) throw new ApiError('Not authenticated', 'UNAUTHORIZED', 401);
+
+  const res = await fetch(`${API_BASE_URL}/resident/family-members/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return handleResponse(res);
+}
+
+export async function fetchVehicles() {
+  const token = getStoredToken();
+  if (!token) return [];
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/resident/vehicles`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return json.data || [];
+  } catch (e) {
+    console.error('Failed to fetch vehicles:', e);
+    return [];
+  }
+}
+
+export async function addVehicle(data: {
+  number: string;
+  type: string;
+  brand?: string;
+  model?: string;
+  color?: string;
+}) {
+  const token = getStoredToken();
+  if (!token) throw new ApiError('Not authenticated', 'UNAUTHORIZED', 401);
+
+  const res = await fetch(`${API_BASE_URL}/resident/vehicles`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+export async function deleteVehicle(id: string) {
+  const token = getStoredToken();
+  if (!token) throw new ApiError('Not authenticated', 'UNAUTHORIZED', 401);
+
+  const res = await fetch(`${API_BASE_URL}/resident/vehicles/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return handleResponse(res);
+}

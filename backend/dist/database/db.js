@@ -39,6 +39,12 @@ exports.findFlatsWithResidents = findFlatsWithResidents;
 exports.createFlatRecord = createFlatRecord;
 exports.findAdminVisitorLogs = findAdminVisitorLogs;
 exports.updateVisitorStatusByAdmin = updateVisitorStatusByAdmin;
+exports.findFamilyMembersByResident = findFamilyMembersByResident;
+exports.createFamilyMember = createFamilyMember;
+exports.deleteFamilyMember = deleteFamilyMember;
+exports.findVehiclesByResident = findVehiclesByResident;
+exports.createVehicle = createVehicle;
+exports.deleteVehicle = deleteVehicle;
 const mysql_1 = require("./mysql");
 async function initDb() {
     await (0, mysql_1.runMysqlMigrations)();
@@ -1019,9 +1025,35 @@ async function findFlatsWithResidents(societyId) {
      LEFT JOIN users u ON f.resident_id = u.id 
      WHERE f.society_id = ? 
      ORDER BY f.wing, f.floor, f.flat_number`, [societyId]);
+    // Fetch family members & vehicles for society
+    let familyMap = {};
+    let vehicleMap = {};
+    try {
+        const [famRows] = await pool.query(`SELECT resident_id, flat_id, id, name, relationship, phone FROM family_members WHERE society_id = ?`, [societyId]);
+        for (const fam of (famRows || [])) {
+            const key = fam.flat_id || fam.resident_id;
+            if (!familyMap[key])
+                familyMap[key] = [];
+            familyMap[key].push({
+                id: fam.id,
+                name: fam.name,
+                phone: fam.phone ? `+91 ${fam.phone}` : '',
+                role: fam.relationship,
+                isOwner: false,
+            });
+        }
+        const [vehRows] = await pool.query(`SELECT resident_id, flat_id, COUNT(*) as cnt FROM vehicles WHERE society_id = ? GROUP BY resident_id, flat_id`, [societyId]);
+        for (const v of (vehRows || [])) {
+            const key = v.flat_id || v.resident_id;
+            vehicleMap[key] = (vehicleMap[key] || 0) + Number(v.cnt || 0);
+        }
+    }
+    catch (err) {
+        // Tables might be empty
+    }
     return rows.map((r) => {
         const isOccupied = !!r.resident_id && !!r.res_name;
-        const residents = isOccupied ? [
+        const owner = isOccupied ? [
             {
                 id: r.user_id || `res_${r.id}`,
                 name: r.res_name,
@@ -1031,6 +1063,9 @@ async function findFlatsWithResidents(societyId) {
                 isOwner: true,
             }
         ] : [];
+        const famList = isOccupied ? (familyMap[r.id] || familyMap[r.user_id] || []) : [];
+        const residents = [...owner, ...famList];
+        const vehicleCount = isOccupied ? (vehicleMap[r.id] || vehicleMap[r.user_id] || 1) : 0;
         const type = r.flat_number.endsWith('01') || r.flat_number.endsWith('04') ? '3BHK' : '2BHK';
         return {
             id: r.id,
@@ -1041,7 +1076,7 @@ async function findFlatsWithResidents(societyId) {
             type,
             status: isOccupied ? 'occupied' : 'vacant',
             residents,
-            vehicleCount: isOccupied ? 1 : 0,
+            vehicleCount,
             maintenanceStatus: 'paid',
             maintenanceDueAmount: 0,
         };
@@ -1197,4 +1232,80 @@ async function updateVisitorStatusByAdmin(requestId, action, reason) {
        WHERE id = ?`, [now, requestId]);
     }
     return true;
+}
+async function findFamilyMembersByResident(residentId, societyId) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return [];
+    const [rows] = await pool.query(`SELECT id, society_id as societyId, resident_id as residentId, flat_id as flatId,
+            name, relationship, phone, status, created_at as createdAt
+     FROM family_members
+     WHERE resident_id = ? AND society_id = ?
+     ORDER BY created_at DESC`, [residentId, societyId]);
+    return rows || [];
+}
+async function createFamilyMember(data) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        throw new Error('Database not available');
+    const id = `fam_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    await pool.query(`INSERT INTO family_members (id, society_id, resident_id, flat_id, name, relationship, phone, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')`, [id, data.societyId, data.residentId, data.flatId || null, data.name, data.relationship, data.phone || null]);
+    return {
+        id,
+        societyId: data.societyId,
+        residentId: data.residentId,
+        flatId: data.flatId,
+        name: data.name,
+        relationship: data.relationship,
+        phone: data.phone,
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+    };
+}
+async function deleteFamilyMember(id, residentId) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return false;
+    const [res] = await pool.query(`DELETE FROM family_members WHERE id = ? AND resident_id = ?`, [id, residentId]);
+    return res.affectedRows > 0;
+}
+async function findVehiclesByResident(residentId, societyId) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return [];
+    const [rows] = await pool.query(`SELECT id, society_id as societyId, resident_id as residentId, flat_id as flatId,
+            vehicle_number as vehicleNumber, type, brand, model, color, status, created_at as createdAt
+     FROM vehicles
+     WHERE resident_id = ? AND society_id = ?
+     ORDER BY created_at DESC`, [residentId, societyId]);
+    return rows || [];
+}
+async function createVehicle(data) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        throw new Error('Database not available');
+    const id = `veh_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    await pool.query(`INSERT INTO vehicles (id, society_id, resident_id, flat_id, vehicle_number, type, brand, model, color, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE')`, [id, data.societyId, data.residentId, data.flatId || null, data.vehicleNumber.toUpperCase(), data.type || 'car', data.brand || '', data.model || '', data.color || '#000000']);
+    return {
+        id,
+        societyId: data.societyId,
+        residentId: data.residentId,
+        flatId: data.flatId,
+        vehicleNumber: data.vehicleNumber.toUpperCase(),
+        type: data.type || 'car',
+        brand: data.brand || '',
+        model: data.model || '',
+        color: data.color || '#000000',
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+    };
+}
+async function deleteVehicle(id, residentId) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return false;
+    const [res] = await pool.query(`DELETE FROM vehicles WHERE id = ? AND resident_id = ?`, [id, residentId]);
+    return res.affectedRows > 0;
 }

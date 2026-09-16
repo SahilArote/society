@@ -6,21 +6,41 @@ import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { Button } from '../components/ui/Button';
 import { useToast } from '../hooks';
+import { addVehicle } from '../services/api';
 
 export default function AddVehicle() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   
   const [number, setNumber] = useState('');
-  const [type, setType] = useState('');
+  const [type, setType] = useState('car');
   const [model, setModel] = useState('');
   const [color, setColor] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    showToast('Vehicle added successfully!', 'success');
-    setTimeout(() => {
-      navigate(-1);
-    }, 500);
+  const handleSubmit = async () => {
+    if (!number.trim()) {
+      showToast('Please enter vehicle registration number', 'error');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await addVehicle({
+        number: number.trim().toUpperCase(),
+        type: type || 'car',
+        model: model.trim() || undefined,
+        color: color.trim() || undefined,
+      });
+      showToast('Vehicle registered successfully!', 'success');
+      setTimeout(() => {
+        navigate(-1);
+      }, 400);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to register vehicle', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -67,9 +87,9 @@ export default function AddVehicle() {
             className="w-full"
             size="lg"
             onClick={handleSubmit}
-            disabled={!number || !type}
+            disabled={!number.trim() || isSubmitting}
           >
-            Add Vehicle
+            {isSubmitting ? 'Registering Vehicle...' : 'Add Vehicle'}
           </Button>
         </div>
       </PageContainer>

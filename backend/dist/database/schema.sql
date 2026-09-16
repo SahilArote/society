@@ -171,6 +171,38 @@ CREATE TABLE IF NOT EXISTS `resident_registrations` (
   FOREIGN KEY (`flat_id`) REFERENCES `flats`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 13. Family Members Table
+CREATE TABLE IF NOT EXISTS `family_members` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `society_id` VARCHAR(64) NOT NULL,
+  `resident_id` VARCHAR(64) NOT NULL,
+  `flat_id` VARCHAR(64) DEFAULT NULL,
+  `name` VARCHAR(255) NOT NULL,
+  `relationship` VARCHAR(64) NOT NULL,
+  `phone` VARCHAR(32) DEFAULT NULL,
+  `status` VARCHAR(32) DEFAULT 'ACTIVE',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`society_id`) REFERENCES `societies`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`resident_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 14. Vehicles Table
+CREATE TABLE IF NOT EXISTS `vehicles` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `society_id` VARCHAR(64) NOT NULL,
+  `resident_id` VARCHAR(64) NOT NULL,
+  `flat_id` VARCHAR(64) DEFAULT NULL,
+  `vehicle_number` VARCHAR(64) NOT NULL,
+  `type` VARCHAR(32) NOT NULL DEFAULT 'car',
+  `brand` VARCHAR(64) DEFAULT '',
+  `model` VARCHAR(64) DEFAULT '',
+  `color` VARCHAR(32) DEFAULT '#000000',
+  `status` VARCHAR(32) DEFAULT 'ACTIVE',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`society_id`) REFERENCES `societies`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`resident_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- INDEXES FOR PERFORMANCE
 CREATE INDEX idx_user_mobile ON users(mobile);
 CREATE INDEX idx_visitor_request_status ON visitor_requests(status);
@@ -181,4 +213,7 @@ CREATE INDEX idx_audit_society ON audit_logs(society_id);
 CREATE INDEX idx_resident_reg_mobile ON resident_registrations(mobile);
 CREATE INDEX idx_resident_reg_society ON resident_registrations(society_id);
 CREATE INDEX idx_resident_reg_status ON resident_registrations(status);
+CREATE INDEX idx_family_resident ON family_members(resident_id);
+CREATE INDEX idx_vehicles_resident ON vehicles(resident_id);
+
 

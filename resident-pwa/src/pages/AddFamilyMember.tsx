@@ -6,20 +6,39 @@ import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { Button } from '../components/ui/Button';
 import { useToast } from '../hooks';
+import { addFamilyMember } from '../services/api';
 
 export default function AddFamilyMember() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   
   const [name, setName] = useState('');
-  const [relationship, setRelationship] = useState('');
+  const [relationship, setRelationship] = useState('spouse');
   const [mobile, setMobile] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    showToast('Family member added successfully!', 'success');
-    setTimeout(() => {
-      navigate(-1);
-    }, 500);
+  const handleSubmit = async () => {
+    if (!name.trim() || !relationship) {
+      showToast('Please enter full name and relationship', 'error');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await addFamilyMember({
+        name: name.trim(),
+        relationship,
+        phone: mobile.trim() || undefined,
+      });
+      showToast('Family member added successfully!', 'success');
+      setTimeout(() => {
+        navigate(-1);
+      }, 400);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to add family member', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -62,9 +81,9 @@ export default function AddFamilyMember() {
             className="w-full"
             size="lg"
             onClick={handleSubmit}
-            disabled={!name || !relationship}
+            disabled={!name.trim() || isSubmitting}
           >
-            Add Member
+            {isSubmitting ? 'Adding Member...' : 'Add Member'}
           </Button>
         </div>
       </PageContainer>
