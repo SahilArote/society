@@ -19,6 +19,7 @@ import {
 } from '../database/db';
 import { generateToken, AuthenticatedRequest, authenticateToken } from '../middleware/auth';
 import { emitRegistrationCreated } from '../services/socketService';
+import { getMysqlPool } from '../database/mysql';
 import { AuthUser } from '../types';
 
 const router = Router();
@@ -462,6 +463,25 @@ router.post('/registration/submit', async (req: Request, res: Response) => {
     }
     if (!targetFlat && flatNumber) {
       targetFlat = await findFlatByNumberAndWing(societyId, flatNumber, wing);
+    }
+
+    if (!targetFlat && flatNumber) {
+      // Auto-provision flat row in database so resident registration never fails
+      const pool = await getMysqlPool();
+      if (pool) {
+        const newFlatId = `flat_${uuidv4().slice(0, 8)}`;
+        await pool.query(
+          `INSERT INTO flats (id, society_id, flat_number, wing, floor, resident_id) VALUES (?, ?, ?, ?, ?, NULL)`,
+          [newFlatId, societyId, flatNumber.trim(), wing.trim(), Number(floor)]
+        );
+        targetFlat = {
+          id: newFlatId,
+          societyId,
+          flatNumber: flatNumber.trim(),
+          wing: wing.trim(),
+          floor: Number(floor),
+        };
+      }
     }
 
     if (!targetFlat) {

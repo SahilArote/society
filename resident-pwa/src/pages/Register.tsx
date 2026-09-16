@@ -1,12 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Smartphone, Building2, Layers, Home, CheckCircle2, Clock,
-  AlertCircle, ArrowRight, ArrowLeft, Edit3, RefreshCw, XCircle, Shield
+  ChevronLeft, ChevronRight, Clock, CheckCircle2, XCircle,
+  AlertCircle, RefreshCw, Shield, Edit3, Smartphone, Building2
 } from 'lucide-react';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
 import { BRAND_CONFIG } from '../config/branding';
 import {
   fetchRegistrationFlats,
@@ -50,7 +48,7 @@ export default function Register() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Multi-step states: 1 = Mobile, 2 = Select Flat, 3 = Confirm, 4 = Pending, 5 = Rejected
+  // Multi-step states: 1 = Mobile, 2 = Select Flat (The Screen), 3 = Confirm, 4 = Pending, 5 = Rejected
   const [step, setStep] = useState<number>(1);
   const [loading, setLoading] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
@@ -58,11 +56,12 @@ export default function Register() {
 
   // Form State
   const [mobile, setMobile] = useState('');
-  const [wing, setWing] = useState('');
-  const [floor, setFloor] = useState<number | ''>('');
-  const [flatNumber, setFlatNumber] = useState('');
-  const [flatId, setFlatId] = useState('');
   const [residentName, setResidentName] = useState('');
+
+  // Flat Selection State (Defaults to null so user can select, matching screenshot 1 and 2)
+  const [selectedWing, setSelectedWing] = useState<string>('Wing A');
+  const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
+  const [selectedFlatUnit, setSelectedFlatUnit] = useState<number | null>(null);
 
   // Backend Flats Hierarchy
   const [hierarchy, setHierarchy] = useState<FlatHierarchy | null>(null);
@@ -70,7 +69,6 @@ export default function Register() {
 
   // Completed / Pending Registration state
   const [activeReg, setActiveReg] = useState<RegistrationData | null>(null);
-  const [socketConnected, setSocketConnected] = useState(false);
 
   // Initialize: Check localStorage for existing pending registration or router state
   useEffect(() => {
@@ -99,56 +97,67 @@ export default function Register() {
     }
   }, [location.state]);
 
-  // Load real flats from backend when entering Step 2
+  // Load real flats from backend
   useEffect(() => {
-    if (step === 2 && !hierarchy) {
-      setLoadingFlats(true);
-      fetchRegistrationFlats()
-        .then((data) => {
-          setHierarchy(data);
-          if (data?.wings?.length > 0 && !wing) {
-            setWing(data.wings[0]);
+    setLoadingFlats(true);
+    fetchRegistrationFlats()
+      .then((data) => {
+        setHierarchy(data);
+        if (data?.wings?.length > 0) {
+          if (!data.wings.includes(selectedWing)) {
+            setSelectedWing(data.wings[0]);
           }
-        })
-        .catch((err) => {
-          console.error('Failed to load flats hierarchy:', err);
-          setError('Failed to load society flat list. Please try again.');
-        })
-        .finally(() => setLoadingFlats(false));
-    }
-  }, [step, hierarchy, wing]);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load flats hierarchy:', err);
+      })
+      .finally(() => setLoadingFlats(false));
+  }, []);
 
-  // Set default floor and flat when wing changes
-  useEffect(() => {
-    if (!hierarchy || !wing) return;
-    const availableFloors = hierarchy.floors[wing] || [];
-    if (availableFloors.length > 0) {
-      const defaultFloor = availableFloors.includes(Number(floor)) ? Number(floor) : availableFloors[0];
-      setFloor(defaultFloor);
-    } else {
-      setFloor('');
-      setFlatNumber('');
-      setFlatId('');
+  // Compute available wings from backend hierarchy or defaults
+  const wingsList = useMemo(() => {
+    if (hierarchy?.wings && hierarchy.wings.length > 0) {
+      return hierarchy.wings;
     }
-  }, [wing, hierarchy]);
+    return ['Wing A', 'Wing B', 'Wing C'];
+  }, [hierarchy]);
 
-  // Set default flat when floor or wing changes
-  useEffect(() => {
-    if (!hierarchy || !wing || floor === '') return;
-    const matchingFlats = hierarchy.flats.filter(
-      (f) => f.wing === wing && Number(f.floor) === Number(floor)
+  // Compute available floors for the selected wing (Floors 1 to 13 matching reference UI)
+  const floorsList = useMemo(() => {
+    if (hierarchy?.floors && hierarchy.floors[selectedWing] && hierarchy.floors[selectedWing].length >= 10) {
+      return hierarchy.floors[selectedWing];
+    }
+    return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+  }, [hierarchy, selectedWing]);
+
+  // Available flat units per floor (Flats 1 to 8 matching reference UI)
+  const flatUnitsList = useMemo(() => {
+    return [1, 2, 3, 4, 5, 6, 7, 8];
+  }, []);
+
+  // Calculate full flat number display (e.g. "A-402")
+  const calculatedFlatNumber = useMemo(() => {
+    if (!selectedWing || selectedFloor === null || selectedFlatUnit === null) {
+      return '';
+    }
+    const wingLetter = selectedWing.replace(/^(Wing|Tower)\s*/i, '').trim();
+    // Unit format e.g. 402, 101
+    return `${wingLetter}-${selectedFloor}0${selectedFlatUnit}`;
+  }, [selectedWing, selectedFloor, selectedFlatUnit]);
+
+  // Find exact database flat matching the selection
+  const matchedDbFlat = useMemo(() => {
+    if (!hierarchy?.flats || !calculatedFlatNumber) return null;
+    return (
+      hierarchy.flats.find(
+        (f) =>
+          f.wing === selectedWing &&
+          Number(f.floor) === Number(selectedFloor) &&
+          f.flatNumber.toUpperCase() === calculatedFlatNumber.toUpperCase()
+      ) || null
     );
-    if (matchingFlats.length > 0) {
-      const currentExists = matchingFlats.some((f) => f.flatNumber === flatNumber);
-      if (!currentExists) {
-        setFlatNumber(matchingFlats[0].flatNumber);
-        setFlatId(matchingFlats[0].id);
-      }
-    } else {
-      setFlatNumber('');
-      setFlatId('');
-    }
-  }, [wing, floor, hierarchy]);
+  }, [hierarchy, selectedWing, selectedFloor, calculatedFlatNumber]);
 
   // Realtime Socket.IO Connection for Pending Registration Screen
   useEffect(() => {
@@ -163,7 +172,6 @@ export default function Register() {
       });
 
       socket.on('connect', () => {
-        setSocketConnected(true);
         if (activeReg.id) {
           socket?.emit('join_registration', activeReg.id);
         }
@@ -188,7 +196,7 @@ export default function Register() {
       console.warn('Socket connection error:', e);
     }
 
-    // Robust Polling fallback every 8 seconds
+    // Polling fallback every 8 seconds
     const interval = setInterval(() => {
       if (activeReg?.mobile) {
         refreshLiveStatus(activeReg.mobile);
@@ -215,9 +223,9 @@ export default function Register() {
           setActiveReg((prev) => ({
             ...(prev || {}),
             mobile: cleanDigits,
-            wing: prev?.wing || '',
-            floor: prev?.floor || 1,
-            flatNumber: prev?.flatNumber || '',
+            wing: prev?.wing || selectedWing,
+            floor: prev?.floor || selectedFloor || 1,
+            flatNumber: prev?.flatNumber || calculatedFlatNumber,
             status: 'APPROVED',
           }));
           localStorage.removeItem(STORAGE_KEY);
@@ -225,9 +233,9 @@ export default function Register() {
           setActiveReg((prev) => ({
             ...(prev || {}),
             mobile: cleanDigits,
-            wing: res.request?.wing || prev?.wing || '',
-            floor: res.request?.floor || prev?.floor || 1,
-            flatNumber: res.request?.flatNumber || prev?.flatNumber || '',
+            wing: res.request?.wing || prev?.wing || selectedWing,
+            floor: res.request?.floor || prev?.floor || selectedFloor || 1,
+            flatNumber: res.request?.flatNumber || prev?.flatNumber || calculatedFlatNumber,
             status: 'REJECTED',
             rejectionReason: res.request?.rejectionReason || 'Application rejected by society administrator',
           }));
@@ -238,7 +246,7 @@ export default function Register() {
         }
       }
     } catch (err) {
-      console.warn('Status check check error:', err);
+      console.warn('Status check error:', err);
     } finally {
       setCheckingStatus(false);
     }
@@ -290,7 +298,6 @@ export default function Register() {
       setStep(2);
     } catch (err: any) {
       console.error('Status check error:', err);
-      // If network or other error, allow user to proceed to flat selection
       setStep(2);
     } finally {
       setLoading(false);
@@ -298,21 +305,10 @@ export default function Register() {
   };
 
   // Step 2: Confirm Flat Selection
-  const handleFlatContinue = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!wing) {
-      setError('Please select your Wing');
+  const handleConfirmFlatClick = () => {
+    if (!selectedWing || selectedFloor === null || selectedFlatUnit === null) {
       return;
     }
-    if (floor === '') {
-      setError('Please select your Floor');
-      return;
-    }
-    if (!flatNumber) {
-      setError('Please select your Flat Number');
-      return;
-    }
-
     setError('');
     setStep(3); // Go to confirmation screen
   };
@@ -326,10 +322,10 @@ export default function Register() {
     try {
       const res = await submitRegistration({
         mobile: cleanDigits,
-        wing,
-        floor: Number(floor),
-        flatNumber,
-        flatId: flatId || undefined,
+        wing: selectedWing,
+        floor: Number(selectedFloor),
+        flatNumber: calculatedFlatNumber,
+        flatId: matchedDbFlat?.id || undefined,
         name: residentName || 'Resident',
         societyId: 'soc_greengate',
       });
@@ -341,10 +337,10 @@ export default function Register() {
         id: request?.id || `reg_${Date.now()}`,
         mobile: cleanDigits,
         name: residentName,
-        wing,
-        floor: Number(floor),
-        flatNumber,
-        flatId,
+        wing: selectedWing,
+        floor: Number(selectedFloor),
+        flatNumber: calculatedFlatNumber,
+        flatId: matchedDbFlat?.id,
         status: 'PENDING',
         createdAt: request?.createdAt || new Date().toISOString(),
       };
@@ -360,7 +356,7 @@ export default function Register() {
     } catch (err: any) {
       console.error('Submission failed:', err);
       if (err instanceof ApiError && err.code === 'REQUEST_ALREADY_PENDING') {
-        const pReq = err.data || { mobile: cleanDigits, wing, floor, flatNumber, status: 'PENDING' };
+        const pReq = err.data || { mobile: cleanDigits, wing: selectedWing, floor: selectedFloor, flatNumber: calculatedFlatNumber, status: 'PENDING' };
         setActiveReg(pReq);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(pReq));
         setStep(4);
@@ -374,54 +370,60 @@ export default function Register() {
     }
   };
 
-  // Re-apply after rejection
-  const handleReapply = () => {
-    setActiveReg(null);
-    localStorage.removeItem(STORAGE_KEY);
-    setStep(2); // Retain mobile, choose flat or re-verify
-  };
-
-  // Filtered lists for Step 2
-  const availableWings = hierarchy?.wings || ['Wing A', 'Wing B', 'Wing C'];
-  const availableFloors = wing && hierarchy?.floors[wing] ? hierarchy.floors[wing] : [1, 2, 3, 4];
-  const availableFlats =
-    hierarchy?.flats.filter(
-      (f) => f.wing === wing && Number(f.floor) === Number(floor)
-    ) || [];
+  const isFlatReady = selectedWing && selectedFloor !== null && selectedFlatUnit !== null;
 
   return (
-    <div className="min-h-screen bg-white flex flex-col justify-between p-6">
-      {/* Top Society Brand Header */}
-      <div className="pt-2 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-white p-0.5 border border-slate-200 shadow-sm flex items-center justify-center">
-            <img
-              src={BRAND_CONFIG.logo.src}
-              alt={BRAND_CONFIG.logo.alt}
-              className="w-full h-full object-contain rounded-lg"
-            />
-          </div>
-          <span className="font-bold text-sm tracking-tight text-slate-900">
-            {BRAND_CONFIG.name}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          {step <= 3 && (
-            <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
-              Step {step} of 3
-            </span>
-          )}
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between p-4 sm:p-6 select-none font-sans">
+      {/* ── Top Bar Header ────────────────────────────────────────── */}
+      <div className="pt-2 max-w-md w-full mx-auto">
+        <div className="flex items-center justify-between mb-3">
           <button
-            onClick={() => navigate('/login')}
-            className="text-xs text-slate-600 font-medium hover:text-slate-900 px-2 py-1"
+            type="button"
+            onClick={() => {
+              if (step === 2) setStep(1);
+              else if (step === 3) setStep(2);
+              else navigate('/login');
+            }}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-colors"
+            aria-label="Back"
           >
-            Log in
+            <ChevronLeft className="w-6 h-6" />
           </button>
+
+          <div className="text-center">
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">
+              Green Gate Residency
+            </h2>
+            <p className="text-[11px] font-medium text-slate-500">
+              Resident Setup
+            </p>
+          </div>
+
+          <div className="w-10 h-10" /> {/* Spacer for symmetry */}
+        </div>
+
+        {/* 3 Step Progress Dashes */}
+        <div className="flex items-center justify-center gap-2 mb-6">
+          <div
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              step >= 1 ? 'w-8 bg-indigo-600' : 'w-8 bg-slate-200'
+            }`}
+          />
+          <div
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              step >= 2 ? 'w-8 bg-indigo-600' : 'w-8 bg-slate-200'
+            }`}
+          />
+          <div
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              step >= 3 ? 'w-8 bg-indigo-600' : 'w-8 bg-slate-200'
+            }`}
+          />
         </div>
       </div>
 
-      {/* Main Multi-Step Content Area */}
-      <div className="max-w-sm w-full mx-auto my-auto py-6">
+      {/* ── Main Dynamic Multi-Step Body ─────────────────────────── */}
+      <div className="max-w-md w-full mx-auto my-auto py-2">
         <AnimatePresence mode="wait">
           {/* ========================================================= */}
           {/* STEP 1: MOBILE NUMBER SCREEN                              */}
@@ -429,17 +431,14 @@ export default function Register() {
           {step === 1 && (
             <motion.div
               key="step-1"
-              initial={{ opacity: 0, x: -15 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 15 }}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
               className="space-y-6"
             >
               <div>
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mb-4">
-                  <Smartphone className="w-6 h-6" />
-                </div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-                  Create your Resident Account
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                  Create your resident account
                 </h1>
                 <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
                   Register your mobile number and flat to access NexGate.
@@ -448,11 +447,11 @@ export default function Register() {
 
               <form onSubmit={handleMobileContinue} className="space-y-5">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
                     Mobile Number
                   </label>
                   <div className="relative flex items-center">
-                    <div className="absolute left-3.5 flex items-center gap-1 text-slate-700 font-bold text-sm select-none border-r border-slate-200 pr-2.5">
+                    <div className="absolute left-3.5 flex items-center gap-1.5 text-slate-800 font-bold text-sm select-none border-r border-slate-200 pr-2.5">
                       <span>🇮🇳</span>
                       <span>+91</span>
                     </div>
@@ -466,210 +465,207 @@ export default function Register() {
                       }}
                       placeholder="98765 43210"
                       maxLength={10}
-                      className="w-full pl-24 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold text-base focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal"
+                      className="w-full pl-24 pr-4 py-3.5 bg-white border border-slate-300 rounded-xl text-slate-900 font-bold text-base focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal shadow-xs"
                       autoFocus
                     />
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-2">
-                    An OTP will be sent to verify your identity after admin approval.
+                  <p className="text-[11px] text-slate-500 mt-2">
+                    An OTP will be sent to verify your identity after administrator approval.
                   </p>
                 </div>
 
                 {error && (
                   <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-rose-700 text-xs font-medium leading-relaxed">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-500" />
                     <span>{error}</span>
                   </div>
                 )}
 
-                <Button
+                <button
                   type="submit"
-                  variant="primary"
-                  size="lg"
-                  fullWidth
-                  loading={loading}
-                  icon={<ArrowRight className="w-5 h-5" />}
+                  disabled={loading || mobile.replace(/\D/g, '').length < 10}
+                  className={`w-full py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all ${
+                    mobile.replace(/\D/g, '').length === 10
+                      ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/25 active:scale-[0.98] cursor-pointer'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
                 >
-                  Continue
-                </Button>
+                  {loading ? (
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <>
+                      <span>Continue</span>
+                      <ChevronRight className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
               </form>
             </motion.div>
           )}
 
           {/* ========================================================= */}
-          {/* STEP 2: SELECT YOUR FLAT SCREEN                           */}
+          {/* STEP 2: EXACT "SELECT YOUR FLAT" CHIP/GRID SCREEN        */}
           {/* ========================================================= */}
           {step === 2 && (
             <motion.div
               key="step-2"
-              initial={{ opacity: 0, x: 15 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -15 }}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
               className="space-y-6"
             >
+              {/* Heading */}
               <div>
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 mb-3"
-                >
-                  <ArrowLeft className="w-4 h-4" /> Change Mobile Number
-                </button>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-                  Select your Flat
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                  Select your flat
                 </h1>
-                <p className="text-sm text-slate-500 mt-1 leading-relaxed">
-                  Choose your Wing, Floor, and Flat unit registered with society records.
+                <p className="text-sm text-slate-500 mt-1">
+                  Choose Wing, Floor, and Flat
                 </p>
               </div>
 
-              {loadingFlats ? (
-                <div className="py-12 text-center text-slate-400 text-sm font-medium flex flex-col items-center gap-3">
-                  <RefreshCw className="w-6 h-6 animate-spin text-indigo-600" />
-                  <span>Loading society flat records...</span>
+              {/* 1. WING Selection */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+                  WING
+                </label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {wingsList.map((w) => {
+                    const isSelected = selectedWing === w;
+                    return (
+                      <button
+                        key={w}
+                        type="button"
+                        onClick={() => {
+                          setSelectedWing(w);
+                          setError('');
+                        }}
+                        className={`py-3.5 px-3 rounded-xl font-extrabold text-sm sm:text-base text-center transition-all duration-200 active:scale-95 ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 border border-indigo-600'
+                            : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs'
+                        }`}
+                      >
+                        {w}
+                      </button>
+                    );
+                  })}
                 </div>
-              ) : (
-                <form onSubmit={handleFlatContinue} className="space-y-4">
-                  {/* Optional Resident Name */}
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                      Your Full Name
-                    </label>
-                    <input
-                      type="text"
-                      value={residentName}
-                      onChange={(e) => setResidentName(e.target.value)}
-                      placeholder="e.g. Sahil Arote"
-                      className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal"
-                    />
-                  </div>
+              </div>
 
-                  {/* Sequential Dropdown 1: Wing */}
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5 text-indigo-600" /> Wing / Tower
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={wing}
-                        onChange={(e) => {
-                          setWing(e.target.value);
+              {/* 2. FLOOR Selection */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+                  FLOOR
+                </label>
+                <div className="grid grid-cols-5 gap-2">
+                  {floorsList.map((fl) => {
+                    const isSelected = selectedFloor === fl;
+                    return (
+                      <button
+                        key={fl}
+                        type="button"
+                        onClick={() => {
+                          setSelectedFloor(fl);
                           setError('');
                         }}
-                        className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none transition-all appearance-none cursor-pointer"
+                        className={`py-2.5 rounded-xl font-bold text-xs sm:text-sm text-center transition-all duration-150 active:scale-95 ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 border border-indigo-600'
+                            : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs'
+                        }`}
                       >
-                        {availableWings.map((w) => (
-                          <option key={w} value={w}>
-                            {w}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
-                        ▼
-                      </div>
-                    </div>
-                  </div>
+                        Floor {fl}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-                  {/* Sequential Dropdown 2: Floor */}
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
-                      <Layers className="w-3.5 h-3.5 text-indigo-600" /> Floor
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={floor}
-                        onChange={(e) => {
-                          setFloor(Number(e.target.value));
+              {/* 3. FLAT NUMBER Selection */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+                  FLAT NUMBER
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {flatUnitsList.map((unit) => {
+                    const isSelected = selectedFlatUnit === unit;
+                    return (
+                      <button
+                        key={unit}
+                        type="button"
+                        onClick={() => {
+                          setSelectedFlatUnit(unit);
                           setError('');
                         }}
-                        className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none transition-all appearance-none cursor-pointer"
+                        className={`py-2.5 rounded-xl font-bold text-xs sm:text-sm text-center transition-all duration-150 active:scale-95 ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 border border-indigo-600'
+                            : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs'
+                        }`}
                       >
-                        {availableFloors.map((fl) => (
-                          <option key={fl} value={fl}>
-                            Floor {fl}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
-                        ▼
-                      </div>
-                    </div>
-                  </div>
+                        Flat {unit}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-                  {/* Sequential Dropdown 3: Flat Number */}
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
-                      <Home className="w-3.5 h-3.5 text-indigo-600" /> Flat Number
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={flatNumber}
-                        onChange={(e) => {
-                          const selectedNum = e.target.value;
-                          setFlatNumber(selectedNum);
-                          const found = availableFlats.find((f) => f.flatNumber === selectedNum);
-                          setFlatId(found?.id || '');
-                          setError('');
-                        }}
-                        className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none transition-all appearance-none cursor-pointer"
-                      >
-                        {availableFlats.map((flat) => (
-                          <option key={flat.id} value={flat.flatNumber}>
-                            {flat.flatNumber} {flat.isOccupied ? '(Existing Resident)' : ''}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
-                        ▼
-                      </div>
-                    </div>
-                  </div>
-
-                  {error && (
-                    <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-rose-700 text-xs font-medium leading-relaxed">
-                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                      <span>{error}</span>
-                    </div>
-                  )}
-
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    size="lg"
-                    fullWidth
-                    icon={<ArrowRight className="w-5 h-5" />}
-                  >
-                    Continue to Confirmation
-                  </Button>
-                </form>
+              {/* Selected Flat Preview Card (Exact from Screenshot in PWA Theme) */}
+              {isFlatReady && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-indigo-50/80 border border-indigo-200/90 rounded-2xl py-3.5 px-4 text-center select-none shadow-xs"
+                >
+                  <span className="text-slate-600 text-sm font-medium">Selected Flat: </span>
+                  <span className="text-indigo-600 text-base font-extrabold tracking-wide ml-1">
+                    {calculatedFlatNumber}
+                  </span>
+                </motion.div>
               )}
+
+              {/* Action Button: Confirm Flat (Exact from Screenshot in PWA Theme) */}
+              <button
+                type="button"
+                onClick={handleConfirmFlatClick}
+                disabled={!isFlatReady}
+                className={`w-full py-4 rounded-xl font-bold text-base flex items-center justify-center gap-1.5 transition-all duration-200 ${
+                  isFlatReady
+                    ? 'bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-md shadow-indigo-600/25 active:scale-[0.98] cursor-pointer'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                <span>Confirm Flat</span>
+                <ChevronRight className="w-5 h-5 ml-0.5" />
+              </button>
             </motion.div>
           )}
 
           {/* ========================================================= */}
-          {/* STEP 3: CONFIRMATION SCREEN                               */}
+          {/* STEP 3: CONFIRMATION DETAILS SCREEN                       */}
           {/* ========================================================= */}
           {step === 3 && (
             <motion.div
               key="step-3"
-              initial={{ opacity: 0, x: 15 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -15 }}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
               className="space-y-6"
             >
               <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                   Confirm your details
                 </h1>
                 <p className="text-sm text-slate-500 mt-1 leading-relaxed">
-                  Please verify your details before submitting to the administrator.
+                  Please verify your information before sending your request to the administrator.
                 </p>
               </div>
 
-              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                       Mobile Number
                     </span>
                     <p className="text-base font-bold text-slate-900 mt-0.5 font-mono">
@@ -685,67 +681,73 @@ export default function Register() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 border-b border-slate-200/80 pb-3">
+                <div className="grid grid-cols-3 gap-3 border-b border-slate-100 pb-3">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                       Wing
                     </span>
-                    <p className="text-sm font-bold text-slate-900 mt-0.5">{wing}</p>
+                    <p className="text-sm font-bold text-slate-900 mt-0.5">{selectedWing}</p>
                   </div>
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                       Floor
                     </span>
-                    <p className="text-sm font-bold text-slate-900 mt-0.5">Floor {floor}</p>
+                    <p className="text-sm font-bold text-slate-900 mt-0.5">Floor {selectedFloor}</p>
                   </div>
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      Flat
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      Flat Number
                     </span>
-                    <p className="text-sm font-bold text-slate-900 mt-0.5">{flatNumber}</p>
+                    <p className="text-sm font-extrabold text-indigo-600 mt-0.5">{calculatedFlatNumber}</p>
                   </div>
                 </div>
 
-                {residentName && (
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      Name
-                    </span>
-                    <p className="text-sm font-bold text-slate-900 mt-0.5">{residentName}</p>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Your Full Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={residentName}
+                    onChange={(e) => setResidentName(e.target.value)}
+                    placeholder="e.g. Sahil Arote"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold text-sm focus:border-indigo-600 focus:bg-white outline-none placeholder:text-slate-400"
+                  />
+                </div>
               </div>
 
               {error && (
                 <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-rose-700 text-xs font-medium leading-relaxed">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-500" />
                   <span>{error}</span>
                 </div>
               )}
 
-              <div className="space-y-2.5">
-                <Button
+              <div className="space-y-3">
+                <button
                   type="button"
-                  variant="primary"
-                  size="lg"
-                  fullWidth
-                  loading={loading}
                   onClick={handleSubmitRegistration}
-                  icon={<CheckCircle2 className="w-5 h-5" />}
+                  disabled={loading}
+                  className="w-full py-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-base flex items-center justify-center gap-2 shadow-md shadow-indigo-600/25 active:scale-[0.98] transition-all cursor-pointer"
                 >
-                  Submit Registration
-                </Button>
+                  {loading ? (
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-5 h-5" />
+                      <span>Submit Registration</span>
+                    </>
+                  )}
+                </button>
 
-                <Button
+                <button
                   type="button"
-                  variant="secondary"
-                  size="md"
-                  fullWidth
                   onClick={() => setStep(2)}
                   disabled={loading}
+                  className="w-full py-3 rounded-xl bg-transparent hover:bg-slate-100 text-slate-600 font-semibold text-sm transition-colors"
                 >
-                  Back
-                </Button>
+                  Back to Flat Selection
+                </button>
               </div>
             </motion.div>
           )}
@@ -767,29 +769,27 @@ export default function Register() {
                     <CheckCircle2 className="w-9 h-9" />
                   </div>
                   <div>
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 mb-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-2">
                       🟢 Account Approved
                     </span>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+                    <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                       Registration Approved! 🎉
                     </h1>
                     <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
                       Your resident account for flat{' '}
-                      <span className="font-bold text-slate-900">{activeReg.flatNumber}</span> has
+                      <span className="font-extrabold text-indigo-600">{activeReg.flatNumber}</span> has
                       been activated by the society administrator.
                     </p>
                   </div>
 
-                  <Button
+                  <button
                     type="button"
-                    variant="primary"
-                    size="lg"
-                    fullWidth
                     onClick={() => navigate('/login', { state: { mobile: activeReg.mobile } })}
-                    icon={<ArrowRight className="w-5 h-5" />}
+                    className="w-full py-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-base flex items-center justify-center gap-2 shadow-md shadow-indigo-600/25 active:scale-[0.98] transition-all cursor-pointer"
                   >
-                    Proceed to Login
-                  </Button>
+                    <span>Proceed to Login</span>
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
                 </div>
               ) : (
                 /* Pending Admin Approval View */
@@ -798,29 +798,29 @@ export default function Register() {
                     <div className="w-16 h-16 rounded-3xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 mx-auto shadow-sm mb-3">
                       <Clock className="w-8 h-8 animate-pulse" />
                     </div>
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 mb-2">
+                    <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 mb-2">
                       <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
                       🟡 Pending Admin Approval
                     </div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+                    <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
                       Registration Submitted
                     </h1>
-                    <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
+                    <p className="text-sm text-slate-500 mt-1 leading-relaxed">
                       Your registration request has been sent to the society administrator.
                     </p>
                   </div>
 
                   {/* Summary Card */}
-                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
-                    <div className="flex justify-between items-center text-xs pb-2 border-b border-slate-200">
+                  <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+                    <div className="flex justify-between items-center text-xs pb-2 border-b border-slate-100">
                       <span className="text-slate-500">Mobile Number</span>
                       <span className="font-bold text-slate-900 font-mono">
                         +91 {activeReg?.mobile}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center text-xs pb-2 border-b border-slate-200">
+                    <div className="flex justify-between items-center text-xs pb-2 border-b border-slate-100">
                       <span className="text-slate-500">Flat Details</span>
-                      <span className="font-bold text-slate-900">
+                      <span className="font-extrabold text-indigo-600">
                         {activeReg?.flatNumber} ({activeReg?.wing}, Floor {activeReg?.floor})
                       </span>
                     </div>
@@ -845,7 +845,7 @@ export default function Register() {
                       type="button"
                       onClick={() => activeReg?.mobile && refreshLiveStatus(activeReg.mobile)}
                       disabled={checkingStatus}
-                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 py-1.5"
+                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 py-1.5"
                     >
                       <RefreshCw className={`w-3.5 h-3.5 ${checkingStatus ? 'animate-spin' : ''}`} />
                       {checkingStatus ? 'Checking live status...' : 'Check Status Now'}
@@ -878,59 +878,59 @@ export default function Register() {
               </div>
 
               <div>
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-900 border border-rose-200 mb-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 mb-2">
                   🔴 Request Rejected
                 </span>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+                <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
                   Registration Not Approved
                 </h1>
-                <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
+                <p className="text-sm text-slate-500 mt-1 leading-relaxed">
                   The society administrator was unable to approve your registration.
                 </p>
               </div>
 
               {activeReg?.rejectionReason && (
-                <div className="p-4 rounded-2xl bg-rose-50/80 border border-rose-200 text-left">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-rose-600 block mb-1">
+                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-left">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-rose-700 block mb-1">
                     Reason for Rejection
                   </span>
-                  <p className="text-xs text-rose-950 font-medium leading-relaxed">
+                  <p className="text-xs text-rose-800 font-medium leading-relaxed">
                     "{activeReg.rejectionReason}"
                   </p>
                 </div>
               )}
 
               <div className="space-y-2.5">
-                <Button
+                <button
                   type="button"
-                  variant="primary"
-                  size="lg"
-                  fullWidth
-                  onClick={handleReapply}
-                  icon={<RefreshCw className="w-4 h-4" />}
+                  onClick={() => {
+                    setActiveReg(null);
+                    localStorage.removeItem(STORAGE_KEY);
+                    setStep(2);
+                  }}
+                  className="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-indigo-600/25 cursor-pointer"
                 >
-                  Submit Again
-                </Button>
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Submit Again</span>
+                </button>
 
-                <Button
+                <button
                   type="button"
-                  variant="secondary"
-                  size="md"
-                  fullWidth
                   onClick={() => navigate('/login')}
+                  className="w-full py-3 rounded-xl bg-transparent text-slate-500 hover:text-slate-800 font-semibold text-xs"
                 >
                   Return to Login
-                </Button>
+                </button>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Bottom Legal Notice */}
+      {/* ── Bottom Footer ────────────────────────────────────────── */}
       <div className="pb-2 text-center">
         <p className="text-[11px] text-slate-400">
-          Green Gate Residential Security Platform · Production Version
+          Green Gate Residential Security Platform · Production Setup
         </p>
       </div>
     </div>
