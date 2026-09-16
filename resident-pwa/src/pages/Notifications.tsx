@@ -8,7 +8,6 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { fetchNotifications } from '../services/api';
 import { formatRelativeTime } from '../lib/utils';
 import { useToast } from '../hooks';
-import { triggerTestNotification } from '../services/notificationService';
 import { getStoredToken } from '../services/authSession';
 import type { Notification, NotificationType } from '../types';
 
@@ -85,16 +84,7 @@ export default function Notifications() {
         subtitle={unreadCount > 0 ? `${unreadCount} new alerts` : 'All caught up'}
         rightAction={
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => {
-                triggerTestNotification(getStoredToken() || undefined);
-                showToast('🔔 Testing doorbell ring and alerts...', 'info');
-              }}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-xs font-bold transition-all"
-              title="Test Doorbell Ring"
-            >
-              <span>Test Ring 🔔</span>
-            </button>
+
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllRead}
@@ -139,9 +129,8 @@ export default function Notifications() {
               <div
                 key={notif.id}
                 onClick={() => handleItemClick(notif)}
-                className={`flex items-start gap-3 p-3.5 hover:bg-slate-50 cursor-pointer card-pressable transition-colors relative ${
-                  !notif.read ? 'bg-indigo-50/40' : 'bg-white'
-                }`}
+                className={`flex items-start gap-3 p-3.5 hover:bg-slate-50 cursor-pointer card-pressable transition-colors relative ${!notif.read ? 'bg-indigo-50/40' : 'bg-white'
+                  }`}
               >
                 {/* Unread indicator bullet */}
                 <div className="pt-1.5 flex-shrink-0 flex items-center justify-center w-3">
@@ -161,9 +150,8 @@ export default function Notifications() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline justify-between gap-2">
                     <h3
-                      className={`text-xs truncate ${
-                        !notif.read ? 'font-extrabold text-slate-900' : 'font-semibold text-slate-800'
-                      }`}
+                      className={`text-xs truncate ${!notif.read ? 'font-extrabold text-slate-900' : 'font-semibold text-slate-800'
+                        }`}
                     >
                       {notif.title}
                     </h3>
