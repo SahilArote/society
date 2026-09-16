@@ -82,6 +82,8 @@ export interface Visitor {
   expectedTime?: string;
   notes?: string;
   isPreApproved?: boolean;
+  vehicleNumber?: string;
+  deliveryCompany?: string;
 }
 
 // ========================

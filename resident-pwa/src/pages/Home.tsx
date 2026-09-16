@@ -120,7 +120,7 @@ export default function Home() {
         if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
           try {
             navigator.vibrate([500, 200, 500]);
-          } catch (_) {}
+          } catch (_) { }
         }
 
         // Only trigger native notification if document is hidden to avoid duplicate notifications
