@@ -439,17 +439,28 @@ export default function Dashboard() {
               </AreaChart>
             </ResponsiveContainer>
 
-            {/* Stats row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%', marginTop: 8 }}>
-              {[
-                { label: 'Collected', val: '₹2.8L', color: 'var(--green)' },
-                { label: 'Pending',   val: '₹0.7L', color: 'var(--red)' },
-              ].map(({ label, val, color }) => (
-                <div key={label} style={{ padding: '10px 12px', borderRadius: 'var(--r-md)', background: 'var(--bg-elevated)', textAlign: 'center' }}>
-                  <p style={{ fontSize: 15, fontWeight: 800, color, fontFamily: 'var(--font-display)' }}>{val}</p>
-                  <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{label}</p>
-                </div>
-              ))}
+            {/* Upcoming Section */}
+            <div style={{
+              width: '100%',
+              marginTop: 10,
+              padding: '10px 14px',
+              borderRadius: 'var(--r-md)',
+              background: 'var(--bg-elevated)',
+              border: '1px dashed var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center'
+            }}>
+              <span style={{
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)'
+              }}>
+                Upcoming
+              </span>
             </div>
           </div>
         </motion.div>
