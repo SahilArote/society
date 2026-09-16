@@ -10,8 +10,15 @@ import {
   findFlatByResidentId,
   saveOtpRecord,
   verifyOtpRecord,
+  findLatestRegistrationByMobile,
+  getFlatsHierarchy,
+  createResidentRegistration,
+  findFlatByNumberAndWing,
+  findFlatById,
+  findSocietyById,
 } from '../database/db';
 import { generateToken, AuthenticatedRequest, authenticateToken } from '../middleware/auth';
+import { emitRegistrationCreated } from '../services/socketService';
 import { AuthUser } from '../types';
 
 const router = Router();
@@ -39,11 +46,56 @@ router.post('/resident/send-otp', async (req: Request, res: Response) => {
     const user = await findUserByMobile(cleanMobile);
 
     if (!user || user.role !== 'RESIDENT') {
+      const reg = await findLatestRegistrationByMobile(cleanMobile);
+      if (reg && reg.status === 'PENDING') {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'REGISTRATION_PENDING',
+            message: 'Your registration is waiting for admin approval.',
+            data: {
+              requestId: reg.id,
+              status: 'PENDING',
+              wing: reg.wing,
+              floor: reg.floor,
+              flatNumber: reg.flatNumber,
+              createdAt: reg.createdAt,
+            },
+          },
+        });
+      }
+
+      if (reg && reg.status === 'REJECTED') {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'REGISTRATION_REJECTED',
+            message: 'Your registration request was rejected.',
+            data: {
+              requestId: reg.id,
+              status: 'REJECTED',
+              rejectionReason: reg.rejectionReason,
+              reviewedAt: reg.reviewedAt,
+            },
+          },
+        });
+      }
+
       return res.status(404).json({
         success: false,
         error: {
-          code: 'USER_NOT_FOUND',
-          message: 'Account not found. This mobile number is not registered with GreenGate. Please contact your society administrator.',
+          code: 'USER_NOT_REGISTERED',
+          message: 'Mobile number is not registered.',
+        },
+      });
+    }
+
+    if (user.status !== 'ACTIVE') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'ACCOUNT_INACTIVE',
+          message: 'Your resident account is inactive. Please contact your society administrator.',
         },
       });
     }
@@ -154,11 +206,56 @@ router.post('/resident/login', async (req: Request, res: Response) => {
     const user = await findUserByMobile(cleanMobile);
 
     if (!user || user.role !== 'RESIDENT') {
+      const reg = await findLatestRegistrationByMobile(cleanMobile);
+      if (reg && reg.status === 'PENDING') {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'REGISTRATION_PENDING',
+            message: 'Your registration is waiting for admin approval.',
+            data: {
+              requestId: reg.id,
+              status: 'PENDING',
+              wing: reg.wing,
+              floor: reg.floor,
+              flatNumber: reg.flatNumber,
+              createdAt: reg.createdAt,
+            },
+          },
+        });
+      }
+
+      if (reg && reg.status === 'REJECTED') {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'REGISTRATION_REJECTED',
+            message: 'Your registration request was rejected.',
+            data: {
+              requestId: reg.id,
+              status: 'REJECTED',
+              rejectionReason: reg.rejectionReason,
+              reviewedAt: reg.reviewedAt,
+            },
+          },
+        });
+      }
+
       return res.status(404).json({
         success: false,
         error: {
-          code: 'USER_NOT_FOUND',
-          message: 'Account not found. This mobile number is not registered with GreenGate.',
+          code: 'USER_NOT_REGISTERED',
+          message: 'Mobile number is not registered.',
+        },
+      });
+    }
+
+    if (user.status !== 'ACTIVE') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'ACCOUNT_INACTIVE',
+          message: 'Your resident account is inactive. Please contact your society administrator.',
         },
       });
     }
@@ -190,6 +287,252 @@ router.post('/resident/login', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: { code: 'SERVER_ERROR', message: 'Resident login failed' },
+    });
+  }
+});
+
+// =============================================================
+// RESIDENT REGISTRATION FLOW
+// =============================================================
+
+// GET /api/auth/registration/flats
+router.get('/registration/flats', async (req: Request, res: Response) => {
+  try {
+    const societyId = (req.query.societyId as string) || 'soc_greengate';
+    const hierarchy = await getFlatsHierarchy(societyId);
+    return res.json({
+      success: true,
+      data: hierarchy,
+    });
+  } catch (error: any) {
+    console.error('Error fetching flats hierarchy:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to fetch flats hierarchy' },
+    });
+  }
+});
+
+// GET /api/auth/registration/status
+router.get('/registration/status', async (req: Request, res: Response) => {
+  try {
+    const mobile = req.query.mobile as string;
+    if (!mobile) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_INPUT', message: 'Mobile number is required' },
+      });
+    }
+
+    const cleanMobile = String(mobile).replace(/\D/g, '').slice(-10);
+    if (cleanMobile.length < 10) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_MOBILE', message: 'Please provide a valid 10-digit mobile number' },
+      });
+    }
+
+    // 1. Check if user already exists in users table and is ACTIVE
+    const existingUser = await findUserByMobile(cleanMobile);
+    if (existingUser && existingUser.role === 'RESIDENT' && existingUser.status === 'ACTIVE') {
+      const flat = await findFlatByResidentId(existingUser.id);
+      return res.json({
+        success: true,
+        data: {
+          status: 'APPROVED',
+          isRegistered: true,
+          user: {
+            id: existingUser.id,
+            name: existingUser.name,
+            mobile: existingUser.mobile,
+            flatNumber: flat?.flatNumber || '',
+            wing: flat?.wing || '',
+          },
+        },
+      });
+    }
+
+    // 2. Check registration request in resident_registrations
+    const reg = await findLatestRegistrationByMobile(cleanMobile);
+    if (reg) {
+      return res.json({
+        success: true,
+        data: {
+          status: reg.status,
+          isRegistered: false,
+          request: {
+            id: reg.id,
+            mobile: reg.mobile,
+            wing: reg.wing,
+            floor: reg.floor,
+            flatId: reg.flatId,
+            flatNumber: reg.flatNumber,
+            status: reg.status,
+            rejectionReason: reg.rejectionReason,
+            createdAt: reg.createdAt,
+            reviewedAt: reg.reviewedAt,
+          },
+        },
+      });
+    }
+
+    // 3. Not registered
+    return res.json({
+      success: true,
+      data: {
+        status: 'NOT_REGISTERED',
+        isRegistered: false,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error checking registration status:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to check registration status' },
+    });
+  }
+});
+
+// POST /api/auth/registration/submit
+router.post('/registration/submit', async (req: Request, res: Response) => {
+  try {
+    const { mobile, wing, floor, flatNumber, flatId, name, societyId = 'soc_greengate' } = req.body;
+
+    // 1. Validate Mobile Number (Indian 10-digit format)
+    const cleanMobile = String(mobile || '').replace(/\D/g, '').slice(-10);
+    if (cleanMobile.length !== 10 || !/^[6-9]\d{9}$/.test(cleanMobile)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_MOBILE', message: 'Please enter a valid 10-digit Indian mobile number.' },
+      });
+    }
+
+    if (!wing || floor === undefined || (!flatNumber && !flatId)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_INPUT', message: 'Wing, Floor, and Flat Number are required.' },
+      });
+    }
+
+    // 2. Verify Society Exists
+    const society = await findSocietyById(societyId);
+    if (!society) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'SOCIETY_NOT_FOUND', message: 'Specified society does not exist.' },
+      });
+    }
+
+    // 3. Check if user already exists and is active
+    const existingUser = await findUserByMobile(cleanMobile);
+    if (existingUser && existingUser.status === 'ACTIVE') {
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: 'USER_ALREADY_REGISTERED',
+          message: 'An active resident account already exists for this mobile number. Please log in.',
+        },
+      });
+    }
+
+    // 4. Check if a PENDING registration request already exists
+    const existingReg = await findLatestRegistrationByMobile(cleanMobile);
+    if (existingReg && existingReg.status === 'PENDING') {
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: 'REQUEST_ALREADY_PENDING',
+          message: 'Your registration request is already under review by the society administrator.',
+          data: {
+            requestId: existingReg.id,
+            status: existingReg.status,
+            createdAt: existingReg.createdAt,
+            wing: existingReg.wing,
+            floor: existingReg.floor,
+            flatNumber: existingReg.flatNumber,
+          },
+        },
+      });
+    }
+
+    // 5. Verify Selected Flat Exists in Database & Matches Wing/Floor
+    let targetFlat = null;
+    if (flatId) {
+      targetFlat = await findFlatById(flatId);
+    }
+    if (!targetFlat && flatNumber) {
+      targetFlat = await findFlatByNumberAndWing(societyId, flatNumber, wing);
+    }
+
+    if (!targetFlat) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'FLAT_NOT_FOUND', message: `Flat ${flatNumber || flatId} not found in ${wing}.` },
+      });
+    }
+
+    if (Number(targetFlat.floor) !== Number(floor)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'FLAT_FLOOR_MISMATCH',
+          message: `Flat ${targetFlat.flatNumber} belongs to Floor ${targetFlat.floor}, not Floor ${floor}.`,
+        },
+      });
+    }
+
+    // 6. Create Registration Request
+    const requestId = `reg_${uuidv4().slice(0, 8)}`;
+    const newReg = await createResidentRegistration({
+      id: requestId,
+      societyId,
+      mobile: cleanMobile,
+      name: name?.trim() || 'Resident',
+      wing: targetFlat.wing || wing,
+      floor: Number(floor),
+      flatId: targetFlat.id,
+      flatNumber: targetFlat.flatNumber,
+    });
+
+    if (!newReg) {
+      throw new Error('Failed to create registration record in database');
+    }
+
+    // 7. Emit Realtime Socket.IO event to Admin Dashboard
+    emitRegistrationCreated(societyId, {
+      id: newReg.id,
+      mobile: newReg.mobile,
+      name: newReg.name,
+      wing: newReg.wing,
+      floor: newReg.floor,
+      flatNumber: newReg.flatNumber,
+      status: 'PENDING',
+      createdAt: newReg.createdAt,
+    });
+
+    // 8. Generate Tracking Token for Socket connection
+    const trackingUser: any = {
+      id: requestId,
+      registrationId: requestId,
+      mobile: cleanMobile,
+      role: 'PROSPECTIVE_RESIDENT',
+      societyId,
+    };
+    const trackingToken = generateToken(trackingUser);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Your registration request has been submitted successfully and is pending admin approval.',
+      data: {
+        request: newReg,
+        trackingToken,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error submitting resident registration:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to submit registration request' },
     });
   }
 });

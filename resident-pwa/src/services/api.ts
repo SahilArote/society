@@ -5,11 +5,13 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://society-d521.onren
 export class ApiError extends Error {
   code?: string;
   status?: number;
-  constructor(message: string, code?: string, status?: number) {
+  data?: any;
+  constructor(message: string, code?: string, status?: number, data?: any) {
     super(message);
     this.name = 'ApiError';
     this.code = code;
     this.status = status;
+    this.data = data;
   }
 }
 
@@ -19,7 +21,7 @@ async function handleResponse(res: Response) {
     const errorObj = json.error || {};
     const code = errorObj.code || (res.status === 404 ? 'NOT_FOUND' : res.status === 409 ? 'STATE_CONFLICT' : 'API_ERROR');
     const message = errorObj.message || json.message || `Request failed with status ${res.status}`;
-    throw new ApiError(message, code, res.status);
+    throw new ApiError(message, code, res.status, errorObj.data);
   }
   return json;
 }
@@ -44,6 +46,36 @@ export async function verifyOtp(mobile: string, otp: string) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ mobile: cleanMobile, otp }),
+  });
+  return handleResponse(res);
+}
+
+export async function fetchRegistrationFlats(societyId: string = 'soc_greengate') {
+  const res = await fetch(`${API_BASE_URL}/auth/registration/flats?societyId=${societyId}`);
+  const json = await handleResponse(res);
+  return json.data;
+}
+
+export async function checkRegistrationStatus(mobile: string) {
+  const cleanMobile = mobile.replace(/\D/g, '').slice(-10);
+  const res = await fetch(`${API_BASE_URL}/auth/registration/status?mobile=${cleanMobile}`);
+  const json = await handleResponse(res);
+  return json.data;
+}
+
+export async function submitRegistration(payload: {
+  mobile: string;
+  wing: string;
+  floor: number;
+  flatNumber: string;
+  flatId?: string;
+  name?: string;
+  societyId?: string;
+}) {
+  const res = await fetch(`${API_BASE_URL}/auth/registration/submit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   });
   return handleResponse(res);
 }

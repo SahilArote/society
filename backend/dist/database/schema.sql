@@ -151,6 +151,26 @@ CREATE TABLE IF NOT EXISTS `otp_records` (
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 12. Resident Registrations Table
+CREATE TABLE IF NOT EXISTS `resident_registrations` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `society_id` VARCHAR(64) NOT NULL,
+  `mobile` VARCHAR(32) NOT NULL,
+  `name` VARCHAR(255) DEFAULT 'Resident',
+  `wing` VARCHAR(64) NOT NULL,
+  `floor` INT NOT NULL,
+  `flat_id` VARCHAR(64) NOT NULL,
+  `flat_number` VARCHAR(32) NOT NULL,
+  `status` ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
+  `rejection_reason` TEXT DEFAULT NULL,
+  `reviewed_by` VARCHAR(64) DEFAULT NULL,
+  `reviewed_at` DATETIME DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NULL DEFAULT NULL,
+  FOREIGN KEY (`society_id`) REFERENCES `societies`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`flat_id`) REFERENCES `flats`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- INDEXES FOR PERFORMANCE
 CREATE INDEX idx_user_mobile ON users(mobile);
 CREATE INDEX idx_visitor_request_status ON visitor_requests(status);
@@ -158,4 +178,7 @@ CREATE INDEX idx_visitor_request_resident ON visitor_requests(resident_id);
 CREATE INDEX idx_visitor_request_society ON visitor_requests(society_id);
 CREATE INDEX idx_otp_mobile ON otp_records(mobile);
 CREATE INDEX idx_audit_society ON audit_logs(society_id);
+CREATE INDEX idx_resident_reg_mobile ON resident_registrations(mobile);
+CREATE INDEX idx_resident_reg_society ON resident_registrations(society_id);
+CREATE INDEX idx_resident_reg_status ON resident_registrations(status);
 

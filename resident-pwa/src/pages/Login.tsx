@@ -29,11 +29,27 @@ export default function Login() {
       navigate('/otp-verify', { state: { mobile: cleanDigits } });
     } catch (err: any) {
       console.error('Login error:', err);
-      if (err instanceof ApiError && (err.status === 404 || err.code === 'USER_NOT_FOUND')) {
-        setError('Account not found. This mobile number is not registered with NexGate. Please contact your society administrator.');
-      } else {
-        setError(err.message || 'Account not found. Please verify your mobile number with your society administrator.');
+      if (err instanceof ApiError) {
+        if (err.code === 'REGISTRATION_PENDING') {
+          setError('Your registration is waiting for admin approval.');
+          navigate('/register', {
+            state: {
+              mobile: cleanDigits,
+              pendingRequest: err.data,
+            },
+          });
+          return;
+        }
+        if (err.code === 'REGISTRATION_REJECTED') {
+          setError(`Your registration request was rejected: "${err.data?.rejectionReason || 'Contact society admin'}".`);
+          return;
+        }
+        if (err.code === 'USER_NOT_REGISTERED' || err.code === 'USER_NOT_FOUND' || err.status === 404) {
+          setError('Mobile number is not registered.');
+          return;
+        }
       }
+      setError(err.message || 'Unable to log in. Please verify your mobile number.');
     } finally {
       setLoading(false);
     }
@@ -99,6 +115,23 @@ export default function Login() {
           >
             Send Verification Code
           </Button>
+
+          <div className="pt-2 text-center">
+            <p className="text-xs text-slate-500">
+              New resident in this society?{' '}
+              <button
+                type="button"
+                onClick={() =>
+                  navigate('/register', {
+                    state: { mobile: phone.replace(/\D/g, '') },
+                  })
+                }
+                className="text-indigo-600 font-bold hover:text-indigo-700 hover:underline"
+              >
+                Register your flat
+              </button>
+            </p>
+          </div>
         </form>
       </div>
 

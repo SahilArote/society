@@ -104,6 +104,23 @@ export interface AuditLogRow {
   timestamp: string;
 }
 
+export interface ResidentRegistrationRow {
+  id: string;
+  societyId: string;
+  mobile: string;
+  name: string;
+  wing: string;
+  floor: number;
+  flatId: string;
+  flatNumber: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  rejectionReason?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export async function initDb() {
   await runMysqlMigrations();
 }
@@ -322,6 +339,22 @@ export async function findFlatByResidentId(residentId: string): Promise<FlatRow 
   const pool = await getMysqlPool();
   if (!pool) return null;
   const [rows]: any = await pool.query('SELECT * FROM flats WHERE resident_id = ? LIMIT 1', [residentId]);
+  if (!rows[0]) return null;
+  const r = rows[0];
+  return {
+    id: r.id,
+    societyId: r.society_id,
+    flatNumber: r.flat_number,
+    wing: r.wing,
+    floor: r.floor,
+    residentId: r.resident_id,
+  };
+}
+
+export async function findFlatById(flatId: string): Promise<FlatRow | null> {
+  const pool = await getMysqlPool();
+  if (!pool) return null;
+  const [rows]: any = await pool.query('SELECT * FROM flats WHERE id = ? LIMIT 1', [flatId]);
   if (!rows[0]) return null;
   const r = rows[0];
   return {
@@ -766,3 +799,363 @@ export async function verifyOtpRecord(mobile: string, otp: string): Promise<bool
   await pool.query('UPDATE otp_records SET used = 1 WHERE id = ?', [rows[0].id]);
   return true;
 }
+
+// -------------------------------------------------------------
+// FLATS HIERARCHY FOR REGISTRATION
+// -------------------------------------------------------------
+export async function getFlatsHierarchy(societyId: string) {
+  const pool = await getMysqlPool();
+  if (!pool) return { wings: [], floors: {}, flats: [] };
+
+  const [rows]: any = await pool.query(
+    'SELECT id, flat_number, wing, floor, resident_id FROM flats WHERE society_id = ? ORDER BY wing, floor, flat_number',
+    [societyId]
+  );
+
+  const wingsSet = new Set<string>();
+  const floorsMap: Record<string, number[]> = {};
+  const flatsList: any[] = [];
+
+  for (const r of rows) {
+    const w = r.wing;
+    wingsSet.add(w);
+    if (!floorsMap[w]) floorsMap[w] = [];
+    if (!floorsMap[w].includes(r.floor)) floorsMap[w].push(r.floor);
+
+    flatsList.push({
+      id: r.id,
+      flatNumber: r.flat_number,
+      wing: r.wing,
+      floor: r.floor,
+      isOccupied: Boolean(r.resident_id),
+    });
+  }
+
+  for (const w of Object.keys(floorsMap)) {
+    floorsMap[w].sort((a, b) => a - b);
+  }
+
+  return {
+    wings: Array.from(wingsSet).sort(),
+    floors: floorsMap,
+    flats: flatsList,
+  };
+}
+
+// -------------------------------------------------------------
+// RESIDENT REGISTRATION QUERIES
+// -------------------------------------------------------------
+export async function createResidentRegistration(data: {
+  id: string;
+  societyId: string;
+  mobile: string;
+  name?: string;
+  wing: string;
+  floor: number;
+  flatId: string;
+  flatNumber: string;
+}): Promise<ResidentRegistrationRow | null> {
+  const pool = await getMysqlPool();
+  if (!pool) return null;
+
+  const now = new Date();
+  await pool.query(
+    `INSERT INTO resident_registrations 
+     (id, society_id, mobile, name, wing, floor, flat_id, flat_number, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)`,
+    [
+      data.id,
+      data.societyId,
+      data.mobile,
+      data.name || 'Resident',
+      data.wing,
+      data.floor,
+      data.flatId,
+      data.flatNumber,
+      now,
+    ]
+  );
+
+  return findResidentRegistrationById(data.id);
+}
+
+export async function findResidentRegistrationById(id: string): Promise<ResidentRegistrationRow | null> {
+  const pool = await getMysqlPool();
+  if (!pool) return null;
+
+  const [rows]: any = await pool.query(
+    'SELECT * FROM resident_registrations WHERE id = ? LIMIT 1',
+    [id]
+  );
+  if (!rows[0]) return null;
+  const r = rows[0];
+  return {
+    id: r.id,
+    societyId: r.society_id,
+    mobile: r.mobile,
+    name: r.name,
+    wing: r.wing,
+    floor: r.floor,
+    flatId: r.flat_id,
+    flatNumber: r.flat_number,
+    status: r.status,
+    rejectionReason: r.rejection_reason,
+    reviewedBy: r.reviewed_by,
+    reviewedAt: r.reviewed_at ? new Date(r.reviewed_at).toISOString() : undefined,
+    createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+    updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
+  };
+}
+
+export async function findLatestRegistrationByMobile(mobile: string): Promise<ResidentRegistrationRow | null> {
+  const pool = await getMysqlPool();
+  if (!pool) return null;
+
+  const cleanMobile = mobile.replace(/\D/g, '').slice(-10);
+  const [rows]: any = await pool.query(
+    'SELECT * FROM resident_registrations WHERE mobile = ? OR mobile LIKE ? ORDER BY created_at DESC LIMIT 1',
+    [mobile, `%${cleanMobile}`]
+  );
+  if (!rows[0]) return null;
+  const r = rows[0];
+  return {
+    id: r.id,
+    societyId: r.society_id,
+    mobile: r.mobile,
+    name: r.name,
+    wing: r.wing,
+    floor: r.floor,
+    flatId: r.flat_id,
+    flatNumber: r.flat_number,
+    status: r.status,
+    rejectionReason: r.rejection_reason,
+    reviewedBy: r.reviewed_by,
+    reviewedAt: r.reviewed_at ? new Date(r.reviewed_at).toISOString() : undefined,
+    createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+    updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
+  };
+}
+
+export async function findResidentRegistrations(filters: {
+  societyId: string;
+  status?: string;
+  limit?: number;
+}): Promise<ResidentRegistrationRow[]> {
+  const pool = await getMysqlPool();
+  if (!pool) return [];
+
+  let query = 'SELECT * FROM resident_registrations WHERE society_id = ?';
+  const params: any[] = [filters.societyId];
+
+  if (filters.status && filters.status !== 'ALL') {
+    query += ' AND status = ?';
+    params.push(filters.status);
+  }
+
+  query += ' ORDER BY created_at DESC';
+
+  if (filters.limit) {
+    query += ' LIMIT ?';
+    params.push(filters.limit);
+  }
+
+  const [rows]: any = await pool.query(query, params);
+  return rows.map((r: any) => ({
+    id: r.id,
+    societyId: r.society_id,
+    mobile: r.mobile,
+    name: r.name,
+    wing: r.wing,
+    floor: r.floor,
+    flatId: r.flat_id,
+    flatNumber: r.flat_number,
+    status: r.status,
+    rejectionReason: r.rejection_reason,
+    reviewedBy: r.reviewed_by,
+    reviewedAt: r.reviewed_at ? new Date(r.reviewed_at).toISOString() : undefined,
+    createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+    updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
+  }));
+}
+
+export async function approveResidentRegistration(
+  id: string,
+  adminId: string
+): Promise<{ success: boolean; error?: string; user?: UserRow }> {
+  const pool = await getMysqlPool();
+  if (!pool) return { success: false, error: 'Database unavailable' };
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // 1. Fetch registration request and lock
+    const [regRows]: any = await connection.query(
+      'SELECT * FROM resident_registrations WHERE id = ? FOR UPDATE',
+      [id]
+    );
+    if (!regRows[0]) {
+      await connection.rollback();
+      return { success: false, error: 'Registration request not found' };
+    }
+
+    const reg = regRows[0];
+    if (reg.status !== 'PENDING') {
+      await connection.rollback();
+      return { success: false, error: `Request already ${reg.status.toLowerCase()}` };
+    }
+
+    // 2. Verify flat exists
+    const [flatRows]: any = await connection.query(
+      'SELECT * FROM flats WHERE id = ? FOR UPDATE',
+      [reg.flat_id]
+    );
+    if (!flatRows[0]) {
+      await connection.rollback();
+      return { success: false, error: 'Associated flat not found in society' };
+    }
+
+    // 3. Check or create user
+    const cleanMobile = reg.mobile.replace(/\D/g, '').slice(-10);
+    const [existingUsers]: any = await connection.query(
+      'SELECT * FROM users WHERE mobile = ? OR mobile LIKE ? LIMIT 1',
+      [reg.mobile, `%${cleanMobile}`]
+    );
+
+    let userId: string;
+    const now = new Date();
+
+    if (existingUsers[0]) {
+      userId = existingUsers[0].id;
+      await connection.query(
+        'UPDATE users SET status = "ACTIVE", society_id = ?, updated_at = ? WHERE id = ?',
+        [reg.society_id, now, userId]
+      );
+    } else {
+      userId = `res_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+      await connection.query(
+        `INSERT INTO users (id, name, mobile, role, society_id, status, created_at)
+         VALUES (?, ?, ?, 'RESIDENT', ?, 'ACTIVE', ?)`,
+        [userId, reg.name || 'Resident', reg.mobile, reg.society_id, now]
+      );
+    }
+
+    // 4. Assign flat resident_id
+    await connection.query(
+      'UPDATE flats SET resident_id = ? WHERE id = ?',
+      [userId, reg.flat_id]
+    );
+
+    // 5. Update registration request status
+    await connection.query(
+      `UPDATE resident_registrations 
+       SET status = 'APPROVED', reviewed_by = ?, reviewed_at = ?, updated_at = ?
+       WHERE id = ?`,
+      [adminId, now, now, id]
+    );
+
+    // 6. Create Audit Log
+    const auditId = `aud_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    await connection.query(
+      `INSERT INTO audit_logs (id, actor_id, actor_role, society_id, request_id, action, entity_type, entity_id, metadata)
+       VALUES (?, ?, 'ADMIN', ?, ?, 'RESIDENT_REGISTRATION_APPROVED', 'RESIDENT_REGISTRATION', ?, ?)`,
+      [
+        auditId,
+        adminId,
+        reg.society_id,
+        id,
+        id,
+        JSON.stringify({ mobile: reg.mobile, flatNumber: reg.flat_number, userId }),
+      ]
+    );
+
+    await connection.commit();
+
+    // Fetch newly created/updated user
+    const [finalUserRows]: any = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
+    const finalUser = finalUserRows[0];
+
+    return {
+      success: true,
+      user: {
+        id: finalUser.id,
+        name: finalUser.name,
+        mobile: finalUser.mobile,
+        email: finalUser.email,
+        role: finalUser.role,
+        societyId: finalUser.society_id,
+        status: finalUser.status,
+        createdAt: finalUser.created_at,
+        updatedAt: finalUser.updated_at,
+      },
+    };
+  } catch (err: any) {
+    await connection.rollback();
+    console.error('[DB] Approval transaction failed:', err);
+    return { success: false, error: err.message || 'Transaction failed' };
+  } finally {
+    connection.release();
+  }
+}
+
+export async function rejectResidentRegistration(
+  id: string,
+  adminId: string,
+  reason?: string
+): Promise<{ success: boolean; error?: string }> {
+  const pool = await getMysqlPool();
+  if (!pool) return { success: false, error: 'Database unavailable' };
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [regRows]: any = await connection.query(
+      'SELECT * FROM resident_registrations WHERE id = ? FOR UPDATE',
+      [id]
+    );
+    if (!regRows[0]) {
+      await connection.rollback();
+      return { success: false, error: 'Registration request not found' };
+    }
+
+    const reg = regRows[0];
+    if (reg.status !== 'PENDING') {
+      await connection.rollback();
+      return { success: false, error: `Request already ${reg.status.toLowerCase()}` };
+    }
+
+    const now = new Date();
+    await connection.query(
+      `UPDATE resident_registrations 
+       SET status = 'REJECTED', rejection_reason = ?, reviewed_by = ?, reviewed_at = ?, updated_at = ?
+       WHERE id = ?`,
+      [reason || 'Application rejected by society administrator', adminId, now, now, id]
+    );
+
+    // Audit Log
+    const auditId = `aud_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    await connection.query(
+      `INSERT INTO audit_logs (id, actor_id, actor_role, society_id, request_id, action, entity_type, entity_id, metadata)
+       VALUES (?, ?, 'ADMIN', ?, ?, 'RESIDENT_REGISTRATION_REJECTED', 'RESIDENT_REGISTRATION', ?, ?)`,
+      [
+        auditId,
+        adminId,
+        reg.society_id,
+        id,
+        id,
+        JSON.stringify({ mobile: reg.mobile, flatNumber: reg.flat_number, reason }),
+      ]
+    );
+
+    await connection.commit();
+    return { success: true };
+  } catch (err: any) {
+    await connection.rollback();
+    console.error('[DB] Rejection transaction failed:', err);
+    return { success: false, error: err.message || 'Transaction failed' };
+  } finally {
+    connection.release();
+  }
+}
+

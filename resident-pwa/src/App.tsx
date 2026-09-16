@@ -13,6 +13,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Landing from './pages/Landing';
 import PwaInstall from './pages/PwaInstall';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import OtpVerify from './pages/OtpVerify';
 
 // Authenticated pages
@@ -97,6 +98,7 @@ export default function App() {
             <Route element={<PublicLayout />}>
               <Route path="/install" element={<PwaInstall />} />
               <Route path="/login" element={<LoginRoute />} />
+              <Route path="/register" element={<Register />} />
               <Route path="/verify-otp" element={<OtpVerify />} />
               <Route path="/otp-verify" element={<OtpVerify />} />
             </Route>

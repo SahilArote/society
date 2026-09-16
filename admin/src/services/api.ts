@@ -82,3 +82,47 @@ export async function fetchAdminActivity() {
   }
 }
 
+// =============================================================
+// RESIDENT REGISTRATION REQUESTS
+// =============================================================
+
+export async function fetchAdminRegistrations(status: string = 'ALL') {
+  try {
+    const res = await fetch(`${API_BASE_URL}/admin/registrations?status=${status}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    const json = await res.json();
+    return json.data || [];
+  } catch (err) {
+    console.error('Failed to fetch admin registrations:', err);
+    return [];
+  }
+}
+
+export async function approveAdminRegistration(id: string) {
+  const res = await fetch(`${API_BASE_URL}/admin/registrations/${id}/approve`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || json.message || 'Failed to approve registration');
+  }
+  return json;
+}
+
+export async function rejectAdminRegistration(id: string, reason?: string) {
+  const res = await fetch(`${API_BASE_URL}/admin/registrations/${id}/reject`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ reason: reason?.trim() }),
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || json.message || 'Failed to reject registration');
+  }
+  return json;
+}
+
+

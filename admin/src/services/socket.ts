@@ -5,7 +5,10 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://society-d521.onre
 
 let socket: Socket | null = null;
 
-export function initAdminSocket(onActivityEvent?: (event: any) => void) {
+export function initAdminSocket(
+  onActivityEvent?: (event: any) => void,
+  onRegistrationEvent?: (event: any) => void
+) {
   const token = getAdminToken();
   if (!token) {
     console.warn('[AdminSocket] No admin token found in storage');
@@ -16,6 +19,12 @@ export function initAdminSocket(onActivityEvent?: (event: any) => void) {
     if (onActivityEvent) {
       socket.off('admin:visitor_activity');
       socket.on('admin:visitor_activity', onActivityEvent);
+    }
+    if (onRegistrationEvent) {
+      socket.off('admin:registration_request');
+      socket.off('admin:registration_updated');
+      socket.on('admin:registration_request', onRegistrationEvent);
+      socket.on('admin:registration_updated', onRegistrationEvent);
     }
     return socket;
   }
@@ -43,6 +52,17 @@ export function initAdminSocket(onActivityEvent?: (event: any) => void) {
     socket.on('admin:visitor_activity', (data) => {
       console.log('[AdminSocket] Realtime visitor activity event (Strictly No Photo):', data);
       onActivityEvent(data);
+    });
+  }
+
+  if (onRegistrationEvent) {
+    socket.on('admin:registration_request', (data) => {
+      console.log('[AdminSocket] Realtime new resident registration:', data);
+      onRegistrationEvent(data);
+    });
+    socket.on('admin:registration_updated', (data) => {
+      console.log('[AdminSocket] Realtime registration update:', data);
+      onRegistrationEvent(data);
     });
   }
 

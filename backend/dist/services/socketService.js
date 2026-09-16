@@ -7,6 +7,8 @@ exports.initSocketServer = initSocketServer;
 exports.getSocketIO = getSocketIO;
 exports.emitVisitorCreated = emitVisitorCreated;
 exports.emitVisitorDecision = emitVisitorDecision;
+exports.emitRegistrationCreated = emitRegistrationCreated;
+exports.emitRegistrationUpdated = emitRegistrationUpdated;
 const socket_io_1 = require("socket.io");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const JWT_SECRET = process.env.JWT_SECRET || 'greengate_secret_jwt_key_2026_super_secure';
@@ -55,6 +57,17 @@ function initSocketServer(server) {
             socket.join(`admin:${user.societyId}`);
             console.log(`[Socket] Auto-joined room admin:${user.societyId}`);
         }
+        else if (user.role === 'PROSPECTIVE_RESIDENT' || user.registrationId) {
+            const regId = user.registrationId || user.id;
+            socket.join(`registration:${regId}`);
+            console.log(`[Socket] Auto-joined room registration:${regId}`);
+        }
+        socket.on('join_registration', (regId) => {
+            if (regId && typeof regId === 'string') {
+                socket.join(`registration:${regId}`);
+                console.log(`[Socket] Joined registration room registration:${regId}`);
+            }
+        });
         socket.on('disconnect', () => {
             console.log(`[Socket] Client disconnected: ${socket.id}`);
         });
@@ -127,4 +140,31 @@ function emitVisitorDecision(data) {
         rejectionReason: data.rejectionReason,
         timestamp: now,
     });
+}
+function emitRegistrationCreated(societyId, registration) {
+    if (!io)
+        return;
+    io.to(`admin:${societyId}`).emit('admin:registration_request', {
+        type: 'NEW_REGISTRATION',
+        registration,
+        timestamp: new Date().toISOString(),
+    });
+}
+function emitRegistrationUpdated(societyId, requestId, mobile, status, reason) {
+    if (!io)
+        return;
+    const now = new Date().toISOString();
+    const payload = {
+        requestId,
+        mobile,
+        status,
+        rejectionReason: reason,
+        timestamp: now,
+    };
+    // 1. Emit to specific registration tracking room
+    io.to(`registration:${requestId}`).emit('resident:registration_updated', payload);
+    // 2. Emit to society room
+    io.to(`society:${societyId}`).emit('resident:registration_updated', payload);
+    // 3. Emit to admin room
+    io.to(`admin:${societyId}`).emit('admin:registration_updated', payload);
 }

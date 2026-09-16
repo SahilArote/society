@@ -3,11 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Phone, Mail, Car, Users, Home,
   Building2, AlertCircle, CheckCircle2, X, Download,
-  UserPlus, MessageSquare, CreditCard, ShieldCheck, Plus
+  UserPlus, MessageSquare, CreditCard, ShieldCheck, Plus, UserCheck
 } from 'lucide-react';
 import { mockFlats } from '../data/mockData';
 import type { Flat, FlatResident as Resident } from '../types';
 import StatCard, { CircularGauge } from '../components/StatCard';
+import { RegistrationRequestsSection } from '../components/RegistrationRequestsSection';
 
 /* ── Badges ──────────────────────────────────────────────── */
 function MaintBadge({ s }: { s: string }) {
@@ -176,6 +177,8 @@ export default function Residents() {
   const [selected, setSelected] = useState<Flat | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showAddFlat, setShowAddFlat] = useState(false);
+  const [mainTab, setMainTab] = useState<'directory' | 'registrations'>('directory');
+  const [pendingCount, setPendingCount] = useState<number>(0);
 
   // New Flat Form State
   const [newNumber, setNewNumber] = useState('');
@@ -298,11 +301,79 @@ export default function Residents() {
         )}
       </AnimatePresence>
 
-      {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-        <StatCard
-          icon={Building2}
-          label="Total Flats"
+      {/* View Switcher Tabs */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 14 }}>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={() => setMainTab('directory')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '9px 18px',
+              borderRadius: 'var(--r-md)',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              border: mainTab === 'directory' ? '1px solid var(--accent)' : '1px solid var(--border)',
+              background: mainTab === 'directory' ? 'var(--accent-bg)' : 'var(--bg-elevated)',
+              color: mainTab === 'directory' ? 'var(--accent-light)' : 'var(--text-secondary)',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Building2 size={15} />
+            <span>Flat Directory & Occupancy</span>
+          </button>
+
+          <button
+            onClick={() => setMainTab('registrations')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '9px 18px',
+              borderRadius: 'var(--r-md)',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              border: mainTab === 'registrations' ? '1px solid var(--accent)' : '1px solid var(--border)',
+              background: mainTab === 'registrations' ? 'var(--accent-bg)' : 'var(--bg-elevated)',
+              color: mainTab === 'registrations' ? 'var(--accent-light)' : 'var(--text-secondary)',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <UserCheck size={15} />
+            <span>Registration Requests</span>
+            {pendingCount > 0 && (
+              <span
+                style={{
+                  fontSize: 11,
+                  padding: '2px 7px',
+                  borderRadius: 999,
+                  background: 'var(--amber)',
+                  color: '#000',
+                  fontWeight: 800,
+                }}
+              >
+                {pendingCount} Pending
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {mainTab === 'registrations' ? (
+        <RegistrationRequestsSection
+          onToast={showToast}
+          onPendingCountChange={setPendingCount}
+        />
+      ) : (
+        <>
+          {/* Stats */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+            <StatCard
+              icon={Building2}
+              label="Total Flats"
           value={flats.length}
           pill={{ text: 'Society Total', color: 'var(--accent)', bg: 'var(--accent-bg)' }}
           sub="120 planned units in society"
@@ -508,6 +579,8 @@ export default function Residents() {
           </>
         )}
       </AnimatePresence>
+        </>
+      )}
 
       {/* Add Flat Modal */}
       <AnimatePresence>

@@ -54,7 +54,18 @@ export function initSocketServer(server: HttpServer): SocketIOServer {
     } else if (user.role === 'ADMIN') {
       socket.join(`admin:${user.societyId}`);
       console.log(`[Socket] Auto-joined room admin:${user.societyId}`);
+    } else if ((user as any).role === 'PROSPECTIVE_RESIDENT' || (user as any).registrationId) {
+      const regId = (user as any).registrationId || user.id;
+      socket.join(`registration:${regId}`);
+      console.log(`[Socket] Auto-joined room registration:${regId}`);
     }
+
+    socket.on('join_registration', (regId: string) => {
+      if (regId && typeof regId === 'string') {
+        socket.join(`registration:${regId}`);
+        console.log(`[Socket] Joined registration room registration:${regId}`);
+      }
+    });
 
     socket.on('disconnect', () => {
       console.log(`[Socket] Client disconnected: ${socket.id}`);
@@ -157,4 +168,41 @@ export function emitVisitorDecision(data: {
     timestamp: now,
   });
 }
+
+export function emitRegistrationCreated(societyId: string, registration: any) {
+  if (!io) return;
+  io.to(`admin:${societyId}`).emit('admin:registration_request', {
+    type: 'NEW_REGISTRATION',
+    registration,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+export function emitRegistrationUpdated(
+  societyId: string,
+  requestId: string,
+  mobile: string,
+  status: 'APPROVED' | 'REJECTED',
+  reason?: string
+) {
+  if (!io) return;
+  const now = new Date().toISOString();
+  const payload = {
+    requestId,
+    mobile,
+    status,
+    rejectionReason: reason,
+    timestamp: now,
+  };
+
+  // 1. Emit to specific registration tracking room
+  io.to(`registration:${requestId}`).emit('resident:registration_updated', payload);
+
+  // 2. Emit to society room
+  io.to(`society:${societyId}`).emit('resident:registration_updated', payload);
+
+  // 3. Emit to admin room
+  io.to(`admin:${societyId}`).emit('admin:registration_updated', payload);
+}
+
 
