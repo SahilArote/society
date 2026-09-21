@@ -53,8 +53,12 @@ export default function Landing() {
       <header className="relative z-10 flex items-center justify-between max-w-sm mx-auto w-full pt-1 flex-shrink-0">
         {/* Brand Identity */}
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-indigo-600 shadow-xs flex items-center justify-center">
-            <Shield className="w-4 h-4 text-white" />
+          <div className="w-8 h-8 rounded-xl bg-white border border-slate-200/90 shadow-xs p-1 flex items-center justify-center overflow-hidden flex-shrink-0">
+            <img
+              src={BRAND_CONFIG.logo.src}
+              alt={BRAND_CONFIG.logo.alt}
+              className="w-full h-full object-contain rounded-lg"
+            />
           </div>
           <span className="text-sm font-extrabold tracking-tight text-slate-900">
             {BRAND_CONFIG.name}
