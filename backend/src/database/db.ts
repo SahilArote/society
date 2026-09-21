@@ -267,6 +267,30 @@ export async function findSocietyById(societyId: string): Promise<SocietyRow | n
   };
 }
 
+export async function updateSociety(societyId: string, data: { name?: string; address?: string }): Promise<SocietyRow | null> {
+  const pool = await getMysqlPool();
+  if (!pool) return null;
+
+  const updates: string[] = [];
+  const params: any[] = [];
+
+  if (data.name !== undefined) {
+    updates.push('name = ?');
+    params.push(data.name.trim());
+  }
+  if (data.address !== undefined) {
+    updates.push('address = ?');
+    params.push(data.address.trim());
+  }
+
+  if (updates.length > 0) {
+    params.push(societyId);
+    await pool.query(`UPDATE societies SET ${updates.join(', ')} WHERE id = ?`, params);
+  }
+
+  return findSocietyById(societyId);
+}
+
 // -------------------------------------------------------------
 // FLAT QUERIES
 // -------------------------------------------------------------
@@ -1496,6 +1520,8 @@ export async function findAdminVisitorLogs(societyId: string, filter?: {
       v.purpose as purpose,
       v.visitor_type as visitorType,
       v.vehicle_number as vehicleNumber,
+      v.photo_url as photoUrl,
+      v.photo_key as photoKey,
       f.flat_number as flatNumber,
       f.wing as buildingWing,
       u_res.name as residentName,
@@ -1549,10 +1575,15 @@ export async function findAdminVisitorLogs(societyId: string, filter?: {
       normPurpose = 'guest';
     }
 
+    const resolvedPhoto = r.photoKey 
+      ? `/api/visitor-requests/${r.id}/photo` 
+      : (r.photoUrl || undefined);
+
     return {
       id: r.id,
       name: r.visitorName,
       phone: r.visitorMobile || '',
+      photo: resolvedPhoto,
       purpose: normPurpose,
       status: normStatus,
       flatNumber: r.flatNumber || 'A-402',

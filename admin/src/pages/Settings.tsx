@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, DoorOpen, CreditCard, Shield, Bell, Save, CheckCircle2,
@@ -8,6 +8,7 @@ import {
 import { mockSociety, mockFlats, mockGates, mockGuards } from '../data/mockData';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useTheme } from '../context/ThemeContext';
+import { fetchAdminSettings, updateAdminSettings } from '../services/api';
 
 export default function Settings() {
   const { theme, resolvedTheme, setTheme } = useTheme();
@@ -42,13 +43,36 @@ export default function Settings() {
     setTimeout(() => setToastMsg(null), 2500);
   };
 
+  useEffect(() => {
+    let active = true;
+    fetchAdminSettings().then(data => {
+      if (active && data) {
+        if (data.name) setSocName(data.name);
+        if (data.city) setSocCity(data.city);
+        if (data.address) setSocAddress(data.address);
+        if (data.totalFlats) setSocFlats(String(data.totalFlats));
+      }
+    });
+    return () => { active = false; };
+  }, []);
+
   const handleSave = async () => {
-    setSaving(true);
-    await new Promise(r => setTimeout(r, 600));
-    setSaving(false);
-    setSaved(true);
-    showToast('Society configuration saved successfully');
-    setTimeout(() => setSaved(false), 3000);
+    try {
+      setSaving(true);
+      await updateAdminSettings({
+        name: socName.trim(),
+        city: socCity.trim(),
+        address: socAddress.trim(),
+        totalFlats: socFlats,
+      });
+      setSaving(false);
+      setSaved(true);
+      showToast('Society configuration saved & synchronized successfully');
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      setSaving(false);
+      showToast(err.message || 'Failed to update settings');
+    }
   };
 
   const downloadBackup = () => {

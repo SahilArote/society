@@ -1,5 +1,5 @@
+import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   Shield, LayoutDashboard, Users, UserCheck,
   DoorOpen, Megaphone, Bell, BarChart3,
@@ -12,9 +12,9 @@ const NAV = [
   { to: '/residents', icon: Users, label: 'Residents', section: 'Management' },
   { to: '/visitors', icon: UserCheck, label: 'Visitors', section: 'Management' },
   { to: '/gates', icon: DoorOpen, label: 'Gates & Guards', section: 'Management' },
-  { to: '/announcements', icon: Megaphone, label: 'Announcements', section: 'Society' },
-  { to: '/notifications', icon: Bell, label: 'Notifications', section: 'Society' },
-  { to: '/reports', icon: BarChart3, label: 'Reports', section: 'Society' },
+  { to: '/announcements', icon: Megaphone, label: 'Announcements', section: 'Society', badge: 'Soon' },
+  { to: '/notifications', icon: Bell, label: 'Notifications', section: 'Society', badge: 'Soon' },
+  { to: '/reports', icon: BarChart3, label: 'Reports', section: 'Society', badge: 'Soon' },
   { to: '/settings', icon: Settings, label: 'Settings', section: 'Configuration' },
 ];
 
@@ -26,6 +26,24 @@ const grouped = NAV.reduce((acc, item) => {
 
 export function AdminSidebar() {
   const navigate = useNavigate();
+  const [societyInfo, setSocietyInfo] = useState(() => {
+    try {
+      const cached = localStorage.getItem('gg_admin_society_settings');
+      if (cached) return JSON.parse(cached);
+    } catch (_) {}
+    return { name: 'GreenGate Residency', city: 'Mumbai, MH', totalFlats: '120' };
+  });
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        const cached = localStorage.getItem('gg_admin_society_settings');
+        if (cached) setSocietyInfo(JSON.parse(cached));
+      } catch (_) {}
+    };
+    window.addEventListener('greengate_society_updated', handleUpdate);
+    return () => window.removeEventListener('greengate_society_updated', handleUpdate);
+  }, []);
 
   return (
     <aside className="sidebar">
@@ -43,9 +61,20 @@ export function AdminSidebar() {
       {/* Society pill */}
       <div className="sidebar-society" style={{ margin: '12px 12px 4px' }}>
         <Building2 size={14} color="var(--accent-light)" style={{ flexShrink: 0 }} />
-        <div style={{ minWidth: 0 }}>
-          <div className="sidebar-society-name">callalily chs ltd</div>
-          <div className="sidebar-society-meta">120 Flats · Mumbai, MH</div>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div
+            className="sidebar-society-name"
+            style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            title={societyInfo.name || 'GreenGate Residency'}
+          >
+            {societyInfo.name || 'GreenGate Residency'}
+          </div>
+          <div
+            className="sidebar-society-meta"
+            style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          >
+            {societyInfo.totalFlats || 120} Flats · {societyInfo.city || societyInfo.address || 'Mumbai, MH'}
+          </div>
         </div>
       </div>
 
@@ -54,7 +83,7 @@ export function AdminSidebar() {
         {Object.entries(grouped).map(([section, items]) => (
           <div key={section}>
             <div className="sidebar-section-label">{section}</div>
-            {items.map(({ to, icon: Icon, label }) => (
+            {items.map(({ to, icon: Icon, label, badge }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -65,7 +94,24 @@ export function AdminSidebar() {
                   <>
                     <Icon size={16} className="nav-item-icon" />
                     <span className="nav-item-label">{label}</span>
-                    {isActive && <ChevronRight size={13} style={{ opacity: 0.5 }} />}
+                    {badge && (
+                      <span style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        background: 'rgba(99,102,241,0.15)',
+                        color: 'var(--accent-light)',
+                        border: '1px solid rgba(99,102,241,0.25)',
+                        borderRadius: 4,
+                        padding: '1px 5px',
+                        letterSpacing: '0.04em',
+                        textTransform: 'uppercase',
+                        marginLeft: 'auto',
+                        marginRight: isActive ? 4 : 0
+                      }}>
+                        {badge}
+                      </span>
+                    )}
+                    {isActive && <ChevronRight size={13} style={{ opacity: 0.5, marginLeft: badge ? 0 : 'auto' }} />}
                   </>
                 )}
               </NavLink>

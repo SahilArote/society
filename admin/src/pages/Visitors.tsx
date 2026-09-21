@@ -11,7 +11,8 @@ import {
   fetchAdminVisitors,
   approveAdminVisitor,
   denyAdminVisitor,
-  exitAdminVisitor
+  exitAdminVisitor,
+  getSecurePhotoUrl
 } from '../services/api';
 import { initAdminSocket } from '../services/socket';
 
@@ -52,6 +53,8 @@ export default function Visitors() {
   const [gate, setGate] = useState('all');
   const [purpose, setPurpose] = useState('all');
   const [selectedVisitor, setSelectedVisitor] = useState<AdminVisitor | null>(null);
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
+  const [previewVisitorName, setPreviewVisitorName] = useState<string>('');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -343,12 +346,54 @@ export default function Visitors() {
                   >
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div className="avatar avatar-sm" style={{ background: `linear-gradient(135deg, ${pCol}80, ${pCol}30)` }}>
-                          {v.name[0]}
+                        <div
+                          className="avatar avatar-sm"
+                          style={{
+                            background: `linear-gradient(135deg, ${pCol}80, ${pCol}30)`,
+                            overflow: 'hidden',
+                            position: 'relative',
+                            flexShrink: 0,
+                            cursor: v.photo ? 'zoom-in' : undefined,
+                          }}
+                          onClick={(e) => {
+                            if (v.photo) {
+                              e.stopPropagation();
+                              setPreviewPhotoUrl(getSecurePhotoUrl(v.photo) || null);
+                              setPreviewVisitorName(v.name);
+                            }
+                          }}
+                          title={v.photo ? 'Click to view photo captured by guard' : undefined}
+                        >
+                          {v.photo ? (
+                            <img
+                              src={getSecurePhotoUrl(v.photo)}
+                              alt={v.name}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                          ) : null}
+                          <span style={{ display: v.photo ? 'none' : 'block' }}>{v.name[0]}</span>
                         </div>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{v.name}</span>
+                            {v.photo && (
+                              <span
+                                title="Photo verified by guard"
+                                style={{
+                                  fontSize: 9,
+                                  background: 'var(--accent-bg)',
+                                  color: 'var(--accent-light)',
+                                  padding: '1px 5px',
+                                  borderRadius: 4,
+                                  fontWeight: 700
+                                }}
+                              >
+                                PHOTO
+                              </span>
+                            )}
                             {v.isFlagged && (
                               <span title="Security Alert Flagged" style={{ display: 'inline-flex', alignItems: 'center' }}>
                                 <AlertTriangle size={12} color="var(--red)" />
@@ -534,6 +579,51 @@ export default function Visitors() {
 
               {/* Pass Body */}
               <div style={{ padding: '24px' }}>
+                {/* Guard Captured Visitor Photo Card */}
+                {selectedVisitor.photo && (
+                  <div
+                    style={{
+                      background: 'var(--bg-elevated)',
+                      borderRadius: 'var(--r-lg)',
+                      padding: 12,
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      marginBottom: 16,
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => {
+                      setPreviewPhotoUrl(getSecurePhotoUrl(selectedVisitor.photo) || null);
+                      setPreviewVisitorName(selectedVisitor.name);
+                    }}
+                    title="Click to zoom visitor photo"
+                  >
+                    <div style={{
+                      width: 52, height: 52, borderRadius: 8,
+                      overflow: 'hidden', flexShrink: 0, border: '2px solid var(--accent)',
+                      boxShadow: 'var(--shadow-sm)'
+                    }}>
+                      <img
+                        src={getSecurePhotoUrl(selectedVisitor.photo)}
+                        alt={selectedVisitor.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-light)', textTransform: 'uppercase' }}>
+                        📸 Gate Photo Capture
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                        Captured at {selectedVisitor.gate} by {selectedVisitor.guardName}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 600, marginTop: 3 }}>
+                        Tap to view enlarged photo ↗
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* QR Code preview block */}
                 <div style={{
                   background: 'var(--bg-elevated)',
@@ -671,6 +761,62 @@ export default function Visitors() {
         )}
       </AnimatePresence>
 
+      {/* Full Photo Lightbox Modal */}
+      <AnimatePresence>
+        {previewPhotoUrl && (
+          <motion.div
+            className="modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setPreviewPhotoUrl(null)}
+            style={{ zIndex: 1100, background: 'rgba(0,0,0,0.85)' }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              style={{
+                maxWidth: 480,
+                width: '90%',
+                background: 'var(--bg-surface)',
+                borderRadius: 'var(--r-xl)',
+                overflow: 'hidden',
+                border: '1px solid rgba(255,255,255,0.15)',
+                boxShadow: 'var(--shadow-xl)',
+              }}
+            >
+              <div style={{
+                padding: '14px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid var(--border)'
+              }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {previewVisitorName}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    Security Gate Camera Photo Capture
+                  </div>
+                </div>
+                <button onClick={() => setPreviewPhotoUrl(null)} className="btn-icon" style={{ width: 28, height: 28 }}>
+                  <X size={14} />
+                </button>
+              </div>
+              <div style={{ padding: 12, background: '#000', display: 'flex', justifyContent: 'center' }}>
+                <img
+                  src={previewPhotoUrl}
+                  alt={previewVisitorName}
+                  style={{ maxHeight: '65vh', width: '100%', objectFit: 'contain', borderRadius: 'var(--r-md)' }}
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

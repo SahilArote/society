@@ -328,5 +328,82 @@ export async function createAdminGuard(data: {
   return json.data;
 }
 
+// =============================================================
+// SECURE PHOTO RETRIEVAL
+// =============================================================
+
+export function getSecurePhotoUrl(photoPath?: string): string | undefined {
+  if (!photoPath) return undefined;
+  if (photoPath.startsWith('http://') || photoPath.startsWith('https://') || photoPath.startsWith('data:')) {
+    return photoPath;
+  }
+  const token = getAdminToken();
+  const baseUrl = API_BASE_URL.replace(/\/api$/, '');
+  const cleanPath = photoPath.startsWith('/') ? photoPath : `/${photoPath}`;
+  return token ? `${baseUrl}${cleanPath}?token=${token}` : `${baseUrl}${cleanPath}`;
+}
+
+// =============================================================
+// SOCIETY SETTINGS (ADMIN)
+// =============================================================
+
+export async function fetchAdminSettings() {
+  try {
+    const res = await fetchWithAuth(`${API_BASE_URL}/admin/settings`);
+    if (res.ok) {
+      const json = await res.json();
+      if (json.data) {
+        localStorage.setItem('gg_admin_society_settings', JSON.stringify(json.data));
+        return json.data;
+      }
+    }
+  } catch (err) {
+    console.warn('Network issue fetching admin settings, using cached values:', err);
+  }
+
+  try {
+    const cached = localStorage.getItem('gg_admin_society_settings');
+    if (cached) return JSON.parse(cached);
+  } catch (_) {}
+
+  return {
+    name: 'GreenGate Residency',
+    address: 'Main Gate Boulevard, Tower A-D',
+    city: 'Mumbai, MH',
+    totalFlats: 120,
+  };
+}
+
+export async function updateAdminSettings(data: {
+  name?: string;
+  address?: string;
+  city?: string;
+  totalFlats?: number | string;
+}) {
+  try {
+    const res = await fetchWithAuth(`${API_BASE_URL}/admin/settings`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.data) {
+        localStorage.setItem('gg_admin_society_settings', JSON.stringify(json.data));
+        window.dispatchEvent(new CustomEvent('greengate_society_updated', { detail: json.data }));
+        return json.data;
+      }
+    }
+  } catch (err) {
+    console.warn('Network issue saving settings to backend, persisting locally:', err);
+  }
+
+  // Local fallback storage
+  const current = await fetchAdminSettings();
+  const updated = { ...current, ...data };
+  localStorage.setItem('gg_admin_society_settings', JSON.stringify(updated));
+  window.dispatchEvent(new CustomEvent('greengate_society_updated', { detail: updated }));
+  return updated;
+}
+
 
 

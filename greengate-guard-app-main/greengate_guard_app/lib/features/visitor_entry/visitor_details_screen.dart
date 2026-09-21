@@ -198,9 +198,12 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final flatsInCurrentWing = widget.visitorRepo.wingFlats[_selectedWing] ?? [];
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final isKeyboardOpen = bottomInset > 0;
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('Visitor Details'),
         leading: IconButton(
@@ -208,12 +211,17 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.opaque,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            padding: EdgeInsets.fromLTRB(16, 12, 16, isKeyboardOpen ? 180 : 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               // Photo Thumbnail Header Card
               Container(
                 padding: const EdgeInsets.all(14),
@@ -305,6 +313,8 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
                     // Name
                     TextField(
                       controller: _nameController,
+                      textInputAction: TextInputAction.next,
+                      scrollPadding: const EdgeInsets.only(bottom: 140),
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                       decoration: const InputDecoration(
                         labelText: 'Visitor Full Name *',
@@ -317,6 +327,8 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
                     TextField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
+                      textInputAction: TextInputAction.done,
+                      scrollPadding: const EdgeInsets.only(bottom: 140),
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                       decoration: const InputDecoration(
                         labelText: 'Mobile Number (Optional)',
@@ -603,6 +615,8 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
                     // Purpose of Visit
                     TextField(
                       controller: _purposeController,
+                      textInputAction: TextInputAction.done,
+                      scrollPadding: const EdgeInsets.only(bottom: 160),
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                       decoration: const InputDecoration(
                         labelText: 'Purpose of Visit',
@@ -649,8 +663,9 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPhotoThumbnail() {
     if (widget.photoPath.startsWith('assets/')) {

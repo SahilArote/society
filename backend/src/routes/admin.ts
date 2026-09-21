@@ -14,6 +14,8 @@ import {
   toggleGateStatus,
   findGuardsWithDetails,
   createGuardRecord,
+  findSocietyById,
+  updateSociety,
 } from '../database/db';
 import { getMysqlPool } from '../database/mysql';
 import { authenticateToken, AuthenticatedRequest, authorizeRoles } from '../middleware/auth';
@@ -554,6 +556,84 @@ router.post('/guards', authenticateToken, authorizeRoles('ADMIN'), async (req: A
     return res.status(500).json({
       success: false,
       error: { code: 'SERVER_ERROR', message: error.message || 'Failed to register guard' },
+    });
+  }
+});
+
+// =============================================================
+// SOCIETY SETTINGS (ADMIN)
+// =============================================================
+
+// GET /api/admin/settings
+router.get('/settings', authenticateToken, authorizeRoles('ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const societyId = req.user!.societyId;
+    const society = await findSocietyById(societyId);
+    if (!society) {
+      return res.json({
+        success: true,
+        data: {
+          id: societyId,
+          name: 'GreenGate Residency',
+          address: 'Main Gate Boulevard, Tower A-D',
+          city: 'Mumbai, MH',
+          totalFlats: 120,
+        },
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        id: society.id,
+        name: society.name,
+        address: society.address,
+        city: society.address?.includes(',') ? society.address.split(',').pop()?.trim() : 'Mumbai, MH',
+        totalFlats: 120,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error fetching society settings:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to fetch society settings' },
+    });
+  }
+});
+
+// PATCH /api/admin/settings
+router.patch('/settings', authenticateToken, authorizeRoles('ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const societyId = req.user!.societyId;
+    const { name, address, city } = req.body;
+
+    let fullAddress = address;
+    if (city && address && !address.toLowerCase().includes(city.toLowerCase())) {
+      fullAddress = `${address.trim()}, ${city.trim()}`;
+    } else if (city && !address) {
+      fullAddress = city.trim();
+    }
+
+    const updated = await updateSociety(societyId, {
+      name: name?.trim(),
+      address: fullAddress?.trim(),
+    });
+
+    return res.json({
+      success: true,
+      message: 'Society configuration updated successfully',
+      data: updated || {
+        id: societyId,
+        name: name || 'GreenGate Residency',
+        address: fullAddress || 'Mumbai, MH',
+        city: city || 'Mumbai, MH',
+      },
+    });
+  } catch (error: any) {
+    console.error('Error updating society settings:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to update society settings' },
     });
   }
 });
