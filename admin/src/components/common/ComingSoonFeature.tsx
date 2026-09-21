@@ -84,37 +84,25 @@ export function ComingSoonFeature({
           alignItems: 'center',
         }}
       >
-        {/* Animated Centerpiece Icon Hero */}
-        <div style={{ position: 'relative', marginBottom: 28 }}>
-          {/* Subtle Outer Dashed Orbit Ring */}
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 25, ease: 'linear' }}
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: 140,
-              height: 140,
-              borderRadius: '50%',
-              border: `2px dashed ${primaryColor}35`,
-              pointerEvents: 'none',
-            }}
-          />
-
-          {/* Soft Glow Underlay */}
+        {/* Centerpiece Icon Hero */}
+        <div
+          style={{
+            position: 'relative',
+            marginBottom: 28,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {/* Soft Ambient Glow Underlay */}
           <div
             style={{
               position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
               width: 110,
               height: 110,
-              borderRadius: '34px',
+              borderRadius: '32px',
               background: `${primaryColor}25`,
-              filter: 'blur(12px)',
+              filter: 'blur(14px)',
               pointerEvents: 'none',
             }}
           />
