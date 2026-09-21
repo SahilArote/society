@@ -6,9 +6,11 @@ export default function Reports() {
     <ComingSoonFeature
       featureName="Reports & Intelligence"
       icon={BarChart3}
-      accentColor="var(--sky)"
+      accentColor="#0284C7"
+      gradient="linear-gradient(135deg, #06B6D4 0%, #0284C7 100%)"
       description="Society visitor traffic audits, maintenance collection reports and analytics are coming soon."
     />
   );
 }
+
 

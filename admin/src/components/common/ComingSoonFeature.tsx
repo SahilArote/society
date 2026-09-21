@@ -6,16 +6,22 @@ interface ComingSoonFeatureProps {
   featureName: string;
   icon: React.ElementType;
   accentColor?: string;
+  gradient?: string;
   description?: string;
 }
 
 export function ComingSoonFeature({
   featureName,
   icon: Icon,
-  accentColor = 'var(--accent)',
+  accentColor = '#2563EB',
+  gradient,
   description = 'This module is currently being finalized and will be available in an upcoming release.',
 }: ComingSoonFeatureProps) {
   const navigate = useNavigate();
+
+  // Normalize color to valid hex
+  const primaryColor = accentColor.startsWith('#') ? accentColor : '#2563EB';
+  const cardGradient = gradient || `linear-gradient(135deg, ${primaryColor} 0%, #1e3a8a 100%)`;
 
   return (
     <div
@@ -29,11 +35,11 @@ export function ComingSoonFeature({
         overflow: 'hidden',
       }}
     >
-      {/* Background Ambient Glow Orbs */}
+      {/* Ambient Radial Background Glow */}
       <motion.div
         animate={{
-          scale: [1, 1.2, 1],
-          opacity: [0.35, 0.55, 0.35],
+          scale: [1, 1.15, 1],
+          opacity: [0.25, 0.45, 0.25],
         }}
         transition={{
           repeat: Infinity,
@@ -42,107 +48,119 @@ export function ComingSoonFeature({
         }}
         style={{
           position: 'absolute',
-          top: '25%',
+          top: '30%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: 500,
-          height: 500,
+          width: 520,
+          height: 520,
           borderRadius: '50%',
-          background: `radial-gradient(circle, ${accentColor}25 0%, transparent 70%)`,
-          filter: 'blur(60px)',
+          background: `radial-gradient(circle, ${primaryColor}30 0%, transparent 70%)`,
+          filter: 'blur(70px)',
           pointerEvents: 'none',
           zIndex: 0,
         }}
       />
 
+      {/* Main Glassmorphic Card */}
       <motion.div
-        animate={{
-          scale: [1.1, 0.95, 1.1],
-          opacity: [0.2, 0.4, 0.2],
-        }}
-        transition={{
-          repeat: Infinity,
-          duration: 8,
-          ease: 'easeInOut',
-        }}
-        style={{
-          position: 'absolute',
-          bottom: '15%',
-          right: '25%',
-          width: 360,
-          height: 360,
-          borderRadius: '50%',
-          background: `radial-gradient(circle, ${accentColor}18 0%, transparent 65%)`,
-          filter: 'blur(50px)',
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      />
-
-      {/* Main Glassmorphic Showcase Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.97 }}
+        initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.4, ease: 'easeOut' }}
+        transition={{ duration: 0.35, ease: 'easeOut' }}
         style={{
           position: 'relative',
           zIndex: 1,
           maxWidth: 580,
           width: '100%',
           margin: '0 auto',
-          padding: '56px 36px',
+          padding: '48px 36px',
           textAlign: 'center',
           borderRadius: '28px',
           background: 'linear-gradient(165deg, var(--bg-surface) 0%, var(--bg-card) 100%)',
           border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-xl), 0 20px 40px -15px rgba(0,0,0,0.1)',
+          boxShadow: '0 20px 45px -12px rgba(0, 0, 0, 0.08), 0 0 1px 1px var(--border)',
           backdropFilter: 'blur(16px)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
         }}
       >
-        {/* Floating Glowing Icon */}
-        <motion.div
-          animate={{ y: [-5, 5, -5] }}
-          transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
-          style={{
-            position: 'relative',
-            width: 88,
-            height: 88,
-            borderRadius: '26px',
-            background: `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}cc 100%)`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: `0 14px 32px -4px ${accentColor}55`,
-            marginBottom: 28,
-          }}
-        >
-          <Icon size={42} color="#ffffff" strokeWidth={2.2} />
+        {/* Animated Centerpiece Icon Hero */}
+        <div style={{ position: 'relative', marginBottom: 28 }}>
+          {/* Subtle Outer Dashed Orbit Ring */}
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 25, ease: 'linear' }}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 140,
+              height: 140,
+              borderRadius: '50%',
+              border: `2px dashed ${primaryColor}35`,
+              pointerEvents: 'none',
+            }}
+          />
 
-          {/* Sparkle Floating Badge */}
+          {/* Soft Glow Underlay */}
           <div
             style={{
               position: 'absolute',
-              top: -6,
-              right: -6,
-              width: 28,
-              height: 28,
-              borderRadius: '50%',
-              background: 'var(--bg-surface)',
-              border: `2px solid ${accentColor}`,
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 110,
+              height: 110,
+              borderRadius: '34px',
+              background: `${primaryColor}25`,
+              filter: 'blur(12px)',
+              pointerEvents: 'none',
+            }}
+          />
+
+          {/* Main Elevated Vibrant Icon Badge */}
+          <motion.div
+            animate={{ y: [-4, 4, -4] }}
+            transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
+            style={{
+              position: 'relative',
+              width: 96,
+              height: 96,
+              borderRadius: '28px',
+              background: cardGradient,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: 'var(--shadow-sm)',
+              boxShadow: `0 16px 32px -4px ${primaryColor}55, inset 0 1px 2px rgba(255, 255, 255, 0.35)`,
+              border: '1px solid rgba(255, 255, 255, 0.25)',
             }}
           >
-            <Sparkles size={14} color={accentColor} />
-          </div>
-        </motion.div>
+            <Icon size={46} color="#ffffff" strokeWidth={2.2} />
 
-        {/* Status Pill Badge */}
+            {/* Sparkle Badge in Top-Right Corner */}
+            <div
+              style={{
+                position: 'absolute',
+                top: -8,
+                right: -8,
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                background: 'var(--bg-surface)',
+                border: `2.5px solid ${primaryColor}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 10px rgba(0, 0, 0, 0.12)',
+              }}
+            >
+              <Sparkles size={16} color={primaryColor} />
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Feature Category Identifier Pill */}
         <div
           style={{
             display: 'inline-flex',
@@ -150,8 +168,8 @@ export function ComingSoonFeature({
             gap: 8,
             padding: '6px 16px',
             borderRadius: 99,
-            background: `${accentColor}14`,
-            border: `1px solid ${accentColor}35`,
+            background: `${primaryColor}14`,
+            border: `1px solid ${primaryColor}35`,
             marginBottom: 20,
           }}
         >
@@ -160,16 +178,16 @@ export function ComingSoonFeature({
               width: 7,
               height: 7,
               borderRadius: '50%',
-              backgroundColor: accentColor,
+              backgroundColor: primaryColor,
               display: 'inline-block',
-              boxShadow: `0 0 10px ${accentColor}`,
+              boxShadow: `0 0 10px ${primaryColor}`,
             }}
           />
           <span
             style={{
               fontSize: 12,
               fontWeight: 800,
-              color: accentColor,
+              color: primaryColor,
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
             }}
@@ -185,21 +203,21 @@ export function ComingSoonFeature({
             fontWeight: 900,
             letterSpacing: '-0.03em',
             lineHeight: 1.1,
-            margin: '0 0 16px 0',
+            margin: '0 0 14px 0',
             color: 'var(--text-primary)',
           }}
         >
           Coming Soon
         </h1>
 
-        {/* Clean, Elegant Subtitle */}
+        {/* Clean, Focused Subtitle */}
         <p
           style={{
             fontSize: 15,
             color: 'var(--text-secondary)',
             lineHeight: 1.6,
             maxWidth: 440,
-            margin: '0 0 36px 0',
+            margin: '0 0 32px 0',
           }}
         >
           {description}
@@ -229,3 +247,4 @@ export function ComingSoonFeature({
     </div>
   );
 }
+
