@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Shield, Users, Car, Bell, Smartphone, QrCode, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Shield, Users, Car, Bell, Smartphone, QrCode, ArrowRight, CheckCircle2, Building2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { PwaInstallSheet } from '../components/common/PwaInstallSheet';
 import { usePwaInstall, useToast } from '../hooks';
@@ -96,8 +96,8 @@ export default function Landing() {
             transition={{ delay: 0.1, duration: 0.3 }}
           >
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-xs font-semibold tracking-wide uppercase text-indigo-100 mb-3 border border-white/15">
-              <QrCode className="w-3.5 h-3.5" />
-              Verified Society Portal
+              <Building2 className="w-3.5 h-3.5" />
+              callalily chs ltd
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight text-white mb-2">
               {BRAND_CONFIG.name}
