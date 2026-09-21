@@ -8,14 +8,14 @@ import {
 import { mockAdminUser } from '../../data/mockData';
 
 const NAV = [
-  { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard',      section: 'Management' },
-  { to: '/residents',     icon: Users,           label: 'Residents',       section: 'Management' },
-  { to: '/visitors',      icon: UserCheck,       label: 'Visitors',        section: 'Management' },
-  { to: '/gates',         icon: DoorOpen,        label: 'Gates & Guards',  section: 'Management' },
-  { to: '/announcements', icon: Megaphone,       label: 'Announcements',   section: 'Society' },
-  { to: '/notifications', icon: Bell,            label: 'Notifications',   section: 'Society' },
-  { to: '/reports',       icon: BarChart3,       label: 'Reports',         section: 'Society' },
-  { to: '/settings',      icon: Settings,        label: 'Settings',        section: 'Configuration' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', section: 'Management' },
+  { to: '/residents', icon: Users, label: 'Residents', section: 'Management' },
+  { to: '/visitors', icon: UserCheck, label: 'Visitors', section: 'Management' },
+  { to: '/gates', icon: DoorOpen, label: 'Gates & Guards', section: 'Management' },
+  { to: '/announcements', icon: Megaphone, label: 'Announcements', section: 'Society' },
+  { to: '/notifications', icon: Bell, label: 'Notifications', section: 'Society' },
+  { to: '/reports', icon: BarChart3, label: 'Reports', section: 'Society' },
+  { to: '/settings', icon: Settings, label: 'Settings', section: 'Configuration' },
 ];
 
 const grouped = NAV.reduce((acc, item) => {
@@ -44,8 +44,8 @@ export function AdminSidebar() {
       <div className="sidebar-society" style={{ margin: '12px 12px 4px' }}>
         <Building2 size={14} color="var(--accent-light)" style={{ flexShrink: 0 }} />
         <div style={{ minWidth: 0 }}>
-          <div className="sidebar-society-name">Green Valley Residency</div>
-          <div className="sidebar-society-meta">120 Flats · Pune, MH</div>
+          <div className="sidebar-society-name">callalily chs ltd</div>
+          <div className="sidebar-society-meta">120 Flats · Mumbai, MH</div>
         </div>
       </div>
 

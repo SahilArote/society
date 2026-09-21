@@ -7,7 +7,8 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc && node -e \"const fs = require('fs'); const path = require('path'); const target = path.resolve('dist/database'); if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true }); fs.copyFileSync(path.resolve('src/database/schema.sql'), path.join(target, 'schema.sql'));\"",
     "start": "node dist/index.js",
-    "db:migrate": "ts-node -e \"import { runMysqlMigrations } from './src/database/mysql'; runMysqlMigrations();\""
+    "db:migrate": "ts-node -e \"import { runMysqlMigrations } from './src/database/mysql'; runMysqlMigrations().then(() => process.exit(0));\"",
+    "db:reset": "ts-node reset_and_migrate.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
