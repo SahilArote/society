@@ -7,6 +7,7 @@ exports.findUserById = findUserById;
 exports.findGuardByUserId = findGuardByUserId;
 exports.findGateById = findGateById;
 exports.findSocietyById = findSocietyById;
+exports.updateSociety = updateSociety;
 exports.findFlatByNumberAndWing = findFlatByNumberAndWing;
 exports.findFlatByResidentId = findFlatByResidentId;
 exports.findFlatById = findFlatById;
@@ -45,6 +46,9 @@ exports.deleteFamilyMember = deleteFamilyMember;
 exports.findVehiclesByResident = findVehiclesByResident;
 exports.createVehicle = createVehicle;
 exports.deleteVehicle = deleteVehicle;
+exports.deleteVisitorLogByAdmin = deleteVisitorLogByAdmin;
+exports.deleteFlatByAdmin = deleteFlatByAdmin;
+exports.deleteResidentByAdmin = deleteResidentByAdmin;
 const mysql_1 = require("./mysql");
 async function initDb() {
     await (0, mysql_1.runMysqlMigrations)();
@@ -191,6 +195,26 @@ async function findSocietyById(societyId) {
         status: r.status,
         createdAt: r.created_at,
     };
+}
+async function updateSociety(societyId, data) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return null;
+    const updates = [];
+    const params = [];
+    if (data.name !== undefined) {
+        updates.push('name = ?');
+        params.push(data.name.trim());
+    }
+    if (data.address !== undefined) {
+        updates.push('address = ?');
+        params.push(data.address.trim());
+    }
+    if (updates.length > 0) {
+        params.push(societyId);
+        await pool.query(`UPDATE societies SET ${updates.join(', ')} WHERE id = ?`, params);
+    }
+    return findSocietyById(societyId);
 }
 // -------------------------------------------------------------
 // FLAT QUERIES
@@ -1146,6 +1170,8 @@ async function findAdminVisitorLogs(societyId, filter) {
       v.purpose as purpose,
       v.visitor_type as visitorType,
       v.vehicle_number as vehicleNumber,
+      v.photo_url as photoUrl,
+      v.photo_key as photoKey,
       f.flat_number as flatNumber,
       f.wing as buildingWing,
       u_res.name as residentName,
@@ -1192,10 +1218,14 @@ async function findAdminVisitorLogs(societyId, filter) {
         if (!['guest', 'delivery', 'maintenance', 'cab', 'other'].includes(normPurpose)) {
             normPurpose = 'guest';
         }
+        const resolvedPhoto = r.photoKey
+            ? `/api/visitor-requests/${r.id}/photo`
+            : (r.photoUrl || undefined);
         return {
             id: r.id,
             name: r.visitorName,
             phone: r.visitorMobile || '',
+            photo: resolvedPhoto,
             purpose: normPurpose,
             status: normStatus,
             flatNumber: r.flatNumber || 'A-402',
@@ -1308,4 +1338,92 @@ async function deleteVehicle(id, residentId) {
         return false;
     const [res] = await pool.query(`DELETE FROM vehicles WHERE id = ? AND resident_id = ?`, [id, residentId]);
     return res.affectedRows > 0;
+}
+async function deleteVisitorLogByAdmin(societyId, requestId) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return false;
+    // 1. Fetch visitor_id associated with request
+    const [rows] = await pool.query('SELECT visitor_id FROM visitor_requests WHERE id = ? AND society_id = ?', [requestId, societyId]);
+    if (!rows || rows.length === 0)
+        return false;
+    const visitorId = rows[0].visitor_id;
+    // 2. Delete visitor_request
+    await pool.query('DELETE FROM visitor_requests WHERE id = ? AND society_id = ?', [requestId, societyId]);
+    // 3. Clean up orphan visitor record if no other requests exist
+    if (visitorId) {
+        try {
+            const [otherReqs] = await pool.query('SELECT COUNT(*) as cnt FROM visitor_requests WHERE visitor_id = ?', [visitorId]);
+            if (otherReqs[0]?.cnt === 0) {
+                await pool.query('DELETE FROM visitors WHERE id = ?', [visitorId]);
+            }
+        }
+        catch (_) { }
+    }
+    return true;
+}
+async function deleteFlatByAdmin(societyId, flatId) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return false;
+    const [flats] = await pool.query('SELECT id, resident_id FROM flats WHERE id = ? AND society_id = ?', [flatId, societyId]);
+    if (!flats || flats.length === 0)
+        return false;
+    const residentId = flats[0].resident_id;
+    // Delete related visitor requests, vehicles, family members
+    try {
+        await pool.query('DELETE FROM visitor_requests WHERE flat_id = ? AND society_id = ?', [flatId, societyId]);
+        await pool.query('DELETE FROM family_members WHERE flat_id = ?', [flatId]);
+        await pool.query('DELETE FROM vehicles WHERE flat_id = ?', [flatId]);
+    }
+    catch (_) { }
+    // Delete the flat
+    const [res] = await pool.query('DELETE FROM flats WHERE id = ? AND society_id = ?', [flatId, societyId]);
+    // If there was an assigned resident who has no other flats, optionally clean up or unassign
+    if (residentId) {
+        try {
+            const [otherFlats] = await pool.query('SELECT COUNT(*) as cnt FROM flats WHERE resident_id = ?', [residentId]);
+            if (otherFlats[0]?.cnt === 0) {
+                await pool.query("UPDATE users SET flat_number = NULL WHERE id = ? AND role = 'RESIDENT'", [residentId]);
+            }
+        }
+        catch (_) { }
+    }
+    return res.affectedRows > 0;
+}
+async function deleteResidentByAdmin(societyId, residentId) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return false;
+    // Check users table
+    const [users] = await pool.query("SELECT id FROM users WHERE id = ? AND society_id = ? AND role = 'RESIDENT'", [residentId, societyId]);
+    if (users && users.length > 0) {
+        const uId = users[0].id;
+        // 1. Unlink flats
+        await pool.query('UPDATE flats SET resident_id = NULL WHERE resident_id = ? AND society_id = ?', [uId, societyId]);
+        // 2. Delete visitor requests
+        await pool.query('DELETE FROM visitor_requests WHERE resident_id = ?', [uId]);
+        // 3. Delete notifications
+        await pool.query('DELETE FROM notifications WHERE recipient_id = ?', [uId]);
+        // 4. Delete family members & vehicles
+        try {
+            await pool.query('DELETE FROM family_members WHERE resident_id = ?', [uId]);
+            await pool.query('DELETE FROM vehicles WHERE resident_id = ?', [uId]);
+            await pool.query('DELETE FROM push_subscriptions WHERE user_id = ?', [uId]);
+        }
+        catch (_) { }
+        // 5. Delete user
+        const [res] = await pool.query('DELETE FROM users WHERE id = ? AND society_id = ?', [uId, societyId]);
+        return res.affectedRows > 0;
+    }
+    // Check family_members table
+    try {
+        const [fam] = await pool.query('SELECT id FROM family_members WHERE id = ? AND society_id = ?', [residentId, societyId]);
+        if (fam && fam.length > 0) {
+            const [res] = await pool.query('DELETE FROM family_members WHERE id = ? AND society_id = ?', [residentId, societyId]);
+            return res.affectedRows > 0;
+        }
+    }
+    catch (_) { }
+    return false;
 }

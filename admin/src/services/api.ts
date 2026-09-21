@@ -206,6 +206,28 @@ export async function createAdminFlat(data: {
   return json.data;
 }
 
+export async function deleteAdminFlat(id: string) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/admin/flats/${id}`, {
+    method: 'DELETE',
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || json.message || 'Failed to delete flat');
+  }
+  return json;
+}
+
+export async function deleteAdminResident(id: string) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/admin/residents/${id}`, {
+    method: 'DELETE',
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || json.message || 'Failed to delete resident');
+  }
+  return json;
+}
+
 // =============================================================
 // VISITOR LOGS
 // =============================================================
@@ -263,6 +285,17 @@ export async function exitAdminVisitor(id: string) {
   const json = await res.json();
   if (!res.ok || !json.success) {
     throw new Error(json.error?.message || json.message || 'Failed to mark visitor exited');
+  }
+  return json;
+}
+
+export async function deleteAdminVisitor(id: string) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/admin/visitors/${id}`, {
+    method: 'DELETE',
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || json.message || 'Failed to delete visitor record');
   }
   return json;
 }

@@ -3,12 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Phone, Mail, Car, Users, Home,
   Building2, AlertCircle, CheckCircle2, X, Download,
-  UserPlus, MessageSquare, CreditCard, ShieldCheck, Plus, UserCheck, Loader2
+  UserPlus, MessageSquare, CreditCard, ShieldCheck, Plus, UserCheck, Loader2, Trash2
 } from 'lucide-react';
 import type { Flat, FlatResident as Resident } from '../types';
 import StatCard, { CircularGauge } from '../components/StatCard';
 import { RegistrationRequestsSection } from '../components/RegistrationRequestsSection';
-import { fetchAdminFlats, createAdminFlat } from '../services/api';
+import { fetchAdminFlats, createAdminFlat, deleteAdminFlat, deleteAdminResident } from '../services/api';
 
 /* ── Badges ──────────────────────────────────────────────── */
 function MaintBadge({ s }: { s: string }) {
@@ -25,12 +25,16 @@ function FlatPanel({
   flat,
   onClose,
   onMarkPaid,
-  onSendNotice
+  onSendNotice,
+  onDeleteFlat,
+  onDeleteResident,
 }: {
   flat: Flat;
   onClose: () => void;
   onMarkPaid: (flatId: string) => void;
   onSendNotice: (flatNumber: string) => void;
+  onDeleteFlat?: (flat: Flat) => void;
+  onDeleteResident?: (resident: Resident, flat: Flat) => void;
 }) {
   return (
     <motion.div
@@ -115,6 +119,14 @@ function FlatPanel({
                       <Mail size={12} />
                     </a>
                   )}
+                  <button
+                    onClick={() => onDeleteResident?.(r, flat)}
+                    className="btn-icon btn-icon-red"
+                    style={{ width: 28, height: 28 }}
+                    title={`Remove ${r.name} from flat`}
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -160,6 +172,22 @@ function FlatPanel({
               </div>
               {flat.maintenanceStatus === 'paid' ? 'Maintenance Already Settled' : 'Mark Maintenance as Paid (Cash / Cheque)'}
             </button>
+
+            <button
+              onClick={() => onDeleteFlat?.(flat)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '11px 14px', borderRadius: 'var(--r-md)',
+                background: 'var(--bg-elevated)', border: '1px solid rgba(220, 38, 38, 0.3)',
+                color: 'var(--red)', fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', textAlign: 'left',
+              }}
+            >
+              <div style={{ padding: 6, borderRadius: 'var(--r-sm)', background: 'var(--red-bg)' }}>
+                <Trash2 size={14} color="var(--red)" />
+              </div>
+              Delete Flat {flat.number} from Society
+            </button>
           </div>
         </div>
       </div>
@@ -181,6 +209,66 @@ export default function Residents() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mainTab, setMainTab] = useState<'directory' | 'registrations'>('directory');
   const [pendingCount, setPendingCount] = useState<number>(0);
+  const [flatToDelete, setFlatToDelete] = useState<Flat | null>(null);
+  const [residentToDelete, setResidentToDelete] = useState<{ resident: Resident; flat: Flat } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteFlat = async () => {
+    if (!flatToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteAdminFlat(flatToDelete.id);
+      setFlats(prev => prev.filter(f => f.id !== flatToDelete.id));
+      if (selected?.id === flatToDelete.id) {
+        setSelected(null);
+      }
+      showToast(`Flat ${flatToDelete.number} deleted successfully from database`);
+      setFlatToDelete(null);
+    } catch (err: any) {
+      console.error('Delete flat error:', err);
+      showToast(err.message || 'Failed to delete flat');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteResident = async () => {
+    if (!residentToDelete) return;
+    setIsDeleting(true);
+    try {
+      const { resident, flat } = residentToDelete;
+      await deleteAdminResident(resident.id);
+      setFlats(prev => prev.map(f => {
+        if (f.id === flat.id) {
+          const updatedResidents = f.residents.filter(r => r.id !== resident.id);
+          return {
+            ...f,
+            residents: updatedResidents,
+            status: updatedResidents.length > 0 ? 'occupied' : 'vacant',
+          };
+        }
+        return f;
+      }));
+      if (selected?.id === flat.id) {
+        setSelected(prev => {
+          if (!prev) return null;
+          const updatedResidents = prev.residents.filter(r => r.id !== resident.id);
+          return {
+            ...prev,
+            residents: updatedResidents,
+            status: updatedResidents.length > 0 ? 'occupied' : 'vacant',
+          };
+        });
+      }
+      showToast(`Resident ${resident.name} removed successfully from database`);
+      setResidentToDelete(null);
+    } catch (err: any) {
+      console.error('Delete resident error:', err);
+      showToast(err.message || 'Failed to delete resident');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // New Flat Form State
   const [newNumber, setNewNumber] = useState('');
@@ -553,14 +641,24 @@ export default function Residents() {
                     </td>
                     <td><StatusBadge s={flat.status} /></td>
                     <td style={{ textAlign: 'right' }}>
-                      <button
-                        onClick={() => setSelected(flat)}
-                        id={`view-flat-${flat.id}`}
-                        className="btn-secondary"
-                        style={{ padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}
-                      >
-                        Inspect Flat
-                      </button>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <button
+                          onClick={() => setSelected(flat)}
+                          id={`view-flat-${flat.id}`}
+                          className="btn-secondary"
+                          style={{ padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}
+                        >
+                          Inspect Flat
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setFlatToDelete(flat); }}
+                          className="btn-icon btn-icon-red"
+                          title={`Delete Flat ${flat.number}`}
+                          style={{ width: 30, height: 30 }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -592,6 +690,8 @@ export default function Residents() {
               onClose={() => setSelected(null)}
               onMarkPaid={handleMarkPaid}
               onSendNotice={handleSendNotice}
+              onDeleteFlat={(flat) => setFlatToDelete(flat)}
+              onDeleteResident={(resident, flat) => setResidentToDelete({ resident, flat })}
             />
           </>
         )}
@@ -698,6 +798,161 @@ export default function Residents() {
         )}
       </AnimatePresence>
 
+      {/* Delete Flat Confirmation Modal */}
+      <AnimatePresence>
+        {flatToDelete && (
+          <motion.div
+            className="modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => !isDeleting && setFlatToDelete(null)}
+            style={{ zIndex: 1100 }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              style={{
+                background: 'var(--bg-card)',
+                borderRadius: 'var(--r-xl)',
+                border: '1px solid var(--border)',
+                boxShadow: 'var(--shadow-xl)',
+                width: '100%',
+                maxWidth: 420,
+                padding: 24,
+                textAlign: 'center',
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{
+                width: 48, height: 48, borderRadius: '50%',
+                background: 'var(--red-bg)', color: 'var(--red)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 16px auto',
+              }}>
+                <Trash2 size={24} />
+              </div>
+              <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
+                Delete Flat {flatToDelete.number}?
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 24px 0' }}>
+                Are you sure you want to permanently delete Flat <strong>{flatToDelete.number}</strong> (Wing {flatToDelete.wing})? All associated visitor history, vehicles, and registered residents will be unlinked and deleted from the database.
+              </p>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={isDeleting}
+                  onClick={() => setFlatToDelete(null)}
+                  style={{ padding: '8px 18px', fontSize: 13, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={handleDeleteFlat}
+                  style={{
+                    padding: '8px 20px',
+                    fontSize: 13,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    background: 'var(--red)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 'var(--r-md)',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  {isDeleting ? <Loader2 size={14} className="anim-spin" /> : <Trash2 size={14} />}
+                  Delete Flat
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Resident Confirmation Modal */}
+      <AnimatePresence>
+        {residentToDelete && (
+          <motion.div
+            className="modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => !isDeleting && setResidentToDelete(null)}
+            style={{ zIndex: 1100 }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              style={{
+                background: 'var(--bg-card)',
+                borderRadius: 'var(--r-xl)',
+                border: '1px solid var(--border)',
+                boxShadow: 'var(--shadow-xl)',
+                width: '100%',
+                maxWidth: 420,
+                padding: 24,
+                textAlign: 'center',
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{
+                width: 48, height: 48, borderRadius: '50%',
+                background: 'var(--red-bg)', color: 'var(--red)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 16px auto',
+              }}>
+                <Trash2 size={24} />
+              </div>
+              <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
+                Remove Resident Member?
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 24px 0' }}>
+                Are you sure you want to permanently remove <strong>{residentToDelete.resident.name}</strong> from Flat <strong>{residentToDelete.flat.number}</strong>? Their login access and data will be removed from the database immediately.
+              </p>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={isDeleting}
+                  onClick={() => setResidentToDelete(null)}
+                  style={{ padding: '8px 18px', fontSize: 13, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={handleDeleteResident}
+                  style={{
+                    padding: '8px 20px',
+                    fontSize: 13,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    background: 'var(--red)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 'var(--r-md)',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  {isDeleting ? <Loader2 size={14} className="anim-spin" /> : <Trash2 size={14} />}
+                  Remove Member
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

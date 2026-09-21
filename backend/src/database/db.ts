@@ -1779,4 +1779,116 @@ export async function deleteVehicle(id: string, residentId: string): Promise<boo
   return res.affectedRows > 0;
 }
 
+export async function deleteVisitorLogByAdmin(societyId: string, requestId: string): Promise<boolean> {
+  const pool = await getMysqlPool();
+  if (!pool) return false;
+
+  // 1. Fetch visitor_id associated with request
+  const [rows]: any = await pool.query(
+    'SELECT visitor_id FROM visitor_requests WHERE id = ? AND society_id = ?',
+    [requestId, societyId]
+  );
+  if (!rows || rows.length === 0) return false;
+
+  const visitorId = rows[0].visitor_id;
+
+  // 2. Delete visitor_request
+  await pool.query('DELETE FROM visitor_requests WHERE id = ? AND society_id = ?', [requestId, societyId]);
+
+  // 3. Clean up orphan visitor record if no other requests exist
+  if (visitorId) {
+    try {
+      const [otherReqs]: any = await pool.query(
+        'SELECT COUNT(*) as cnt FROM visitor_requests WHERE visitor_id = ?',
+        [visitorId]
+      );
+      if (otherReqs[0]?.cnt === 0) {
+        await pool.query('DELETE FROM visitors WHERE id = ?', [visitorId]);
+      }
+    } catch (_) {}
+  }
+
+  return true;
+}
+
+export async function deleteFlatByAdmin(societyId: string, flatId: string): Promise<boolean> {
+  const pool = await getMysqlPool();
+  if (!pool) return false;
+
+  const [flats]: any = await pool.query(
+    'SELECT id, resident_id FROM flats WHERE id = ? AND society_id = ?',
+    [flatId, societyId]
+  );
+  if (!flats || flats.length === 0) return false;
+
+  const residentId = flats[0].resident_id;
+
+  // Delete related visitor requests, vehicles, family members
+  try {
+    await pool.query('DELETE FROM visitor_requests WHERE flat_id = ? AND society_id = ?', [flatId, societyId]);
+    await pool.query('DELETE FROM family_members WHERE flat_id = ?', [flatId]);
+    await pool.query('DELETE FROM vehicles WHERE flat_id = ?', [flatId]);
+  } catch (_) {}
+
+  // Delete the flat
+  const [res]: any = await pool.query('DELETE FROM flats WHERE id = ? AND society_id = ?', [flatId, societyId]);
+
+  // If there was an assigned resident who has no other flats, optionally clean up or unassign
+  if (residentId) {
+    try {
+      const [otherFlats]: any = await pool.query('SELECT COUNT(*) as cnt FROM flats WHERE resident_id = ?', [residentId]);
+      if (otherFlats[0]?.cnt === 0) {
+        await pool.query("UPDATE users SET flat_number = NULL WHERE id = ? AND role = 'RESIDENT'", [residentId]);
+      }
+    } catch (_) {}
+  }
+
+  return res.affectedRows > 0;
+}
+
+export async function deleteResidentByAdmin(societyId: string, residentId: string): Promise<boolean> {
+  const pool = await getMysqlPool();
+  if (!pool) return false;
+
+  // Check users table
+  const [users]: any = await pool.query(
+    "SELECT id FROM users WHERE id = ? AND society_id = ? AND role = 'RESIDENT'",
+    [residentId, societyId]
+  );
+
+  if (users && users.length > 0) {
+    const uId = users[0].id;
+    // 1. Unlink flats
+    await pool.query('UPDATE flats SET resident_id = NULL WHERE resident_id = ? AND society_id = ?', [uId, societyId]);
+    // 2. Delete visitor requests
+    await pool.query('DELETE FROM visitor_requests WHERE resident_id = ?', [uId]);
+    // 3. Delete notifications
+    await pool.query('DELETE FROM notifications WHERE recipient_id = ?', [uId]);
+    // 4. Delete family members & vehicles
+    try {
+      await pool.query('DELETE FROM family_members WHERE resident_id = ?', [uId]);
+      await pool.query('DELETE FROM vehicles WHERE resident_id = ?', [uId]);
+      await pool.query('DELETE FROM push_subscriptions WHERE user_id = ?', [uId]);
+    } catch (_) {}
+    // 5. Delete user
+    const [res]: any = await pool.query('DELETE FROM users WHERE id = ? AND society_id = ?', [uId, societyId]);
+    return res.affectedRows > 0;
+  }
+
+  // Check family_members table
+  try {
+    const [fam]: any = await pool.query(
+      'SELECT id FROM family_members WHERE id = ? AND society_id = ?',
+      [residentId, societyId]
+    );
+    if (fam && fam.length > 0) {
+      const [res]: any = await pool.query('DELETE FROM family_members WHERE id = ? AND society_id = ?', [residentId, societyId]);
+      return res.affectedRows > 0;
+    }
+  } catch (_) {}
+
+  return false;
+}
+
+
 

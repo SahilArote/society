@@ -16,6 +16,9 @@ import {
   createGuardRecord,
   findSocietyById,
   updateSociety,
+  deleteVisitorLogByAdmin,
+  deleteFlatByAdmin,
+  deleteResidentByAdmin,
 } from '../database/db';
 import { getMysqlPool } from '../database/mysql';
 import { authenticateToken, AuthenticatedRequest, authorizeRoles } from '../middleware/auth';
@@ -384,6 +387,60 @@ router.post('/flats', authenticateToken, authorizeRoles('ADMIN'), async (req: Au
   }
 });
 
+// DELETE /api/admin/flats/:id
+router.delete('/flats/:id', authenticateToken, authorizeRoles('ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const societyId = req.user!.societyId;
+    const flatId = req.params.id;
+
+    const deleted = await deleteFlatByAdmin(societyId, flatId);
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Flat not found or already deleted' },
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Flat and its records deleted successfully from database',
+    });
+  } catch (error: any) {
+    console.error('Error deleting flat:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to delete flat' },
+    });
+  }
+});
+
+// DELETE /api/admin/residents/:id
+router.delete('/residents/:id', authenticateToken, authorizeRoles('ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const societyId = req.user!.societyId;
+    const residentId = req.params.id;
+
+    const deleted = await deleteResidentByAdmin(societyId, residentId);
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Resident not found or already removed' },
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Resident deleted successfully from database',
+    });
+  } catch (error: any) {
+    console.error('Error deleting resident:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to delete resident' },
+    });
+  }
+});
+
 // =============================================================
 // VISITOR LOGS & REALTIME ACCESS (ADMIN)
 // =============================================================
@@ -457,6 +514,33 @@ router.post('/visitors/:id/exit', authenticateToken, authorizeRoles('ADMIN'), as
   } catch (error: any) {
     console.error('Error marking visitor exited:', error);
     return res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to mark visitor exited' } });
+  }
+});
+
+// DELETE /api/admin/visitors/:id
+router.delete('/visitors/:id', authenticateToken, authorizeRoles('ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const societyId = req.user!.societyId;
+    const requestId = req.params.id;
+
+    const deleted = await deleteVisitorLogByAdmin(societyId, requestId);
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Visitor record not found or already deleted' },
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Visitor record deleted successfully from database',
+    });
+  } catch (error: any) {
+    console.error('Error deleting visitor log:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to delete visitor record' },
+    });
   }
 });
 

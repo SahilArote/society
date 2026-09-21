@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, AlertTriangle, Users, Package, Wrench, Car, Eye,
   CheckCircle2, XCircle, Clock, Download, QrCode, Phone, ShieldCheck,
-  Building, LogOut, X, Share2, Printer, Loader2
+  Building, LogOut, X, Share2, Printer, Loader2, Trash2
 } from 'lucide-react';
 import type { AdminVisitor } from '../types';
 import StatCard, { CircularGauge } from '../components/StatCard';
@@ -12,6 +12,7 @@ import {
   approveAdminVisitor,
   denyAdminVisitor,
   exitAdminVisitor,
+  deleteAdminVisitor,
   getSecurePhotoUrl
 } from '../services/api';
 import { initAdminSocket } from '../services/socket';
@@ -55,11 +56,29 @@ export default function Visitors() {
   const [selectedVisitor, setSelectedVisitor] = useState<AdminVisitor | null>(null);
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
   const [previewVisitorName, setPreviewVisitorName] = useState<string>('');
+  const [visitorToDelete, setVisitorToDelete] = useState<AdminVisitor | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 2500);
+  };
+
+  const handleDeleteVisitor = async () => {
+    if (!visitorToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteAdminVisitor(visitorToDelete.id);
+      setVisitors(prev => prev.filter(v => v.id !== visitorToDelete.id));
+      showToast(`Visitor record for ${visitorToDelete.name} deleted successfully`);
+      setVisitorToDelete(null);
+    } catch (err: any) {
+      console.error('Delete error:', err);
+      showToast(err.message || 'Failed to delete visitor record');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const loadVisitors = async () => {
@@ -498,6 +517,14 @@ export default function Visitors() {
                         >
                           <QrCode size={13} />
                         </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setVisitorToDelete(v); }}
+                          className="btn-icon btn-icon-red"
+                          title="Delete Visitor Record"
+                          style={{ width: 28, height: 28 }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -812,6 +839,84 @@ export default function Visitors() {
                   alt={previewVisitorName}
                   style={{ maxHeight: '65vh', width: '100%', objectFit: 'contain', borderRadius: 'var(--r-md)' }}
                 />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Visitor Confirmation Modal */}
+      <AnimatePresence>
+        {visitorToDelete && (
+          <motion.div
+            className="modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => !isDeleting && setVisitorToDelete(null)}
+            style={{ zIndex: 1100 }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              style={{
+                background: 'var(--bg-card)',
+                borderRadius: 'var(--r-xl)',
+                border: '1px solid var(--border)',
+                boxShadow: 'var(--shadow-xl)',
+                width: '100%',
+                maxWidth: 420,
+                padding: 24,
+                textAlign: 'center',
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{
+                width: 48, height: 48, borderRadius: '50%',
+                background: 'var(--red-bg)', color: 'var(--red)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 16px auto',
+              }}>
+                <Trash2 size={24} />
+              </div>
+              <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
+                Delete Visitor Entry?
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 24px 0' }}>
+                Are you sure you want to permanently delete the visitor record for <strong>{visitorToDelete.name}</strong> (Flat {visitorToDelete.flatNumber})? This will be completely removed from the database.
+              </p>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={isDeleting}
+                  onClick={() => setVisitorToDelete(null)}
+                  style={{ padding: '8px 18px', fontSize: 13, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={handleDeleteVisitor}
+                  style={{
+                    padding: '8px 20px',
+                    fontSize: 13,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    background: 'var(--red)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 'var(--r-md)',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  {isDeleting ? <Loader2 size={14} className="anim-spin" /> : <Trash2 size={14} />}
+                  Delete Record
+                </button>
               </div>
             </motion.div>
           </motion.div>

@@ -320,6 +320,56 @@ router.post('/flats', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMI
         });
     }
 });
+// DELETE /api/admin/flats/:id
+router.delete('/flats/:id', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const societyId = req.user.societyId;
+        const flatId = req.params.id;
+        const deleted = await (0, db_1.deleteFlatByAdmin)(societyId, flatId);
+        if (!deleted) {
+            return res.status(404).json({
+                success: false,
+                error: { code: 'NOT_FOUND', message: 'Flat not found or already deleted' },
+            });
+        }
+        return res.json({
+            success: true,
+            message: 'Flat and its records deleted successfully from database',
+        });
+    }
+    catch (error) {
+        console.error('Error deleting flat:', error);
+        return res.status(500).json({
+            success: false,
+            error: { code: 'SERVER_ERROR', message: 'Failed to delete flat' },
+        });
+    }
+});
+// DELETE /api/admin/residents/:id
+router.delete('/residents/:id', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const societyId = req.user.societyId;
+        const residentId = req.params.id;
+        const deleted = await (0, db_1.deleteResidentByAdmin)(societyId, residentId);
+        if (!deleted) {
+            return res.status(404).json({
+                success: false,
+                error: { code: 'NOT_FOUND', message: 'Resident not found or already removed' },
+            });
+        }
+        return res.json({
+            success: true,
+            message: 'Resident deleted successfully from database',
+        });
+    }
+    catch (error) {
+        console.error('Error deleting resident:', error);
+        return res.status(500).json({
+            success: false,
+            error: { code: 'SERVER_ERROR', message: 'Failed to delete resident' },
+        });
+    }
+});
 // =============================================================
 // VISITOR LOGS & REALTIME ACCESS (ADMIN)
 // =============================================================
@@ -391,6 +441,31 @@ router.post('/visitors/:id/exit', auth_1.authenticateToken, (0, auth_1.authorize
     catch (error) {
         console.error('Error marking visitor exited:', error);
         return res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to mark visitor exited' } });
+    }
+});
+// DELETE /api/admin/visitors/:id
+router.delete('/visitors/:id', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const societyId = req.user.societyId;
+        const requestId = req.params.id;
+        const deleted = await (0, db_1.deleteVisitorLogByAdmin)(societyId, requestId);
+        if (!deleted) {
+            return res.status(404).json({
+                success: false,
+                error: { code: 'NOT_FOUND', message: 'Visitor record not found or already deleted' },
+            });
+        }
+        return res.json({
+            success: true,
+            message: 'Visitor record deleted successfully from database',
+        });
+    }
+    catch (error) {
+        console.error('Error deleting visitor log:', error);
+        return res.status(500).json({
+            success: false,
+            error: { code: 'SERVER_ERROR', message: 'Failed to delete visitor record' },
+        });
     }
 });
 // =============================================================
@@ -485,6 +560,80 @@ router.post('/guards', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADM
         return res.status(500).json({
             success: false,
             error: { code: 'SERVER_ERROR', message: error.message || 'Failed to register guard' },
+        });
+    }
+});
+// =============================================================
+// SOCIETY SETTINGS (ADMIN)
+// =============================================================
+// GET /api/admin/settings
+router.get('/settings', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const societyId = req.user.societyId;
+        const society = await (0, db_1.findSocietyById)(societyId);
+        if (!society) {
+            return res.json({
+                success: true,
+                data: {
+                    id: societyId,
+                    name: 'GreenGate Residency',
+                    address: 'Main Gate Boulevard, Tower A-D',
+                    city: 'Mumbai, MH',
+                    totalFlats: 120,
+                },
+            });
+        }
+        return res.json({
+            success: true,
+            data: {
+                id: society.id,
+                name: society.name,
+                address: society.address,
+                city: society.address?.includes(',') ? society.address.split(',').pop()?.trim() : 'Mumbai, MH',
+                totalFlats: 120,
+            },
+        });
+    }
+    catch (error) {
+        console.error('Error fetching society settings:', error);
+        return res.status(500).json({
+            success: false,
+            error: { code: 'SERVER_ERROR', message: 'Failed to fetch society settings' },
+        });
+    }
+});
+// PATCH /api/admin/settings
+router.patch('/settings', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const societyId = req.user.societyId;
+        const { name, address, city } = req.body;
+        let fullAddress = address;
+        if (city && address && !address.toLowerCase().includes(city.toLowerCase())) {
+            fullAddress = `${address.trim()}, ${city.trim()}`;
+        }
+        else if (city && !address) {
+            fullAddress = city.trim();
+        }
+        const updated = await (0, db_1.updateSociety)(societyId, {
+            name: name?.trim(),
+            address: fullAddress?.trim(),
+        });
+        return res.json({
+            success: true,
+            message: 'Society configuration updated successfully',
+            data: updated || {
+                id: societyId,
+                name: name || 'GreenGate Residency',
+                address: fullAddress || 'Mumbai, MH',
+                city: city || 'Mumbai, MH',
+            },
+        });
+    }
+    catch (error) {
+        console.error('Error updating society settings:', error);
+        return res.status(500).json({
+            success: false,
+            error: { code: 'SERVER_ERROR', message: 'Failed to update society settings' },
         });
     }
 });
