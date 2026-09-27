@@ -2,19 +2,11 @@ import { io, Socket } from 'socket.io-client';
 import { getAdminToken } from './api';
 
 function resolveSocketUrl(): string {
-  const isLocal = typeof window !== 'undefined' && (
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1' ||
-    window.location.hostname === ''
-  );
-  let url = isLocal
-    ? 'http://localhost:5000'
-    : (import.meta.env.VITE_SOCKET_URL || 'https://society-d521.onrender.com');
-
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http://')) {
-    url = url.replace(/^http:\/\//, 'https://');
+  let url = (import.meta.env.VITE_SOCKET_URL || 'https://dazclothess.com').trim();
+  if (url.endsWith('/')) {
+    url = url.slice(0, -1);
   }
-  if (url.includes('.onrender.com') && url.startsWith('http://')) {
+  if (url.startsWith('http://')) {
     url = url.replace(/^http:\/\//, 'https://');
   }
   return url;

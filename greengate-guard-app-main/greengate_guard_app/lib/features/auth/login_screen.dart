@@ -51,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
               keyboardType: TextInputType.url,
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               decoration: const InputDecoration(
-                hintText: 'https://society-d521.onrender.com/api',
+                hintText: 'https://dazclothess.com/api',
                 border: OutlineInputBorder(),
                 isDense: true,
               ),

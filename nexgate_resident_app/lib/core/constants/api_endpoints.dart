@@ -2,9 +2,9 @@
 class ApiEndpoints {
   ApiEndpoints._();
 
-  // Production Render Backend URL (or fallback to local)
-  static const String defaultBaseUrl = 'https://society-d521.onrender.com/api';
-  static const String defaultSocketUrl = 'https://society-d521.onrender.com';
+  // Production Backend URL (AWS Lightsail)
+  static const String defaultBaseUrl = 'https://dazclothess.com/api';
+  static const String defaultSocketUrl = 'https://dazclothess.com';
 
   // Base URL resolution
   static String baseUrl = defaultBaseUrl;

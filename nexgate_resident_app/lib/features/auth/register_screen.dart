@@ -34,6 +34,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   FlatsHierarchy? _hierarchy;
   bool _isLoadingHierarchy = false;
+  String? _flatsError;
 
   String? _selectedWing;
   int? _selectedFloor;
@@ -75,7 +76,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _loadFlats() async {
-    setState(() => _isLoadingHierarchy = true);
+    setState(() {
+      _isLoadingHierarchy = true;
+      _flatsError = null;
+    });
     try {
       final h = await ApiService.fetchRegistrationFlats();
       setState(() {
@@ -90,6 +94,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
     } catch (e) {
       debugPrint('[RegisterScreen] Failed to load flats hierarchy: $e');
+      setState(() {
+        _flatsError = e.toString().replaceFirst('Exception: ', '');
+      });
     } finally {
       if (mounted) {
         setState(() => _isLoadingHierarchy = false);
@@ -270,11 +277,49 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   // STEP 2: Wing, Floor, Flat Unit Selection
   Widget _buildStep2FlatSelection() {
-    if (_isLoadingHierarchy || _hierarchy == null) {
+    if (_isLoadingHierarchy) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(48.0),
-          child: CircularProgressIndicator(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Loading society flats...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_hierarchy == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 36.0, horizontal: 16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_off_rounded, size: 56, color: Colors.amber),
+              const SizedBox(height: 16),
+              Text(
+                'Unable to load society units',
+                style: AppTypography.displayMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _flatsError ?? 'Network issue connecting to server. Please tap retry.',
+                textAlign: TextAlign.center,
+                style: AppTypography.bodySmall,
+              ),
+              const SizedBox(height: 24),
+              PrimaryButton(
+                label: 'Retry Loading Flats',
+                icon: Icons.refresh_rounded,
+                onPressed: _loadFlats,
+              ),
+            ],
+          ),
         ),
       );
     }

@@ -1,19 +1,12 @@
 function resolveApiBaseUrl(): string {
-  const isLocal = typeof window !== 'undefined' && (
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1' ||
-    window.location.hostname === ''
-  );
-  let url = isLocal
-    ? 'http://localhost:5000/api'
-    : (import.meta.env.VITE_API_URL || 'https://society-d521.onrender.com/api');
-
-  // CRITICAL FIX: If running on HTTPS (such as Render https://society-mugc.onrender.com),
-  // always upgrade http:// to https:// to prevent browser blocking due to Mixed Content!
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http://')) {
-    url = url.replace(/^http:\/\//, 'https://');
+  let url = (import.meta.env.VITE_API_URL || 'https://dazclothess.com/api').trim();
+  if (url.endsWith('/')) {
+    url = url.slice(0, -1);
   }
-  if (url.includes('.onrender.com') && url.startsWith('http://')) {
+  if (!url.endsWith('/api')) {
+    url = `${url}/api`;
+  }
+  if (url.startsWith('http://')) {
     url = url.replace(/^http:\/\//, 'https://');
   }
   return url;
@@ -75,10 +68,7 @@ export async function adminLogin(email: string, password: string) {
 
 async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
   let targetUrl = url;
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && targetUrl.startsWith('http://')) {
-    targetUrl = targetUrl.replace(/^http:\/\//, 'https://');
-  }
-  if (targetUrl.includes('.onrender.com') && targetUrl.startsWith('http://')) {
+  if (targetUrl.startsWith('http://')) {
     targetUrl = targetUrl.replace(/^http:\/\//, 'https://');
   }
 

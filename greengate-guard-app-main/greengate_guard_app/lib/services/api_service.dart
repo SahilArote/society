@@ -4,8 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 class ApiService {
-  // Base URL configuration (Supports Localhost, LAN IP, or Cloud domain)
-  static String baseUrl = 'https://society-d521.onrender.com/api';
+  // Base URL configuration (AWS Lightsail)
+  static String baseUrl = 'https://dazclothess.com/api';
   static String? _authToken;
 
 
