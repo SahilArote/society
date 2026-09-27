@@ -47,11 +47,14 @@ class VisitorModel {
   bool get isExited => status.toUpperCase() == 'EXITED' || status.toUpperCase() == 'LEFT';
 
   factory VisitorModel.fromJson(Map<String, dynamic> json) {
-    final v = json['visitor'] is Map<String, dynamic> ? json['visitor'] : json;
+    final rawVisitor = json['visitor'];
+    final Map<String, dynamic> v = (rawVisitor is Map)
+        ? Map<String, dynamic>.from(rawVisitor)
+        : json;
 
     final rawPhoto = v['photoUrl'] ?? v['photo'] ?? json['photoUrl'] ?? json['photo'];
-    final rawRequestedAt = json['requestedAt'] ?? v['requestedAt'];
-    final rawRespondedAt = json['respondedAt'] ?? v['respondedAt'];
+    final rawRequestedAt = json['requestedAt'] ?? v['requestedAt'] ?? json['request']?['requestedAt'];
+    final rawRespondedAt = json['respondedAt'] ?? v['respondedAt'] ?? json['request']?['respondedAt'];
 
     return VisitorModel(
       id: json['requestId']?.toString() ??

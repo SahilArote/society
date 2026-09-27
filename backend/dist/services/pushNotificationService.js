@@ -82,15 +82,15 @@ async function ensureTables() {
         INDEX idx_push_user (user_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
-        // FCM Device Tokens Table
+        // FCM Device Tokens Table (MySQL 5.5/5.6 compatible: single TIMESTAMP, prefix index on token)
         await pool.query(`
       CREATE TABLE IF NOT EXISTS fcm_tokens (
         id VARCHAR(64) NOT NULL PRIMARY KEY,
         user_id VARCHAR(64) NOT NULL,
-        token VARCHAR(512) NOT NULL UNIQUE,
+        token VARCHAR(512) NOT NULL,
         device_type VARCHAR(32) DEFAULT 'android',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_fcm_token (token(190)),
         INDEX idx_fcm_user (user_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
@@ -120,7 +120,7 @@ async function saveFcmToken(userId, token, deviceType = 'android') {
             await ensureTables();
             await pool.query(`INSERT INTO fcm_tokens (id, user_id, token, device_type)
          VALUES (?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), updated_at = CURRENT_TIMESTAMP`, [`fcm_${(0, uuid_1.v4)().slice(0, 12)}`, userId, token.trim(), deviceType]);
+         ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), device_type = VALUES(device_type)`, [`fcm_${(0, uuid_1.v4)().slice(0, 12)}`, userId, token.trim(), deviceType]);
             console.log(`[FCM] Successfully registered mobile FCM token for user ${userId}`);
         }
     }
@@ -233,6 +233,8 @@ async function sendPushToUser(userId, payload) {
                     }
                 }
             }
+            console.log(`[FCM] Sending VISITOR_REQUEST notification to user: ${userId}`);
+            console.log(`[FCM] Found ${fcmTokens.length} registered FCM tokens for user: ${userId}`);
             if (fcmTokens.length > 0) {
                 const stringData = {
                     title: payload.title,
@@ -257,7 +259,7 @@ async function sendPushToUser(userId, payload) {
                     android: {
                         priority: 'high',
                         notification: {
-                            channelId: 'nexgate_visitor_alerts',
+                            channelId: 'nexgate_general_alerts',
                             priority: 'max',
                             defaultSound: true,
                             defaultVibrateTimings: true,
@@ -266,7 +268,7 @@ async function sendPushToUser(userId, payload) {
                         },
                     },
                 });
-                console.log(`[FCM] Dispatched to ${response.successCount}/${fcmTokens.length} devices for user ${userId}`);
+                console.log(`[FCM] Sent successfully: ${response.successCount}/${fcmTokens.length} devices for user ${userId}`);
                 sentCount += response.successCount;
                 failedCount += response.failureCount;
                 // Clean up uninstalled or invalid tokens

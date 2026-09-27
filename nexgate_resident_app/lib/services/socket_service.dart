@@ -56,7 +56,30 @@ class SocketService {
     _socket!.connect();
 
     _socket!.onConnect((_) {
-      debugPrint('[SocketService] Connected successfully: ${_socket?.id}');
+      debugPrint('[SOCKET] Connected');
+      debugPrint('[SOCKET] Authenticated');
+      final user = StorageService.getUser();
+      if (user != null) {
+        debugPrint('[SOCKET] Joined resident room: resident:${user.id}');
+        _socket?.emit('join', {
+          'role': 'RESIDENT',
+          'residentId': user.id,
+          'societyId': user.societyId,
+        });
+      }
+      debugPrint('[SOCKET] Listening visitor:request_created');
+    });
+
+    _socket!.onDisconnect((reason) {
+      debugPrint('[SOCKET] Disconnected: $reason');
+    });
+
+    _socket!.onConnectError((err) {
+      debugPrint('[SOCKET] Connection error: $err');
+    });
+
+    _socket!.on('reconnect', (attempt) {
+      debugPrint('[SOCKET] Reconnected successfully on attempt: $attempt');
       final user = StorageService.getUser();
       if (user != null) {
         _socket?.emit('join', {
@@ -67,20 +90,14 @@ class SocketService {
       }
     });
 
-    _socket!.onDisconnect((reason) {
-      debugPrint('[SocketService] Disconnected: $reason');
-    });
-
-    _socket!.onConnectError((err) {
-      debugPrint('[SocketService] Connection error: $err');
-    });
-
     // Inbound: Gate Guard creates a new visitor request -> Trigger System Notification Alert
     _socket!.on('visitor:request_created', (data) {
-      debugPrint('[SocketService] Received visitor:request_created: $data');
-      if (data is Map<String, dynamic>) {
+      debugPrint('[SOCKET] visitor:request_created RECEIVED: $data');
+      if (data is Map) {
         try {
-          final model = VisitorModel.fromJson(data);
+          final map = Map<String, dynamic>.from(data);
+          final model = VisitorModel.fromJson(map);
+          debugPrint('[SOCKET] Request ID: ${model.id}');
           _visitorCreatedController.add(model);
 
           // Show heads-up push alert with vibration & sound
@@ -91,23 +108,24 @@ class SocketService {
             requestId: model.id,
           );
         } catch (e) {
-          debugPrint('[SocketService] Parsing error on visitor created: $e');
+          debugPrint('[SOCKET] Parsing error on visitor created: $e');
         }
       }
     });
 
     // Inbound: Request updated (approved, rejected, entered, exited)
     _socket!.on('visitor:request_updated', (data) {
-      debugPrint('[SocketService] Received visitor:request_updated: $data');
-      if (data is Map<String, dynamic>) {
-        _visitorUpdatedController.add(data);
-        final status = data['status'] ?? '';
-        final visitorName = data['visitorName'] ?? data['visitor']?['name'] ?? 'Visitor';
+      debugPrint('[SOCKET] visitor:request_updated: $data');
+      if (data is Map) {
+        final map = Map<String, dynamic>.from(data);
+        _visitorUpdatedController.add(map);
+        final status = map['status'] ?? '';
+        final visitorName = map['visitorName'] ?? map['visitor']?['name'] ?? 'Visitor';
         if (status.isNotEmpty) {
           NotificationService.showGeneralNotification(
             title: 'Gate Pass Status',
             body: '$visitorName has been marked as $status.',
-            payload: data['requestId'],
+            payload: map['requestId'],
           );
         }
       }
@@ -115,16 +133,27 @@ class SocketService {
 
     // Inbound: Resident registration approved or rejected by admin
     _socket!.on('resident:registration_updated', (data) {
-      debugPrint('[SocketService] Received resident:registration_updated: $data');
-      if (data is Map<String, dynamic>) {
-        _registrationUpdatedController.add(data);
-        final status = data['status'] ?? 'Updated';
+      debugPrint('[SOCKET] resident:registration_updated: $data');
+      if (data is Map) {
+        final map = Map<String, dynamic>.from(data);
+        _registrationUpdatedController.add(map);
+        final status = map['status'] ?? 'Updated';
         NotificationService.showGeneralNotification(
           title: 'Flat Registration Update',
           body: 'Your apartment registration status is now: $status.',
         );
       }
     });
+  }
+
+  /// Checks if socket is connected and reconnects if needed
+  static void reconnectIfNeeded() {
+    if (_socket == null || !_socket!.connected) {
+      debugPrint('[SOCKET] Inactive or disconnected, reconnecting...');
+      connect();
+    } else {
+      debugPrint('[SOCKET] Socket is active (${_socket?.id})');
+    }
   }
 
   /// Listen for registration room when tracking an unapproved registration

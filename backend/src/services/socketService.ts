@@ -13,6 +13,8 @@ export function initSocketServer(server: HttpServer): SocketIOServer {
       origin: '*',
       methods: ['GET', 'POST'],
     },
+    pingInterval: 10000,
+    pingTimeout: 5000,
   });
 
   // Socket.IO Handshake Authentication Middleware
@@ -39,13 +41,19 @@ export function initSocketServer(server: HttpServer): SocketIOServer {
 
   io.on('connection', (socket: Socket) => {
     const user = socket.data.user as AuthUser;
-    console.log(`[Socket] Authenticated client connected: ${socket.id} (${user.name} - ${user.role})`);
+    console.log(`[Socket] Authenticated client connected: ${socket.id} (${user.name} - ${user.role} - ID: ${user.id})`);
 
     // Server-Controlled Room Assignments based strictly on verified JWT identity
     socket.join(`society:${user.societyId}`);
 
     if (user.role === 'RESIDENT') {
       socket.join(`resident:${user.id}`);
+      if (user.flatId) {
+        socket.join(`flat:${user.flatId}`);
+      }
+      if (user.flatNumber) {
+        socket.join(`flat_num:${user.societyId}_${user.flatNumber}`);
+      }
       console.log(`[Socket] Auto-joined room resident:${user.id}`);
     } else if (user.role === 'GUARD') {
       socket.join(`guard:${user.id}`);
@@ -60,6 +68,14 @@ export function initSocketServer(server: HttpServer): SocketIOServer {
       console.log(`[Socket] Auto-joined room registration:${regId}`);
     }
 
+    // Support client-sent join confirmation
+    socket.on('join', (data: any) => {
+      if (data && data.residentId) {
+        socket.join(`resident:${data.residentId}`);
+        console.log(`[Socket] Explicit join confirmed for resident:${data.residentId}`);
+      }
+    });
+
     socket.on('join_registration', (regId: string) => {
       if (regId && typeof regId === 'string') {
         socket.join(`registration:${regId}`);
@@ -67,8 +83,8 @@ export function initSocketServer(server: HttpServer): SocketIOServer {
       }
     });
 
-    socket.on('disconnect', () => {
-      console.log(`[Socket] Client disconnected: ${socket.id}`);
+    socket.on('disconnect', (reason) => {
+      console.log(`[Socket] Client disconnected: ${socket.id} (reason: ${reason})`);
     });
   });
 
@@ -89,10 +105,20 @@ export function emitVisitorCreated(data: {
   societyId: string;
   requestedAt: string;
 }) {
-  if (!io) return;
+  if (!io) {
+    console.warn('[SOCKET] Socket.IO instance not initialized, skipping emit');
+    return;
+  }
 
-  // 1. Emit to specific Resident with Photo URL
-  io.to(`resident:${data.residentId}`).emit('visitor:request_created', {
+  const roomName = `resident:${data.residentId}`;
+  const room = io.sockets.adapter.rooms.get(roomName);
+  const activeSockets = room ? room.size : 0;
+
+  console.log(`[SOCKET] Target resident: ${data.residentId}`);
+  console.log(`[SOCKET] Target room: ${roomName} (connected sockets: ${activeSockets})`);
+  console.log(`[SOCKET] Emitting: visitor:request_created for requestId: ${data.requestId}`);
+
+  const payload = {
     requestId: data.requestId,
     request: {
       id: data.requestId,
@@ -103,7 +129,15 @@ export function emitVisitorCreated(data: {
     flatNumber: data.flatNumber,
     gateName: data.gateName || 'Main Gate',
     guardName: data.guardName || 'Gate Security',
-  });
+  };
+
+  // 1. Emit to specific Resident room
+  io.to(roomName).emit('visitor:request_created', payload);
+
+  // Also emit to flat number fallback room if exists
+  if (data.flatNumber) {
+    io.to(`flat_num:${data.societyId}_${data.flatNumber}`).emit('visitor:request_created', payload);
+  }
 
   // 2. Emit to Admin Dashboard without photo per requirements
   io.to(`admin:${data.societyId}`).emit('admin:visitor_activity', {

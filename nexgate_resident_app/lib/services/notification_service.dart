@@ -22,14 +22,29 @@ class NotificationService {
 
   static bool _isInitialized = false;
 
+  /// Pending request ID from terminated launch
+  static String? _pendingInitialRequestId;
+  static void Function(String? payload)? _onNotificationTapped;
+
   /// Callback when user taps a notification
-  static void Function(String? payload)? onNotificationTapped;
+  static void Function(String? payload)? get onNotificationTapped => _onNotificationTapped;
+  static set onNotificationTapped(void Function(String? payload)? callback) {
+    _onNotificationTapped = callback;
+    if (_onNotificationTapped != null && _pendingInitialRequestId != null) {
+      final reqId = _pendingInitialRequestId;
+      _pendingInitialRequestId = null;
+      debugPrint('[NotificationService] Delivering buffered initial notification requestId: $reqId');
+      _onNotificationTapped!(reqId);
+    }
+  }
 
   /// Initialize notification channels, FCM and platform settings
   static Future<void> initialize({void Function(String? payload)? onTapped}) async {
     if (_isInitialized) return;
 
-    onNotificationTapped = onTapped;
+    if (onTapped != null) {
+      onNotificationTapped = onTapped;
+    }
 
     // 1. Initialize Local Notification Plugin
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -56,6 +71,32 @@ class NotificationService {
 
     // Request notification permission for Android 13+
     await requestPermissions();
+
+    // Explicitly create notification channels with Max Importance for Android OS
+    final androidImplementation = _notificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+
+    await androidImplementation?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'nexgate_general_alerts',
+        'General Notifications',
+        description: 'Updates on visitor entries, approvals, and announcements',
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+      ),
+    );
+
+    await androidImplementation?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'nexgate_visitor_alerts',
+        'Gate Visitor Alerts',
+        description: 'Instant alerts when a visitor or delivery arrives at the gate',
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+      ),
+    );
 
     // 2. Initialize Firebase Core & Cloud Messaging
     try {
@@ -115,8 +156,12 @@ class NotificationService {
       if (initialMessage != null) {
         debugPrint('[FCM] App launched from terminated state via notification: ${initialMessage.data}');
         final requestId = initialMessage.data['requestId'];
-        if (onNotificationTapped != null && requestId != null) {
-          onNotificationTapped!(requestId);
+        if (requestId != null) {
+          if (onNotificationTapped != null) {
+            onNotificationTapped!(requestId);
+          } else {
+            _pendingInitialRequestId = requestId;
+          }
         }
       }
 
@@ -157,7 +202,7 @@ class NotificationService {
     }
   }
 
-  /// Show high-priority visitor gate alert notification
+  /// Show high-priority visitor gate alert notification (Heads-Up)
   static Future<void> showVisitorAlert({
     required String visitorName,
     required String flatNumber,
@@ -165,15 +210,14 @@ class NotificationService {
     String? requestId,
   }) async {
     const androidDetails = AndroidNotificationDetails(
-      'nexgate_visitor_alerts',
-      'Gate Visitor Alerts',
-      channelDescription: 'Instant alerts when a visitor or delivery arrives at the gate',
+      'nexgate_general_alerts',
+      'General Notifications',
+      channelDescription: 'Updates on entry approvals, registrations, and announcements',
       importance: Importance.max,
       priority: Priority.high,
       playSound: true,
       enableVibration: true,
-      category: AndroidNotificationCategory.call,
-      fullScreenIntent: true,
+      icon: '@mipmap/ic_launcher',
       styleInformation: BigTextStyleInformation(''),
     );
 
@@ -187,17 +231,20 @@ class NotificationService {
       ),
     );
 
-    final notificationId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final notificationId = (requestId != null
+            ? requestId.hashCode
+            : DateTime.now().millisecondsSinceEpoch ~/ 1000)
+        .abs();
 
     await _notificationsPlugin.show(
       id: notificationId,
-      title: '🚨 Visitor at Gate: $visitorName',
-      body: '$visitorName is waiting at $gateName for Flat $flatNumber. Tap to view and approve.',
+      title: '🚨 New Visitor Request',
+      body: '$visitorName is waiting at $gateName for Flat $flatNumber. Tap to view and respond.',
       notificationDetails: notificationDetails,
       payload: requestId,
     );
 
-    debugPrint('[NotificationService] Dispatched visitor alert for $visitorName');
+    debugPrint('[NotificationService] Dispatched heads-up visitor alert for $visitorName');
   }
 
   /// Show general notification (e.g. status updates, society notices)
@@ -214,6 +261,7 @@ class NotificationService {
       priority: Priority.high,
       playSound: true,
       enableVibration: true,
+      icon: '@mipmap/ic_launcher',
     );
 
     const notificationDetails = NotificationDetails(
@@ -225,7 +273,10 @@ class NotificationService {
       ),
     );
 
-    final notificationId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final notificationId = (payload != null
+            ? payload.hashCode
+            : DateTime.now().millisecondsSinceEpoch ~/ 1000)
+        .abs();
 
     await _notificationsPlugin.show(
       id: notificationId,

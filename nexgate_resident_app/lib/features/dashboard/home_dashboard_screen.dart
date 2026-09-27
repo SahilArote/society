@@ -28,7 +28,7 @@ class HomeDashboardScreen extends StatefulWidget {
   State<HomeDashboardScreen> createState() => _HomeDashboardScreenState();
 }
 
-class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
+class _HomeDashboardScreenState extends State<HomeDashboardScreen> with WidgetsBindingObserver {
   bool _isLoading = true;
   List<VisitorModel> _pendingVisitors = [];
   List<VisitorModel> _recentVisitors = [];
@@ -38,20 +38,43 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadDashboardData();
     _subscribeToSocketEvents();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('[LIFECYCLE] Dashboard resumed - silently syncing latest visitor data');
+      _loadDashboardData(silent: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _visitorCreatedSub?.cancel();
+    _visitorUpdatedSub?.cancel();
+    super.dispose();
+  }
+
   void _subscribeToSocketEvents() {
     _visitorCreatedSub = SocketService.onVisitorCreated.listen((newVisitor) {
-      debugPrint('[Dashboard] Realtime new visitor at gate: ${newVisitor.name}');
+      debugPrint('[STATE] Updating visitor requests');
       HapticHelper.heavyImpact();
 
       if (!mounted) return;
       setState(() {
-        _pendingVisitors.insert(0, newVisitor);
+        final existingIdx = _pendingVisitors.indexWhere((v) => v.id == newVisitor.id);
+        if (existingIdx >= 0) {
+          _pendingVisitors[existingIdx] = newVisitor;
+        } else {
+          _pendingVisitors.insert(0, newVisitor);
+        }
       });
-      // Global bottom sheet is presented by MainNavigationShell to avoid duplicates
+      debugPrint('[STATE] Pending requests: ${_pendingVisitors.length}');
+      debugPrint('[UI] New visitor request detected: ${newVisitor.name} (${newVisitor.id})');
     });
 
     _visitorUpdatedSub = SocketService.onVisitorUpdated.listen((updatedData) {
@@ -140,13 +163,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       _pendingVisitors.removeWhere((v) => v.id == id);
     });
     _loadDashboardData(silent: true);
-  }
-
-  @override
-  void dispose() {
-    _visitorCreatedSub?.cancel();
-    _visitorUpdatedSub?.cancel();
-    super.dispose();
   }
 
   @override

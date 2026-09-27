@@ -83,6 +83,7 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
         const societyId = req.user.societyId;
         const guardId = req.user.id;
         const gateId = req.user.gateId || 'gate_main';
+        console.log(`[VISITOR] Creating request for flat: ${flatNumber} ${buildingWing ? `(${buildingWing})` : ''} in society: ${societyId}`);
         // 1. Validate Target Flat & Society Relation (Strict lookup - No default fallback)
         const flat = await (0, db_1.findFlatByNumberAndWing)(societyId, flatNumber, buildingWing);
         if (!flat) {
@@ -166,6 +167,8 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
             gateId,
             status: 'PENDING',
         });
+        console.log(`[VISITOR] Request created: ${requestId}`);
+        console.log(`[SOCKET] Target resident: ${resident.id}`);
         // 6. Create Resident Notification in MySQL
         let gateName = 'Main Gate';
         let guardName = req.user.name || 'Gate Security';
@@ -233,27 +236,31 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
         catch (socketErr) {
             console.warn('[Backend Warning] Socket emit error:', socketErr);
         }
-        // 9. Dispatch Native Web Push to Resident's Registered Devices
+        // 9. Dispatch Native Push to Resident's Registered Mobile Devices (FCM) & Web
         try {
+            console.log(`[FCM] Sending VISITOR_REQUEST notification for requestId: ${requestId} to resident: ${resident.id}`);
             (0, pushNotificationService_1.sendPushToUser)(resident.id, {
-                title: `🚨 Visitor at Gate: ${name}`,
-                body: `${name} is waiting at ${gateName} for Flat ${flat.flatNumber}. Tap to view photo and decide.`,
+                title: `🚨 New Visitor Request`,
+                body: `${name} is waiting at ${gateName} for Flat ${flat.flatNumber}. Tap to view and respond.`,
                 icon: '/icons/icon-192.png',
                 badge: '/icons/favicon-32.png',
                 image: `/api/visitor-requests/${requestId}/photo`,
                 tag: `visitor-${requestId}`,
                 data: {
+                    type: 'VISITOR_REQUEST',
                     requestId,
+                    visitorRequestId: requestId,
                     url: '/home',
                     visitorName: name,
                     flatNumber: flat.flatNumber,
+                    gateName,
                 },
             }).catch((err) => {
-                console.warn('[WebPush] Push dispatch warning:', err.message);
+                console.warn('[FCM] Push dispatch warning:', err.message);
             });
         }
         catch (pushErr) {
-            console.warn('[WebPush] Push dispatch error:', pushErr);
+            console.warn('[FCM] Push dispatch error:', pushErr);
         }
         return res.status(201).json({
             success: true,
