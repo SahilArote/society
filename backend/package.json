@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc && node -e \"const fs = require('fs'); const path = require('path'); const target = path.resolve('dist/database'); if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true }); fs.copyFileSync(path.resolve('src/database/schema.sql'), path.join(target, 'schema.sql'));\"",
+    "build": "tsc && node -e \"const fs = require('fs'); const path = require('path'); const target = path.resolve('dist/database'); if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true }); fs.copyFileSync(path.resolve('src/database/schema.sql'), path.join(target, 'schema.sql')); const pubTarget = path.resolve('dist/public'); if (!fs.existsSync(pubTarget)) fs.mkdirSync(pubTarget, { recursive: true }); if (fs.existsSync(path.resolve('public/privacy-policy.html'))) fs.copyFileSync(path.resolve('public/privacy-policy.html'), path.join(pubTarget, 'privacy-policy.html'));\"",
     "package": "npm run build && powershell -Command \"Compress-Archive -Path dist, package.json, package-lock.json, ecosystem.config.js, .env -DestinationPath backend-deploy.zip -Force\"",
     "start": "node dist/index.js",
     "deploy:local": "powershell -ExecutionPolicy Bypass -File ./deploy-local.ps1",

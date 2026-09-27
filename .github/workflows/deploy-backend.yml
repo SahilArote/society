@@ -37,7 +37,7 @@ jobs:
         working-directory: backend
         run: |
           echo "Creating compressed tar bundle of dist & configs..."
-          tar -czf deploy.tar.gz dist package.json package-lock.json ecosystem.config.js
+          tar -czf deploy.tar.gz dist package.json package-lock.json ecosystem.config.js public
           ls -lh deploy.tar.gz
 
       - name: 🔑 Configure SSH Key

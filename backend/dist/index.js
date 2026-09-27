@@ -8,6 +8,8 @@ const http_1 = __importDefault(require("http"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const multer_1 = __importDefault(require("multer"));
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
 const db_1 = require("./database/db");
 const socketService_1 = require("./services/socketService");
 const upload_1 = require("./middleware/upload");
@@ -40,6 +42,33 @@ app.use('/api/visitor-requests', visitorRequests_1.default);
 app.use('/api/admin', admin_1.default);
 app.use('/api/notifications', notifications_1.default);
 app.use('/api/resident', resident_1.default);
+// Privacy Policy Endpoints (Serves Google Play Store & In-App compliance webpage)
+const getPrivacyPolicyPath = () => {
+    const candidates = [
+        path_1.default.resolve(__dirname, 'public/privacy-policy.html'),
+        path_1.default.resolve(__dirname, '../public/privacy-policy.html'),
+        path_1.default.resolve(process.cwd(), 'public/privacy-policy.html'),
+        path_1.default.resolve(process.cwd(), 'privacy-policy.html'),
+        path_1.default.resolve(__dirname, '../../privacy-policy.html'),
+    ];
+    for (const c of candidates) {
+        if (fs_1.default.existsSync(c))
+            return c;
+    }
+    return null;
+};
+const servePrivacyPolicy = (_req, res) => {
+    const policyPath = getPrivacyPolicyPath();
+    if (policyPath) {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.sendFile(policyPath);
+    }
+    return res.status(404).send('Privacy Policy file not found on server.');
+};
+app.get('/privacy-policy', servePrivacyPolicy);
+app.get('/privacy', servePrivacyPolicy);
+app.get('/api/privacy-policy', servePrivacyPolicy);
+app.get('/api/privacy', servePrivacyPolicy);
 // Unmatched API Routes Handler (Never return HTML)
 app.use('/api/*', (req, res) => {
     res.status(404).json({
