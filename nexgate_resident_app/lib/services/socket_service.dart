@@ -44,12 +44,16 @@ class SocketService {
       io.OptionBuilder()
           .setTransports(['websocket', 'polling'])
           .setAuth({'token': token})
+          .setExtraHeaders({'Authorization': 'Bearer $token'})
+          .setQuery({'token': token})
           .enableAutoConnect()
           .enableReconnection()
-          .setReconnectionAttempts(10)
-          .setReconnectionDelay(1500)
+          .setReconnectionAttempts(20)
+          .setReconnectionDelay(1000)
           .build(),
     );
+
+    _socket!.connect();
 
     _socket!.onConnect((_) {
       debugPrint('[SocketService] Connected successfully: ${_socket?.id}');

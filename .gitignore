@@ -6,3 +6,4 @@ Thumbs.db
 **/*.apk
 NexGate_Resident_Latest.apk
 GreenGate_Guard_Latest.apk
+*firebase-service-account.json

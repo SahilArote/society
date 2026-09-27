@@ -17,7 +17,7 @@ Write-Host "==> 1. Building backend locally (tsc -> dist)..." -ForegroundColor C
 npm run build
 
 Write-Host "==> 2. Creating lightweight bundle (dist + configs)..." -ForegroundColor Cyan
-tar -czf deploy.tar.gz dist package.json package-lock.json ecosystem.config.js
+tar -czf deploy.tar.gz dist package.json package-lock.json ecosystem.config.js firebase-service-account.json
 
 Write-Host "==> 3. Uploading bundle to AWS Lightsail ($HOST_IP)..." -ForegroundColor Cyan
 scp -i "$KEY_PATH" -o StrictHostKeyChecking=no deploy.tar.gz ${USER}@${HOST_IP}:${REMOTE_DIR}/deploy.tar.gz

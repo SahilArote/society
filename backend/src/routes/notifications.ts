@@ -5,10 +5,42 @@ import {
   getVapidPublicKey,
   savePushSubscription,
   removePushSubscription,
+  saveFcmToken,
   sendPushToUser,
 } from '../services/pushNotificationService';
 
 const router = Router();
+
+// =============================================================
+// POST /api/notifications/fcm-token
+// Register a mobile device FCM Token for authenticated resident
+// =============================================================
+router.post('/fcm-token', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { token, deviceType } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_INPUT', message: 'FCM token is required' },
+      });
+    }
+
+    await saveFcmToken(userId, token, deviceType || 'android');
+
+    return res.json({
+      success: true,
+      message: 'FCM token registered successfully',
+    });
+  } catch (err: any) {
+    console.error('Error saving FCM token:', err);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to save FCM token' },
+    });
+  }
+});
 
 // =============================================================
 // GET /api/notifications

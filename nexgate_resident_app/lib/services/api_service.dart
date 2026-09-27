@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../core/constants/api_endpoints.dart';
 import '../models/family_member_model.dart';
@@ -334,6 +335,27 @@ class ApiService {
       return list.map((item) => NotificationModel.fromJson(item as Map<String, dynamic>)).toList();
     } catch (_) {
       return [];
+    }
+  }
+
+  static Future<bool> registerFcmToken(String fcmToken) async {
+    try {
+      final token = StorageService.getToken();
+      if (token == null || token.isEmpty) return false;
+
+      final response = await http.post(
+        Uri.parse('${ApiEndpoints.baseUrl}/notifications/fcm-token'),
+        headers: _headers(),
+        body: jsonEncode({
+          'token': fcmToken.trim(),
+          'deviceType': 'android',
+        }),
+      );
+      final json = jsonDecode(response.body);
+      return json['success'] == true;
+    } catch (e) {
+      debugPrint('[ApiService] Error registering FCM token: $e');
+      return false;
     }
   }
 }

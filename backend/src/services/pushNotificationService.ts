@@ -1,4 +1,8 @@
 import webpush from 'web-push';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getMessaging } from 'firebase-admin/messaging';
+import path from 'path';
+import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { getMysqlPool } from '../database/mysql';
 
@@ -11,19 +15,62 @@ const VAPID_PRIVATE_KEY =
 
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:support@greengate.in';
 
-// Configure Web Push with VAPID credentials
+// Configure Web Push with VAPID credentials (for Web Browser PWAs)
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
 // In-memory subscription cache for fast retrieval & offline fallback
 const memorySubscriptions: Map<string, Set<any>> = new Map();
+const memoryFcmTokens: Map<string, Set<string>> = new Map();
+
+// -------------------------------------------------------------
+// Firebase Cloud Messaging (FCM) Initialization
+// -------------------------------------------------------------
+let firebaseInitialized = false;
+
+function initFirebaseAdmin(): void {
+  if (firebaseInitialized || getApps().length > 0) {
+    firebaseInitialized = true;
+    return;
+  }
+
+  try {
+    const credPath =
+      process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
+      path.resolve(process.cwd(), 'firebase-service-account.json');
+
+    if (fs.existsSync(credPath)) {
+      const serviceAccount = JSON.parse(fs.readFileSync(credPath, 'utf8'));
+      initializeApp({
+        credential: cert(serviceAccount),
+      });
+      firebaseInitialized = true;
+      console.log(`[FCM] Firebase Admin SDK initialized successfully (Project: ${serviceAccount.project_id})`);
+    } else if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+      initializeApp({
+        credential: cert(serviceAccount),
+      });
+      firebaseInitialized = true;
+      console.log('[FCM] Firebase Admin SDK initialized from env JSON.');
+    } else {
+      console.warn('[FCM] Notice: firebase-service-account.json not found. FCM push notifications disabled until provided.');
+    }
+  } catch (err: any) {
+    console.warn('[FCM] Failed to initialize Firebase Admin SDK:', err.message);
+  }
+}
+
+initFirebaseAdmin();
 
 /**
- * Ensure push_subscriptions table exists in MySQL
+ * Ensure notification tables exist in MySQL
  */
-async function ensurePushTable(): Promise<void> {
+async function ensureTables(): Promise<void> {
   try {
     const pool = await getMysqlPool();
     if (!pool) return;
+
+    // WebPush Subscriptions Table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS push_subscriptions (
         id VARCHAR(64) NOT NULL PRIMARY KEY,
@@ -35,13 +82,26 @@ async function ensurePushTable(): Promise<void> {
         INDEX idx_push_user (user_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
+
+    // FCM Device Tokens Table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS fcm_tokens (
+        id VARCHAR(64) NOT NULL PRIMARY KEY,
+        user_id VARCHAR(64) NOT NULL,
+        token VARCHAR(512) NOT NULL UNIQUE,
+        device_type VARCHAR(32) DEFAULT 'android',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_fcm_user (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
   } catch (err: any) {
-    console.warn('[WebPush] Notice: push_subscriptions table check:', err.message);
+    console.warn('[Push] Notice: tables check:', err.message);
   }
 }
 
 // Run table creation on startup
-ensurePushTable();
+ensureTables();
 
 export function getVapidPublicKey(): string {
   return VAPID_PUBLIC_KEY;
@@ -56,7 +116,59 @@ export interface PushSubscriptionData {
 }
 
 /**
- * Save or update a Push Subscription for a user
+ * Register or update an FCM Token for a mobile resident device
+ */
+export async function saveFcmToken(
+  userId: string,
+  token: string,
+  deviceType: string = 'android'
+): Promise<void> {
+  if (!token || !userId) return;
+
+  if (!memoryFcmTokens.has(userId)) {
+    memoryFcmTokens.set(userId, new Set());
+  }
+  memoryFcmTokens.get(userId)!.add(token);
+
+  try {
+    const pool = await getMysqlPool();
+    if (pool) {
+      await ensureTables();
+      await pool.query(
+        `INSERT INTO fcm_tokens (id, user_id, token, device_type)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), updated_at = CURRENT_TIMESTAMP`,
+        [`fcm_${uuidv4().slice(0, 12)}`, userId, token.trim(), deviceType]
+      );
+      console.log(`[FCM] Successfully registered mobile FCM token for user ${userId}`);
+    }
+  } catch (err: any) {
+    console.warn(`[FCM] Error persisting FCM token in MySQL (${err.message}). Using memory cache.`);
+  }
+}
+
+/**
+ * Remove an FCM Token (e.g. on logout)
+ */
+export async function removeFcmToken(userId: string, token: string): Promise<void> {
+  const tokens = memoryFcmTokens.get(userId);
+  if (tokens) {
+    tokens.delete(token);
+  }
+
+  try {
+    const pool = await getMysqlPool();
+    if (pool) {
+      await pool.query('DELETE FROM fcm_tokens WHERE token = ?', [token.trim()]);
+      console.log(`[FCM] Removed FCM token for user ${userId}`);
+    }
+  } catch (err: any) {
+    console.warn('[FCM] Error removing token from MySQL:', err.message);
+  }
+}
+
+/**
+ * Save or update a Push Subscription for a user (WebPush)
  */
 export async function savePushSubscription(
   userId: string,
@@ -66,7 +178,7 @@ export async function savePushSubscription(
     throw new Error('Invalid PushSubscription payload');
   }
 
-  // 1. Cache in memory - remove endpoint from ALL users to ensure exclusive device ownership
+  // 1. Cache in memory
   for (const [uid, subs] of memorySubscriptions.entries()) {
     for (const s of subs) {
       if (s.endpoint === sub.endpoint) {
@@ -80,15 +192,12 @@ export async function savePushSubscription(
   }
   memorySubscriptions.get(userId)!.add(sub);
 
-  // 2. Persist in MySQL - clean any prior user subscription for this physical device
+  // 2. Persist in MySQL
   try {
     const pool = await getMysqlPool();
     if (pool) {
-      await ensurePushTable();
-      await pool.query('DELETE FROM push_subscriptions WHERE endpoint = ?', [
-        sub.endpoint,
-      ]);
-
+      await ensureTables();
+      await pool.query('DELETE FROM push_subscriptions WHERE endpoint = ?', [sub.endpoint]);
       await pool.query(
         'INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?, ?)',
         [`sub_${uuidv4().slice(0, 12)}`, userId, sub.endpoint, sub.keys.p256dh, sub.keys.auth]
@@ -101,7 +210,7 @@ export async function savePushSubscription(
 }
 
 /**
- * Remove a Push Subscription
+ * Remove a Push Subscription (WebPush)
  */
 export async function removePushSubscription(userId: string, endpoint: string): Promise<void> {
   const userSubs = memorySubscriptions.get(userId);
@@ -127,7 +236,7 @@ export async function removePushSubscription(userId: string, endpoint: string): 
 }
 
 /**
- * Send Web Push notification to a specific user's subscribed devices
+ * Send Push notification to a specific user's registered devices (Both FCM Mobile & WebPush)
  */
 export async function sendPushToUser(
   userId: string,
@@ -142,9 +251,100 @@ export async function sendPushToUser(
     actions?: Array<{ action: string; title: string }>;
   }
 ): Promise<{ sentCount: number; failedCount: number }> {
+  let sentCount = 0;
+  let failedCount = 0;
+
+  // -----------------------------------------------------------------
+  // 1. Send via Firebase Cloud Messaging (FCM) to Android Mobile Devices
+  // -----------------------------------------------------------------
+  if (firebaseInitialized) {
+    try {
+      const pool = await getMysqlPool();
+      let fcmTokens: string[] = [];
+
+      if (pool) {
+        const [rows]: any = await pool.query('SELECT token FROM fcm_tokens WHERE user_id = ?', [userId]);
+        if (rows && rows.length > 0) {
+          fcmTokens = rows.map((r: any) => r.token);
+        }
+      }
+
+      // Merge with memory cache
+      const cached = memoryFcmTokens.get(userId);
+      if (cached) {
+        for (const t of cached) {
+          if (!fcmTokens.includes(t)) {
+            fcmTokens.push(t);
+          }
+        }
+      }
+
+      if (fcmTokens.length > 0) {
+        const stringData: Record<string, string> = {
+          title: payload.title,
+          body: payload.body,
+          tag: payload.tag || 'visitor_alert',
+          click_action: 'FLUTTER_NOTIFICATION_CLICK',
+        };
+
+        if (payload.data) {
+          for (const [k, v] of Object.entries(payload.data)) {
+            if (v !== undefined && v !== null) {
+              stringData[k] = typeof v === 'object' ? JSON.stringify(v) : String(v);
+            }
+          }
+        }
+
+        const response = await getMessaging().sendEachForMulticast({
+          tokens: fcmTokens,
+          notification: {
+            title: payload.title,
+            body: payload.body,
+          },
+          data: stringData,
+          android: {
+            priority: 'high',
+            notification: {
+              channelId: 'nexgate_visitor_alerts',
+              priority: 'max',
+              defaultSound: true,
+              defaultVibrateTimings: true,
+              visibility: 'public',
+              clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+            },
+          },
+        });
+
+        console.log(`[FCM] Dispatched to ${response.successCount}/${fcmTokens.length} devices for user ${userId}`);
+        sentCount += response.successCount;
+        failedCount += response.failureCount;
+
+        // Clean up uninstalled or invalid tokens
+        if (response.failureCount > 0) {
+          response.responses.forEach((resp: any, idx: number) => {
+            if (!resp.success && resp.error) {
+              const code = resp.error.code;
+              if (
+                code === 'messaging/invalid-registration-token' ||
+                code === 'messaging/registration-token-not-registered'
+              ) {
+                const badToken = fcmTokens[idx];
+                pool?.query('DELETE FROM fcm_tokens WHERE token = ?', [badToken]).catch(() => {});
+              }
+            }
+          });
+        }
+      }
+    } catch (fcmErr: any) {
+      console.warn(`[FCM] Error dispatching FCM push to user ${userId}:`, fcmErr.message);
+    }
+  }
+
+  // -----------------------------------------------------------------
+  // 2. Send via WebPush to Desktop/Mobile Browser PWAs
+  // -----------------------------------------------------------------
   let subscriptions: PushSubscriptionData[] = [];
 
-  // 1. Fetch from MySQL
   try {
     const pool = await getMysqlPool();
     if (pool) {
@@ -166,59 +366,47 @@ export async function sendPushToUser(
     console.warn(`[WebPush] Error querying subscriptions from MySQL: ${err.message}`);
   }
 
-  // 2. Merge with memory cache
-  const cached = memorySubscriptions.get(userId);
-  if (cached) {
-    for (const c of cached) {
+  const cachedSubs = memorySubscriptions.get(userId);
+  if (cachedSubs) {
+    for (const c of cachedSubs) {
       if (!subscriptions.some((s) => s.endpoint === c.endpoint)) {
         subscriptions.push(c);
       }
     }
   }
 
-  if (subscriptions.length === 0) {
-    console.log(`[WebPush] No push subscriptions found for user ${userId}`);
-    return { sentCount: 0, failedCount: 0 };
-  }
+  if (subscriptions.length > 0) {
+    const notificationPayload = JSON.stringify({
+      title: payload.title,
+      body: payload.body,
+      icon: payload.icon || '/icons/icon-192.png',
+      badge: payload.badge || '/icons/favicon-32.png',
+      image: payload.image,
+      tag: payload.tag || `notif_${Date.now()}`,
+      silent: false,
+      renotify: true,
+      requireInteraction: true,
+      timestamp: Date.now(),
+      vibrate: [500, 200, 500, 200, 500],
+      data: payload.data || { url: '/home' },
+    });
 
-  const notificationPayload = JSON.stringify({
-    title: payload.title,
-    body: payload.body,
-    icon: payload.icon || '/icons/icon-192.png',
-    badge: payload.badge || '/icons/favicon-32.png',
-    image: payload.image,
-    tag: payload.tag || `notif_${Date.now()}`,
-    silent: false,
-    renotify: true,
-    requireInteraction: true,
-    timestamp: Date.now(),
-    vibrate: [500, 200, 500, 200, 500],
-    data: payload.data || { url: '/home' },
-  });
-
-  let sentCount = 0;
-  let failedCount = 0;
-
-  for (const sub of subscriptions) {
-    try {
-      await webpush.sendNotification(sub as any, notificationPayload, {
-        TTL: 60, // 60 seconds TTL ensures immediate delivery
-        urgency: 'high',
-        topic: 'visitor-alert',
-        headers: {
-          Urgency: 'high',
-        },
-      });
-      sentCount++;
-      console.log(`[WebPush] Notification dispatched successfully to endpoint: ${sub.endpoint.slice(0, 40)}...`);
-    } catch (err: any) {
-      failedCount++;
-      console.warn(`[WebPush] Push delivery failed (${err.statusCode || err.message}) for user ${userId}`);
-
-      // 404 Not Found or 410 Gone means the subscription has expired or user revoked permission
-      if (err.statusCode === 404 || err.statusCode === 410) {
-        console.log(`[WebPush] Removing expired/unsubscribed endpoint: ${sub.endpoint.slice(0, 40)}...`);
-        removePushSubscription(userId, sub.endpoint).catch(() => {});
+    for (const sub of subscriptions) {
+      try {
+        await webpush.sendNotification(sub as any, notificationPayload, {
+          TTL: 60,
+          urgency: 'high',
+          topic: 'visitor-alert',
+          headers: {
+            Urgency: 'high',
+          },
+        });
+        sentCount++;
+      } catch (err: any) {
+        failedCount++;
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          removePushSubscription(userId, sub.endpoint).catch(() => {});
+        }
       }
     }
   }

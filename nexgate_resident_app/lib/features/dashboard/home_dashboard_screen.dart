@@ -13,7 +13,6 @@ import '../household/family_members_screen.dart';
 import '../household/vehicles_screen.dart';
 import '../visitors/invite_visitor_screen.dart';
 import '../visitors/visitor_detail_screen.dart';
-import '../visitors/widgets/visitor_decision_bottom_sheet.dart';
 import 'widgets/quick_actions_grid.dart';
 import 'widgets/recent_visitors_section.dart';
 import 'widgets/security_status_card.dart';
@@ -52,14 +51,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       setState(() {
         _pendingVisitors.insert(0, newVisitor);
       });
-
-      // Show bottom sheet popup immediately
-      VisitorDecisionBottomSheet.show(
-        context,
-        visitor: newVisitor,
-        onAllow: () => _handleAllow(newVisitor.id),
-        onDeny: (reason) => _handleDeny(newVisitor.id, reason),
-      );
+      // Global bottom sheet is presented by MainNavigationShell to avoid duplicates
     });
 
     _visitorUpdatedSub = SocketService.onVisitorUpdated.listen((updatedData) {

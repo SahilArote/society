@@ -54,12 +54,16 @@ class VisitorModel {
     final rawRespondedAt = json['respondedAt'] ?? v['respondedAt'];
 
     return VisitorModel(
-      id: json['id']?.toString() ?? '',
+      id: json['requestId']?.toString() ??
+          json['request']?['id']?.toString() ??
+          json['id']?.toString() ??
+          v['id']?.toString() ??
+          '',
       name: v['name']?.toString() ?? json['name']?.toString() ?? 'Visitor',
       phone: v['mobile']?.toString() ?? v['phone']?.toString() ?? json['phone']?.toString(),
       purpose: (v['purpose'] ?? json['purpose'] ?? json['entryType'] ?? 'guest').toString(),
       visitorType: (v['visitorType'] ?? json['visitorType'] ?? 'guest').toString(),
-      status: (json['status'] ?? 'PENDING').toString().toUpperCase(),
+      status: (json['request']?['status'] ?? json['status'] ?? 'PENDING').toString().toUpperCase(),
       photoUrl: rawPhoto?.toString(),
       gate: json['gateName']?.toString() ?? json['gate']?.toString() ?? 'Main Gate',
       flatNumber: json['flatNumber']?.toString() ?? '',

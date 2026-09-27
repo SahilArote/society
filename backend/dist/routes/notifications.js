@@ -6,6 +6,34 @@ const db_1 = require("../database/db");
 const pushNotificationService_1 = require("../services/pushNotificationService");
 const router = (0, express_1.Router)();
 // =============================================================
+// POST /api/notifications/fcm-token
+// Register a mobile device FCM Token for authenticated resident
+// =============================================================
+router.post('/fcm-token', auth_1.authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { token, deviceType } = req.body;
+        if (!token) {
+            return res.status(400).json({
+                success: false,
+                error: { code: 'INVALID_INPUT', message: 'FCM token is required' },
+            });
+        }
+        await (0, pushNotificationService_1.saveFcmToken)(userId, token, deviceType || 'android');
+        return res.json({
+            success: true,
+            message: 'FCM token registered successfully',
+        });
+    }
+    catch (err) {
+        console.error('Error saving FCM token:', err);
+        return res.status(500).json({
+            success: false,
+            error: { code: 'SERVER_ERROR', message: 'Failed to save FCM token' },
+        });
+    }
+});
+// =============================================================
 // GET /api/notifications
 // Fetch in-app notifications for authenticated user
 // =============================================================

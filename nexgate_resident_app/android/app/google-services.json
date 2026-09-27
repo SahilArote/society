@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "870591240123",
+    "project_id": "society-cdb85",
+    "storage_bucket": "society-cdb85.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:870591240123:android:a1b7453dd14a497becd69e",
+        "android_client_info": {
+          "package_name": "com.nexgate.resident.nexgate_resident_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzCPgxqYlAm3CkRDY_K-LZvQKOuCiXZYE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import 'api_service.dart';
+import 'notification_service.dart';
 import 'socket_service.dart';
 import 'storage_service.dart';
 
@@ -38,10 +39,12 @@ class AuthService {
           currentUser.value = verifiedUser;
           await StorageService.saveUser(verifiedUser);
           SocketService.connect();
+          NotificationService.syncFcmToken();
           return true;
         } else if (cachedUser != null) {
           // Token still presumed valid if network hiccup
           SocketService.connect();
+          NotificationService.syncFcmToken();
           return true;
         } else {
           await logout();
@@ -50,6 +53,7 @@ class AuthService {
       } catch (_) {
         if (cachedUser != null) {
           SocketService.connect();
+          NotificationService.syncFcmToken();
           return true;
         }
         return false;
@@ -65,6 +69,7 @@ class AuthService {
     await StorageService.saveUser(user);
     currentUser.value = user;
     SocketService.connect();
+    NotificationService.syncFcmToken();
   }
 
   /// Terminates active session.
