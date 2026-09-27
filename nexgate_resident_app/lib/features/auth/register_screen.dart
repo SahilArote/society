@@ -328,7 +328,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final availableFlats = _hierarchy!.flats.where((f) {
       final wingMatches = f.wing == _selectedWing;
       final floorMatches = _selectedFloor == null || f.floor == _selectedFloor;
-      return wingMatches && floorMatches;
+      return wingMatches && floorMatches && !f.isOccupied;
     }).toList();
 
     return Column(
@@ -407,7 +407,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Text('Flat Number', style: AppTypography.sectionHeader),
         const SizedBox(height: 10),
         if (availableFlats.isEmpty)
-          const Text('No flats found on this floor', style: TextStyle(color: AppColors.mutedText))
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12.0),
+            child: Text('No vacant flats available on this floor (All units occupied)', style: TextStyle(color: AppColors.mutedText, fontStyle: FontStyle.italic)),
+          )
         else
           GridView.builder(
             shrinkWrap: true,

@@ -875,9 +875,18 @@ export async function getFlatsHierarchy(societyId: string) {
   const pool = await getMysqlPool();
   if (!pool) return { wings: [], floors: {}, flats: [] };
 
+  // Only return flats that are UNREGISTERED / UNOCCUPIED and have NO pending registration
   const [rows]: any = await pool.query(
-    'SELECT id, flat_number, wing, floor, resident_id FROM flats WHERE society_id = ? ORDER BY wing, floor, flat_number',
-    [societyId]
+    `SELECT f.id, f.flat_number, f.wing, f.floor, f.resident_id 
+     FROM flats f 
+     WHERE f.society_id = ? 
+       AND (f.resident_id IS NULL OR f.resident_id = '')
+       AND f.id NOT IN (
+         SELECT flat_id FROM resident_registrations 
+         WHERE society_id = ? AND status = 'PENDING'
+       )
+     ORDER BY f.wing, f.floor, f.flat_number`,
+    [societyId, societyId]
   );
 
   const wingsSet = new Set<string>();

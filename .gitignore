@@ -2,4 +2,7 @@
 *.log
 .DS_Store
 Thumbs.db
-*.zip
+*.apk
+**/*.apk
+NexGate_Resident_Latest.apk
+GreenGate_Guard_Latest.apk

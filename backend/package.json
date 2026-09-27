@@ -8,6 +8,7 @@
     "build": "tsc && node -e \"const fs = require('fs'); const path = require('path'); const target = path.resolve('dist/database'); if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true }); fs.copyFileSync(path.resolve('src/database/schema.sql'), path.join(target, 'schema.sql'));\"",
     "package": "npm run build && powershell -Command \"Compress-Archive -Path dist, package.json, package-lock.json, ecosystem.config.js, .env -DestinationPath backend-deploy.zip -Force\"",
     "start": "node dist/index.js",
+    "deploy:local": "powershell -ExecutionPolicy Bypass -File ./deploy-local.ps1",
     "db:migrate": "ts-node -e \"import { runMysqlMigrations } from './src/database/mysql'; runMysqlMigrations().then(() => process.exit(0));\"",
     "db:reset": "ts-node reset_and_migrate.ts"
   },

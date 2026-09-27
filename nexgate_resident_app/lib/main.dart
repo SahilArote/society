@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'core/constants/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'features/splash/splash_screen.dart';
+import 'services/notification_service.dart';
 import 'services/storage_service.dart';
 
 void main() async {
@@ -28,6 +29,9 @@ void main() async {
 
   // Initialize local persistent storage
   await StorageService.init();
+
+  // Initialize push & local notification channels
+  await NotificationService.initialize();
 
   runApp(const NexGateResidentApp());
 }

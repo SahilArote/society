@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../core/constants/api_endpoints.dart';
 import '../models/visitor_model.dart';
+import 'notification_service.dart';
 import 'storage_service.dart';
 
 /// Real-time WebSocket connection manager for NexGate Resident Mobile App.
@@ -70,13 +71,21 @@ class SocketService {
       debugPrint('[SocketService] Connection error: $err');
     });
 
-    // Inbound: Gate Guard creates a new visitor request
+    // Inbound: Gate Guard creates a new visitor request -> Trigger System Notification Alert
     _socket!.on('visitor:request_created', (data) {
       debugPrint('[SocketService] Received visitor:request_created: $data');
       if (data is Map<String, dynamic>) {
         try {
           final model = VisitorModel.fromJson(data);
           _visitorCreatedController.add(model);
+
+          // Show heads-up push alert with vibration & sound
+          NotificationService.showVisitorAlert(
+            visitorName: model.name,
+            flatNumber: model.flatNumber,
+            gateName: model.gate,
+            requestId: model.id,
+          );
         } catch (e) {
           debugPrint('[SocketService] Parsing error on visitor created: $e');
         }
@@ -88,6 +97,15 @@ class SocketService {
       debugPrint('[SocketService] Received visitor:request_updated: $data');
       if (data is Map<String, dynamic>) {
         _visitorUpdatedController.add(data);
+        final status = data['status'] ?? '';
+        final visitorName = data['visitorName'] ?? data['visitor']?['name'] ?? 'Visitor';
+        if (status.isNotEmpty) {
+          NotificationService.showGeneralNotification(
+            title: 'Gate Pass Status',
+            body: '$visitorName has been marked as $status.',
+            payload: data['requestId'],
+          );
+        }
       }
     });
 
@@ -96,6 +114,11 @@ class SocketService {
       debugPrint('[SocketService] Received resident:registration_updated: $data');
       if (data is Map<String, dynamic>) {
         _registrationUpdatedController.add(data);
+        final status = data['status'] ?? 'Updated';
+        NotificationService.showGeneralNotification(
+          title: 'Flat Registration Update',
+          body: 'Your apartment registration status is now: $status.',
+        );
       }
     });
   }

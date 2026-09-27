@@ -1,0 +1,81 @@
+name: Deploy Backend to AWS Lightsail
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy Backend (dist only)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: 🔨 Install Dependencies & Build Backend
+        working-directory: backend
+        run: |
+          echo "Installing dependencies for compilation..."
+          npm ci
+          echo "Building TypeScript to dist..."
+          npm run build
+
+      - name: 📦 Bundle Only dist & Runtime Configs
+        working-directory: backend
+        run: |
+          echo "Creating compressed tar bundle of dist & configs..."
+          tar -czf deploy.tar.gz dist package.json package-lock.json ecosystem.config.js
+          ls -lh deploy.tar.gz
+
+      - name: 🔑 Configure SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" | tr -d '\r' > ~/.ssh/lightsail.pem
+          chmod 600 ~/.ssh/lightsail.pem
+          ssh-keyscan -H ${{ secrets.LIGHTSAIL_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 🚀 Upload dist Bundle to Server
+        run: |
+          echo "Uploading deploy.tar.gz to /home/${{ secrets.LIGHTSAIL_USER }}/society/..."
+          scp -i ~/.ssh/lightsail.pem backend/deploy.tar.gz ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}:/home/${{ secrets.LIGHTSAIL_USER }}/society/deploy.tar.gz
+
+      - name: 🔄 Extract on Server & Reload PM2
+        run: |
+          ssh -i ~/.ssh/lightsail.pem ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} bash << 'EOF'
+            set -e
+            cd /home/ec2-user/society
+
+            echo "📦 Extracting new dist bundle..."
+            tar -xzf deploy.tar.gz
+            rm -f deploy.tar.gz
+
+            echo "📥 Updating production dependencies..."
+            npm ci --omit=dev
+
+            echo "🔄 Zero-downtime PM2 reload..."
+            if pm2 describe society > /dev/null 2>&1; then
+              pm2 reload society --update-env
+            else
+              pm2 start ecosystem.config.js
+            fi
+            pm2 save
+
+            echo "🩺 Verifying Backend Health..."
+            sleep 2
+            curl -f http://localhost:5001/api/health
+            echo ""
+            echo "✅ Deployment Successful! Backend is live on port 5001."
+          EOF
