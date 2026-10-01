@@ -1,0 +1,3768 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexGate & GreenGate — Smart Society Management & Gate Security</title>
+  <meta name="description"
+    content="NexGate & GreenGate: The official residential gate security and visitor management platform by NexBuild Technologies. Download the live Play Store app for instant visitor approvals, digital passes, and verified security.">
+  <meta name="keywords"
+    content="NexGate, GreenGate, society management app, resident gate security, visitor management system, digital gate pass, housing society security app, NexBuild Technologies, GreenGate Guard App">
+  <meta name="author" content="NexBuild Technologies">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="NexGate & GreenGate — Smart Society Management & Gate Security">
+  <meta property="og:description"
+    content="Official residential security app on Google Play Store. Sub-second gate approvals, digital QR passes, and guard camera verification.">
+
+  <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <!-- Official App Favicon -->
+  <link rel="icon" type="image/png" href="assets/images/logo.png">
+  <link rel="apple-touch-icon" href="assets/images/logo.png">
+
+  <style>
+    /* ============================================================
+       DESIGN SYSTEM & CSS VARIABLES (OFFICIAL FLUTTER APP PALETTE)
+       ============================================================ */
+    :root {
+      /* Official NexGate & GreenGate Design System Tokens */
+      --primary: #4f46e5;            /* AppColors.deepPurple / primary */
+      --primary-blue: #2563eb;       /* AppColors.primaryBlue */
+      --primary-purple: #6366f1;     /* AppColors.primaryPurple */
+      --primary-dark: #3730a3;       /* AppColors.primaryDark */
+      --primary-navy: #0f172a;       /* AppColors.darkBackground / primaryText */
+      --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #2563eb 100%);
+      --accent-purple: #7c3aed;      /* AppColors.secondary */
+      --accent-cyan: #06b6d4;        /* AppColors.accent (Logo Accent Dot) */
+      --accent-emerald: #059669;     /* AppColors.success */
+      --accent-rose: #dc2626;        /* AppColors.error */
+      --accent-amber: #d97706;       /* AppColors.warning */
+
+      --bg-main: #f8fafc;            /* AppColors.mainBackground */
+      --bg-card: #ffffff;            /* AppColors.surface */
+      --bg-card-subtle: #f1f5f9;     /* AppColors.surfaceLow */
+      --bg-dark: #0f172a;            /* AppColors.darkBackground */
+      --bg-dark-card: #1e293b;       /* AppColors.darkSurface */
+      --bg-dark-border: #334155;
+
+      --text-main: #0f172a;          /* AppColors.primaryText */
+      --text-secondary: #334155;     /* AppColors.textSecondary */
+      --text-muted: #64748b;         /* AppColors.mutedText */
+      --text-light: #ffffff;         /* AppColors.whiteText */
+      --text-light-muted: #94a3b8;
+
+      --border-color: #e2e8f0;       /* AppColors.border */
+      --border-focus: #c7d2fe;       /* Focus Ring */
+
+      --radius-xs: 6px;
+      --radius-sm: 10px;
+      --radius-md: 16px;
+      --radius-lg: 24px;
+      --radius-xl: 32px;
+      --radius-full: 9999px;
+
+      --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
+      --shadow-md: 0 8px 24px -4px rgba(15, 23, 42, 0.08);
+      --shadow-lg: 0 24px 48px -12px rgba(15, 23, 42, 0.14);
+      --shadow-phone: 0 30px 60px -12px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(15, 23, 42, 0.08);
+      --shadow-glow: 0 10px 28px -4px rgba(79, 70, 229, 0.32);
+
+      --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-heading: 'Outfit', 'Plus Jakarta Sans', -apple-system, sans-serif;
+
+      --transition-fast: 0.16s ease;
+      --transition-normal: 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      font-size: 16px;
+      line-height: 1.6;
+      overflow-x: hidden;
+      max-width: 100vw;
+      width: 100%;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
+      max-width: 100vw;
+      width: 100%;
+      position: relative;
+    }
+
+    header, section, footer, main {
+      max-width: 100vw;
+      overflow-x: hidden;
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ============================================================
+       NAVBAR (COMPACT & MODERN)
+       ============================================================ */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(226, 232, 240, 0.85);
+      transition: all var(--transition-normal);
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 68px;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-heading);
+    }
+
+    .brand-icon-box {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.28);
+      border: 1.5px solid rgba(226, 232, 240, 0.9);
+      background: #ffffff;
+      flex-shrink: 0;
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .brand-logo:hover .brand-icon-box {
+      transform: scale(1.05);
+      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.4);
+    }
+
+    .brand-logo-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 10px;
+      display: block;
+    }
+
+    .brand-title-wrap {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.15;
+    }
+
+    .brand-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--primary-navy);
+    }
+
+    .brand-subtitle {
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--primary);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      list-style: none;
+    }
+
+    .nav-link {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      transition: color var(--transition-fast);
+    }
+
+    .nav-link:hover {
+      color: var(--primary);
+    }
+
+    .nav-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 20px;
+      border-radius: var(--radius-full);
+      background: var(--primary-gradient);
+      color: #ffffff;
+      font-size: 0.88rem;
+      font-weight: 700;
+      box-shadow: var(--shadow-glow);
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .nav-cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 32px -4px rgba(37, 99, 235, 0.42);
+    }
+
+    .menu-toggle {
+      display: none;
+      background: rgba(15, 23, 42, 0.05);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      border-radius: 10px;
+      cursor: pointer;
+      padding: 0;
+      width: 42px;
+      height: 42px;
+      color: var(--primary-navy);
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all var(--transition-fast);
+    }
+
+    .menu-toggle:hover {
+      background: rgba(37, 99, 235, 0.08);
+      border-color: #93c5fd;
+      color: var(--primary);
+    }
+
+    /* ============================================================
+       HERO SECTION (COMPACT & FITTED ABOVE THE FOLD)
+       ============================================================ */
+    .hero-section {
+      position: relative;
+      padding: 22px 0 36px 0;
+      overflow: hidden;
+      background: radial-gradient(circle at 10% 15%, rgba(238, 242, 255, 0.95) 0%, rgba(248, 250, 252, 1) 55%, rgba(239, 246, 255, 0.65) 100%);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      align-items: center;
+      gap: 36px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 14px;
+      border-radius: var(--radius-full);
+      background: rgba(79, 70, 229, 0.08);
+      border: 1px solid rgba(79, 70, 229, 0.22);
+      color: var(--primary);
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    .pill-logo-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      object-fit: contain;
+      flex-shrink: 0;
+      box-shadow: 0 1px 4px rgba(79, 70, 229, 0.25);
+    }
+
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      animation: pulseAnim 2s infinite;
+    }
+
+    @keyframes pulseAnim {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      }
+      70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+      }
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+      }
+    }
+
+    .hero-title {
+      font-family: var(--font-heading);
+      font-size: 2.85rem;
+      font-weight: 900;
+      line-height: 1.12;
+      letter-spacing: -0.035em;
+      color: var(--primary-navy);
+      margin-bottom: 12px;
+    }
+
+    .gradient-text {
+      background: var(--primary-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 1.02rem;
+      line-height: 1.55;
+      color: var(--text-secondary);
+      margin-bottom: 22px;
+      max-width: 520px;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .btn-playstore-hero {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 22px;
+      border-radius: var(--radius-md);
+      background: #000000;
+      color: #ffffff;
+      box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.35);
+      transition: all var(--transition-fast);
+      cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-playstore-hero:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 30px -4px rgba(0, 0, 0, 0.45);
+      border-color: #3b82f6;
+    }
+
+    .play-text-col {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+      text-align: left;
+    }
+
+    .play-text-col small {
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      color: #94a3b8;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    .play-text-col strong {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: var(--radius-md);
+      background: #ffffff;
+      color: var(--text-main);
+      font-size: 0.92rem;
+      font-weight: 700;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-sm);
+      transition: all var(--transition-fast);
+      cursor: pointer;
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-card-subtle);
+      border-color: var(--border-focus);
+      transform: translateY(-2px);
+    }
+
+    .hero-trust-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .trust-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .trust-item svg {
+      width: 16px;
+      height: 16px;
+      color: var(--primary);
+    }
+
+    /* ============================================================
+       PREMIUM FLAGSHIP PHONE MOCKUP (COMPACT & BALANCED)
+       ============================================================ */
+    .hero-visual-wrap {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0;
+      min-height: 575px;
+    }
+
+    /* Screen Tab Switcher on top of phone - LOCKED 3-COL SEGMENTED PILL */
+    .mockup-switcher-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      background: rgba(15, 23, 42, 0.08);
+      backdrop-filter: blur(8px);
+      padding: 3px;
+      border-radius: var(--radius-full);
+      margin-bottom: 12px;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      z-index: 30;
+      flex-shrink: 0;
+      width: min(316px, 94vw);
+      gap: 2px;
+    }
+
+    .mockup-tab-btn {
+      padding: 6px 6px;
+      border-radius: var(--radius-full);
+      font-size: 0.7rem;
+      font-weight: 700;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      user-select: none;
+      white-space: nowrap;
+      width: 100%;
+    }
+
+    .mockup-tab-btn svg {
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
+    }
+
+    .mockup-tab-btn.active {
+      background: #ffffff;
+      color: var(--primary);
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+    }
+
+    /* Phone Shell - LOCKED ROCK SOLID DIMENSIONS */
+    .phone-flagship {
+      width: 316px;
+      height: 512px;
+      background: #0a0f1d;
+      border-radius: 44px;
+      padding: 10px;
+      box-shadow: var(--shadow-phone);
+      position: relative;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+      flex-shrink: 0;
+    }
+
+    /* Dynamic Island / Punch Hole Screen - LOCKED HEIGHT */
+    .phone-glass-screen {
+      background: #f8fafc;
+      border-radius: 34px;
+      overflow: hidden;
+      border: 2.5px solid #1e293b;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      box-sizing: border-box;
+      box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Screen Tab Scrollable/Fixed Body */
+    .phone-screen-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .phone-screen-body::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Realistic Status Bar */
+    .phone-status-bar {
+      height: 30px;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #0f172a;
+      position: relative;
+    }
+
+    .dynamic-island {
+      position: absolute;
+      top: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 86px;
+      height: 18px;
+      background: #000000;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 8px;
+    }
+
+    .island-lens {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #111e38;
+      border: 1px solid #1e293b;
+    }
+
+    .island-sensor {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #10b981;
+      opacity: 0.8;
+    }
+
+    .status-icons {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .status-icons svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    /* Real Flutter Custom AppBar */
+    .flutter-app-bar {
+      background: #ffffff;
+      padding: 8px 14px;
+      border-bottom: 1px solid #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .appbar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .resident-avatar-small {
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      background: var(--primary-gradient);
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 0.78rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+    }
+
+    .society-header-title {
+      font-size: 0.84rem;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.2;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .society-sub-flat {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    .icon-badge-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #334155;
+      position: relative;
+      border: 1px solid #e2e8f0;
+    }
+
+    .unread-dot {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 6px;
+      height: 6px;
+      background: #ef4444;
+      border-radius: 50%;
+      border: 1px solid #ffffff;
+    }
+
+    /* TAB 1: Live Urgent Gate Alert Screen */
+    .screen-tab-content {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      min-height: 100%;
+      box-sizing: border-box;
+      animation: tabFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes tabFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(3px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Exact Flutter UrgentGateAlertCard */
+    .flutter-urgent-card {
+      background: #ffffff;
+      border-radius: 16px;
+      border: 1.5px solid #fed7aa;
+      box-shadow: 0 6px 18px -4px rgba(245, 158, 11, 0.16);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .alert-header-strip {
+      background: #fffbeb;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #fef3c7;
+    }
+
+    .alert-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.64rem;
+      font-weight: 800;
+      color: #b45309;
+      letter-spacing: 0.05em;
+    }
+
+    .gate-pill-badge {
+      background: #ffffff;
+      border: 1px solid #fde68a;
+      border-radius: 5px;
+      padding: 1px 6px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: #92400e;
+    }
+
+    .visitor-content-body {
+      padding: 8px 10px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .visitor-photo-box {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      overflow: hidden;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .visitor-photo-box svg {
+      width: 24px;
+      height: 24px;
+      color: #2563eb;
+    }
+
+    .visitor-text-col {
+      flex-grow: 1;
+      overflow: hidden;
+    }
+
+    .visitor-text-col h4 {
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.2;
+      margin-bottom: 2px;
+    }
+
+    .visitor-badge-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .purpose-badge {
+      background: #f5f3ff;
+      color: #7c3aed;
+      font-size: 0.6rem;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+    }
+
+    .company-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #334155;
+    }
+
+    .gate-meta-box {
+      background: #f8fafc;
+      border-radius: 8px;
+      margin: 0 10px 8px 10px;
+      padding: 6px 8px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      border: 1px solid #f1f5f9;
+      font-size: 0.62rem;
+    }
+
+    .meta-pair span {
+      color: #64748b;
+      display: block;
+    }
+
+    .meta-pair strong {
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    .card-actions-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 0 10px 10px 10px;
+    }
+
+    .btn-flutter-deny {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+      border-radius: 9px;
+      padding: 8px 0;
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .btn-flutter-deny:hover {
+      background: #fecaca;
+    }
+
+    .btn-flutter-allow {
+      background: #10b981;
+      color: #ffffff;
+      border: none;
+      border-radius: 9px;
+      padding: 8px 0;
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      box-shadow: 0 3px 8px rgba(16, 185, 129, 0.35);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .btn-flutter-allow:hover {
+      background: #059669;
+    }
+
+    .phone-toast {
+      display: none;
+      background: #0f172a;
+      color: #ffffff;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 7px;
+      text-align: center;
+      margin: 0 10px 8px 10px;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Quick Actions 4-Grid */
+    .quick-actions-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .quick-act-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 6px 2px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform var(--transition-fast);
+    }
+
+    .quick-act-card:hover {
+      transform: translateY(-2px);
+      border-color: #93c5fd;
+    }
+
+    .act-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      margin: 0 auto 3px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .act-icon svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .quick-act-card span {
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: #1e293b;
+      display: block;
+    }
+
+    /* Security Status Banner */
+    .security-status-strip {
+      background: #ffffff;
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+      padding: 7px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .shield-badge {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: #ecfdf5;
+      color: #059669;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .shield-badge svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    .status-txt-wrap h6 {
+      font-size: 0.68rem;
+      font-weight: 800;
+      color: #0f172a;
+    }
+
+    .status-txt-wrap p {
+      font-size: 0.58rem;
+      color: #64748b;
+    }
+
+    /* Flutter Bottom Navigation Bar */
+    .flutter-bottom-nav {
+      background: #ffffff;
+      border-top: 1px solid #f1f5f9;
+      padding: 6px 12px 8px 12px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      text-align: center;
+      margin-top: auto;
+      flex-shrink: 0;
+    }
+
+    .nav-tab-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      color: #64748b;
+      font-size: 0.58rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: color var(--transition-fast);
+      user-select: none;
+    }
+
+    .nav-tab-item svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .nav-tab-item.active {
+      color: var(--primary);
+    }
+
+    /* TAB 2: Digital Pass Screen */
+    .screen-tab-qr {
+      display: none;
+      padding: 10px;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 100%;
+      box-sizing: border-box;
+      animation: tabFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .qr-card-view {
+      background: #ffffff;
+      border-radius: 14px;
+      padding: 12px 14px;
+      border: 1px solid #e2e8f0;
+      box-shadow: var(--shadow-sm);
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .qr-code-box {
+      width: 116px;
+      height: 116px;
+      margin: 6px auto;
+      border-radius: 10px;
+      border: 2px dashed #3b82f6;
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* TAB 3: Household Management Screen */
+    .screen-tab-household {
+      display: none;
+      padding: 10px;
+      flex-direction: column;
+      gap: 7px;
+      width: 100%;
+      min-height: 100%;
+      box-sizing: border-box;
+      animation: tabFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .household-item {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-sizing: border-box;
+    }
+    /* Phone Mockup Layout Spacing */
+
+    /* ============================================================
+       STATS / METRICS BAR (ELEVATED & IMPACTFUL)
+       ============================================================ */
+    .stats-section {
+      background: #ffffff;
+      border-top: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      padding: 38px 0;
+      position: relative;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    .stat-card-box {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      padding: 20px 18px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 4px 14px -3px rgba(15, 23, 42, 0.05);
+      transition: all var(--transition-fast);
+    }
+
+    .stat-card-box:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 28px -6px rgba(37, 99, 235, 0.14);
+      border-color: #93c5fd;
+    }
+
+    .stat-icon-wrap {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .stat-content-col {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-number {
+      font-family: var(--font-heading);
+      font-size: 2.1rem;
+      font-weight: 800;
+      color: var(--primary-navy);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+
+    .stat-label {
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 2px;
+    }
+
+    /* ============================================================
+       SECTION COMMONS
+       ============================================================ */
+    .section-padding {
+      padding: 88px 0;
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 720px;
+      margin: 0 auto 54px auto;
+    }
+
+    .section-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.76rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--primary);
+      background: #eff6ff;
+      padding: 5px 14px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(37, 99, 235, 0.2);
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-family: var(--font-heading);
+      font-size: 2.5rem;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      color: var(--primary-navy);
+      line-height: 1.18;
+      margin-bottom: 14px;
+    }
+
+    .section-desc {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      line-height: 1.65;
+    }
+
+    /* ============================================================
+       ABOUT THE ECOSYSTEM (HIGH-TECH ARCHITECTURE SHOWCASE)
+       ============================================================ */
+    .about-ecosystem-card {
+      background: linear-gradient(145deg, #090e1a 0%, #0d1527 60%, #111d38 100%);
+      border-radius: 30px;
+      color: var(--text-light);
+      padding: 54px 48px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(59, 130, 246, 0.28);
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.4);
+    }
+
+    .about-ecosystem-card::before {
+      content: '';
+      position: absolute;
+      top: -160px;
+      right: -160px;
+      width: 480px;
+      height: 480px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(37, 99, 235, 0.35) 0%, rgba(15, 23, 42, 0) 70%);
+      pointer-events: none;
+    }
+
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.08fr;
+      gap: 50px;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .about-title {
+      font-family: var(--font-heading);
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 18px;
+      color: #ffffff;
+    }
+
+    .about-desc {
+      font-size: 0.98rem;
+      line-height: 1.7;
+      color: #cbd5e1;
+      margin-bottom: 24px;
+    }
+
+    .company-stamp {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 20px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius-md);
+      margin-top: 6px;
+    }
+
+    .company-stamp strong {
+      color: #ffffff;
+      font-size: 0.94rem;
+      display: block;
+    }
+
+    .company-stamp span {
+      display: block;
+      color: #94a3b8;
+      font-size: 0.78rem;
+    }
+
+    .pillars-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .pillar-box {
+      background: rgba(17, 24, 39, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 18px;
+      padding: 20px 22px;
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      transition: all var(--transition-fast);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .pillar-box:hover {
+      transform: translateX(6px);
+      border-color: rgba(59, 130, 246, 0.6);
+      background: rgba(17, 24, 39, 0.95);
+      box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.25);
+    }
+
+    .pillar-badge-top {
+      position: absolute;
+      top: 14px;
+      right: 18px;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 6px;
+    }
+
+    .pillar-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: rgba(37, 99, 235, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #60a5fa;
+      flex-shrink: 0;
+    }
+
+    .pillar-content h5 {
+      font-size: 1.02rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .pillar-content p {
+      font-size: 0.84rem;
+      color: #94a3b8;
+      line-height: 1.55;
+    }
+
+    /* Sub-Second Realtime Event Pipeline (Architecture Card) */
+    .sync-pipeline-card {
+      margin-top: 24px;
+      padding: 16px 20px;
+      border-radius: 16px;
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(6, 182, 212, 0.28);
+      box-shadow: inset 0 0 20px rgba(6, 182, 212, 0.05);
+    }
+
+    .pipeline-title {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #06b6d4;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+
+    .pipeline-flow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .pipeline-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #ffffff;
+      text-align: center;
+    }
+
+    .pipeline-node .p-icon {
+      font-size: 1.15rem;
+    }
+
+    .pipeline-arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      flex: 1;
+    }
+
+    .p-latency {
+      font-size: 0.62rem;
+      font-weight: 800;
+      color: #a5f3fc;
+      font-family: monospace;
+    }
+
+    /* ============================================================
+       APP FEATURES (MODERN SaaS CARDS)
+       ============================================================ */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 28px;
+    }
+
+    .feature-card {
+      background: #ffffff;
+      border-radius: 22px;
+      padding: 34px 28px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 18px -4px rgba(15, 23, 42, 0.06);
+      transition: all var(--transition-normal);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+      opacity: 0;
+      transition: opacity var(--transition-fast);
+    }
+
+    .feature-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 40px -10px rgba(37, 99, 235, 0.16);
+      border-color: #93c5fd;
+    }
+
+    .feature-card:hover::before {
+      opacity: 1;
+    }
+
+    .feature-icon-wrap {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 22px;
+      transition: transform var(--transition-fast);
+    }
+
+    .feature-card:hover .feature-icon-wrap {
+      transform: scale(1.08);
+    }
+
+    .icon-blue {
+      background: #eff6ff;
+      color: #2563eb;
+    }
+
+    .icon-purple {
+      background: #f5f3ff;
+      color: #7c3aed;
+    }
+
+    .icon-emerald {
+      background: #ecfdf5;
+      color: #059669;
+    }
+
+    .icon-amber {
+      background: #fffbeb;
+      color: #d97706;
+    }
+
+    .icon-rose {
+      background: #fff1f2;
+      color: #e11d48;
+    }
+
+    .icon-indigo {
+      background: #eef2ff;
+      color: #4f46e5;
+    }
+
+    .feature-card h3 {
+      font-family: var(--font-heading);
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--primary-navy);
+      margin-bottom: 10px;
+      line-height: 1.3;
+    }
+
+    .feature-card p {
+      font-size: 0.94rem;
+      color: var(--text-secondary);
+      line-height: 1.62;
+      flex-grow: 1;
+      margin-bottom: 20px;
+    }
+
+    .feature-tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      padding-top: 14px;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    .feature-micro-tag {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #f8fafc;
+      color: #334155;
+      border: 1px solid #e2e8f0;
+    }
+
+    /* ============================================================
+       HOW TO USE THE APP (CONNECTED TIMELINE)
+       ============================================================ */
+    .steps-section {
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      border-top: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      position: relative;
+    }
+
+    .steps-container {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      position: relative;
+    }
+
+    .step-card {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 22px;
+      padding: 32px 24px;
+      transition: all var(--transition-normal);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: 0 4px 14px -3px rgba(15, 23, 42, 0.05);
+    }
+
+    .step-card:hover {
+      background: #ffffff;
+      transform: translateY(-5px);
+      box-shadow: 0 16px 32px -6px rgba(15, 23, 42, 0.1);
+      border-color: #93c5fd;
+    }
+
+    .step-badge {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: var(--primary-gradient);
+      color: #ffffff;
+      font-family: var(--font-heading);
+      font-size: 1.15rem;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+      margin-bottom: 20px;
+    }
+
+    .step-card h4 {
+      font-family: var(--font-heading);
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--primary-navy);
+      margin-bottom: 10px;
+      line-height: 1.3;
+    }
+
+    .step-card p {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      flex-grow: 1;
+    }
+
+    .step-highlight {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 16px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    /* ============================================================
+       SECURITY & PLAY STORE COMPLIANCE
+       ============================================================ */
+    .compliance-card {
+      background: #ffffff;
+      border-radius: 30px;
+      border: 1px solid var(--border-color);
+      padding: 50px;
+      box-shadow: 0 12px 36px -6px rgba(15, 23, 42, 0.08);
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 44px;
+      align-items: center;
+    }
+
+    .compliance-content h3 {
+      font-family: var(--font-heading);
+      font-size: 2.1rem;
+      font-weight: 800;
+      color: var(--primary-navy);
+      margin-bottom: 14px;
+      line-height: 1.22;
+    }
+
+    .compliance-content p {
+      font-size: 0.98rem;
+      color: var(--text-secondary);
+      line-height: 1.68;
+      margin-bottom: 26px;
+    }
+
+    .compliance-badges {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .c-badge {
+      background: #f8fafc;
+      border-radius: 14px;
+      padding: 16px 18px;
+      border: 1px solid var(--border-color);
+      font-size: 0.86rem;
+      font-weight: 700;
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all var(--transition-fast);
+    }
+
+    .c-badge:hover {
+      background: #ffffff;
+      border-color: #93c5fd;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px -4px rgba(37, 99, 235, 0.12);
+    }
+
+    .c-badge svg {
+      width: 20px;
+      height: 20px;
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+
+    .policy-box-callout {
+      background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%);
+      border-radius: 22px;
+      padding: 34px 28px;
+      border: 1px solid #bfdbfe;
+      text-align: center;
+      box-shadow: 0 8px 20px -4px rgba(37, 99, 235, 0.15);
+    }
+
+    .policy-box-callout h4 {
+      font-family: var(--font-heading);
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: #1e3a8a;
+      margin-bottom: 10px;
+    }
+
+    .policy-box-callout p {
+      font-size: 0.88rem;
+      color: #1e40af;
+      margin-bottom: 22px;
+      line-height: 1.55;
+    }
+
+    .btn-policy {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 12px;
+      background: #1e40af;
+      color: #ffffff;
+      font-size: 0.92rem;
+      font-weight: 800;
+      transition: all var(--transition-fast);
+      box-shadow: 0 4px 14px rgba(30, 64, 175, 0.3);
+    }
+
+    .btn-policy:hover {
+      background: #1d4ed8;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(30, 64, 175, 0.4);
+    }
+
+    /* ============================================================
+       FAQ ACCORDION
+       ============================================================ */
+    .faq-section {
+      background: #ffffff;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .faq-wrapper {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .faq-item {
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      margin-bottom: 14px;
+      background: #ffffff;
+      overflow: hidden;
+      transition: all var(--transition-fast);
+    }
+
+    .faq-item:hover {
+      border-color: #cbd5e1;
+    }
+
+    .faq-item.active {
+      border-color: #3b82f6;
+      box-shadow: 0 8px 24px -4px rgba(37, 99, 235, 0.12);
+    }
+
+    .faq-question {
+      padding: 20px 24px;
+      font-family: var(--font-heading);
+      font-size: 1.08rem;
+      font-weight: 800;
+      color: var(--primary-navy);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      gap: 14px;
+    }
+
+    .faq-chevron {
+      width: 20px;
+      height: 20px;
+      color: #64748b;
+      transition: transform var(--transition-fast);
+      flex-shrink: 0;
+    }
+
+    .faq-item.active .faq-chevron {
+      transform: rotate(180deg);
+      color: var(--primary);
+    }
+
+    .faq-answer {
+      display: none;
+      padding: 0 24px 22px 24px;
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: var(--text-secondary);
+      border-top: 1px solid #f1f5f9;
+      padding-top: 16px;
+    }
+
+    .faq-item.active .faq-answer {
+      display: block;
+    }
+
+    /* ============================================================
+       DOWNLOAD CTA SECTION (HIGH-CONVERSION BANNER)
+       ============================================================ */
+    .download-cta-section {
+      background: radial-gradient(circle at 50% 25%, #4f46e5 0%, #1e1b4b 65%, #0f172a 100%);
+      color: #ffffff;
+      position: relative;
+      overflow: hidden;
+      padding: 92px 0;
+    }
+
+    .download-cta-section::before {
+      content: '';
+      position: absolute;
+      top: -100px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 300px;
+      background: radial-gradient(ellipse, rgba(99, 102, 241, 0.35), transparent 70%);
+      pointer-events: none;
+    }
+
+    /* ============================================================
+       FOOTER (4-COLUMN TECH ENTERPRISE)
+       ============================================================ */
+    footer {
+      background: var(--bg-dark);
+      color: #94a3b8;
+      padding: 72px 0 34px 0;
+      border-top: 1px solid var(--bg-dark-card);
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 0.9fr 0.9fr 1.1fr;
+      gap: 40px;
+      margin-bottom: 48px;
+    }
+
+    .footer-brand-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .footer-logo-img {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      object-fit: contain;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+      background: #ffffff;
+      padding: 2px;
+      flex-shrink: 0;
+    }
+
+    .footer-brand-subtitle {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #818cf8;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .footer-brand h4 {
+      font-family: var(--font-heading);
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    .footer-brand p {
+      font-size: 0.88rem;
+      line-height: 1.65;
+      color: #94a3b8;
+      max-width: 360px;
+      margin-bottom: 16px;
+    }
+
+    .footer-title {
+      font-family: var(--font-heading);
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 16px;
+      letter-spacing: 0.02em;
+    }
+
+    .footer-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 0.88rem;
+    }
+
+    .footer-list a {
+      color: #94a3b8;
+      transition: color var(--transition-fast);
+    }
+
+    .footer-list a:hover {
+      color: #ffffff;
+    }
+
+    .footer-contact-card {
+      background: #111827;
+      border-radius: 14px;
+      padding: 18px 20px;
+      border: 1px solid #1f2937;
+      font-size: 0.84rem;
+      line-height: 1.65;
+      color: #cbd5e1;
+    }
+
+    .footer-contact-card strong {
+      color: #ffffff;
+    }
+
+    .footer-contact-card a {
+      color: #818cf8;
+      word-break: break-all;
+    }
+
+    .footer-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 30px;
+      border-top: 1px solid #1e293b;
+      font-size: 0.82rem;
+      color: #64748b;
+    }
+
+    .footer-legal-links {
+      display: flex;
+      gap: 20px;
+    }
+
+    .footer-legal-links a:hover {
+      color: #ffffff;
+    }
+
+    /* Floating Back to Top Button */
+    .back-to-top-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: #0f172a;
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.35);
+      cursor: pointer;
+      z-index: 999;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(12px);
+      transition: all 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .back-to-top-btn.visible {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .back-to-top-btn:hover {
+      background: var(--primary);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 28px rgba(79, 70, 229, 0.45);
+    }
+
+    /* ============================================================
+       RESPONSIVE DESIGN (DESKTOP, TABLET & MOBILE)
+       ============================================================ */
+    @media (max-width: 1100px) {
+      .footer-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+      }
+    }
+
+    @media (max-width: 1024px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+        gap: 40px;
+        text-align: center;
+      }
+
+      .hero-subtitle {
+        margin: 0 auto 22px auto;
+      }
+
+      .hero-actions {
+        justify-content: center;
+      }
+
+      .hero-trust-row {
+        justify-content: center;
+      }
+
+      .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .steps-container {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .about-grid {
+        grid-template-columns: 1fr;
+        gap: 36px;
+      }
+
+      .compliance-card {
+        grid-template-columns: 1fr;
+        gap: 32px;
+      }
+    }
+
+    /* ============================================================
+       MOBILE NAVBAR DROPDOWN (INSIDE HEADER, 100% RELIABLE)
+       ============================================================ */
+    .mobile-dropdown-menu {
+      display: none;
+      width: 100%;
+      background: #ffffff;
+      border-top: 1px solid #e2e8f0;
+      box-shadow: 0 20px 40px -8px rgba(15, 23, 42, 0.22);
+    }
+
+    .navbar.nav-open .mobile-dropdown-menu {
+      display: block !important;
+      animation: navSlideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes navSlideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .navbar.nav-open #burgerSvg {
+      display: none !important;
+    }
+
+    .navbar.nav-open #closeSvg {
+      display: block !important;
+    }
+
+    .mobile-menu-container {
+      padding: 10px 16px 20px 16px;
+      max-height: calc(100vh - 75px);
+      max-height: calc(100dvh - 75px);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .mob-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      border-radius: 10px;
+      color: #1e293b;
+      transition: all var(--transition-fast);
+      text-decoration: none;
+      border: 1px solid transparent;
+    }
+
+    .mob-menu-item:hover,
+    .mob-menu-item:active {
+      background: #f1f5f9;
+      color: var(--primary);
+      border-color: #e2e8f0;
+    }
+
+    .mob-svg {
+      width: 18px;
+      height: 18px;
+      color: #64748b;
+      flex-shrink: 0;
+      transition: color var(--transition-fast);
+    }
+
+    .mob-menu-item:hover .mob-svg {
+      color: var(--primary);
+    }
+
+    .mob-title {
+      font-size: 0.94rem;
+      font-weight: 700;
+      color: inherit;
+      flex: 1;
+    }
+
+    .mob-chevron {
+      color: #cbd5e1;
+      transition: transform var(--transition-fast), color var(--transition-fast);
+      flex-shrink: 0;
+    }
+
+    .mob-menu-item:hover .mob-chevron {
+      transform: translateX(3px);
+      color: var(--primary);
+    }
+
+    .mob-cta-box {
+      margin-top: 10px;
+      padding-top: 12px;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    .mob-play-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 12px 18px;
+      border-radius: 12px;
+      background: #000000;
+      color: #ffffff;
+      font-size: 0.92rem;
+      font-weight: 700;
+      font-family: var(--font-heading);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+      transition: all var(--transition-fast);
+      text-decoration: none;
+    }
+
+    .mob-play-btn:hover {
+      background: #1e293b;
+      transform: translateY(-1px);
+    }
+
+    /* ============================================================
+       RESPONSIVE DESIGN (DESKTOP, TABLET & MOBILE)
+       ============================================================ */
+    @media (max-width: 1100px) {
+      .footer-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+      }
+    }
+
+    @media (max-width: 1024px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+        gap: 40px;
+        text-align: center;
+      }
+
+      .hero-subtitle {
+        margin: 0 auto 22px auto;
+      }
+
+      .hero-actions {
+        justify-content: center;
+      }
+
+      .hero-trust-row {
+        justify-content: center;
+      }
+
+      .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .steps-container {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .about-grid {
+        grid-template-columns: 1fr;
+        gap: 36px;
+      }
+
+      .compliance-card {
+        grid-template-columns: 1fr;
+        gap: 32px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .nav-links {
+        display: none !important;
+      }
+
+      .menu-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: auto;
+      }
+
+      .container {
+        padding: 0 16px;
+      }
+
+      .nav-inner {
+        height: 64px;
+        gap: 12px;
+      }
+
+      .brand-logo {
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .brand-title {
+        font-size: 1.2rem;
+      }
+
+      .brand-subtitle {
+        font-size: 0.58rem;
+        letter-spacing: 0.05em;
+      }
+
+      .hero-title {
+        font-size: 2.25rem;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .steps-container {
+        grid-template-columns: 1fr;
+      }
+
+      .compliance-badges {
+        grid-template-columns: 1fr;
+      }
+
+      .about-ecosystem-card {
+        padding: 36px 20px;
+      }
+
+      .compliance-card {
+        padding: 32px 18px;
+      }
+
+      .footer-grid {
+        grid-template-columns: 1fr;
+        gap: 28px;
+      }
+
+      .footer-bottom {
+        flex-direction: column;
+        gap: 14px;
+        text-align: center;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .container {
+        padding: 0 14px;
+      }
+
+      .section-padding {
+        padding: 56px 0;
+      }
+
+      .hero-section {
+        padding: 16px 0 28px 0;
+      }
+
+      .hero-badge-pill {
+        font-size: 0.72rem;
+        padding: 4px 10px;
+        max-width: 100%;
+        white-space: normal;
+        text-align: left;
+      }
+
+      .hero-title {
+        font-size: 1.85rem;
+        line-height: 1.2;
+      }
+
+      .hero-subtitle {
+        font-size: 0.88rem;
+        margin-bottom: 18px;
+      }
+
+      .hero-actions {
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+      }
+
+      .btn-playstore-hero,
+      .btn-secondary {
+        width: 100%;
+        justify-content: center;
+        padding: 11px 18px;
+      }
+
+      .hero-trust-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .hero-visual-wrap {
+        width: 100%;
+        min-height: auto;
+        margin-top: 10px;
+      }
+
+      .mockup-switcher-bar {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        width: 100%;
+        max-width: 316px;
+        padding: 3px;
+        gap: 2px;
+        margin-bottom: 10px;
+      }
+
+      .mockup-tab-btn {
+        padding: 5px 3px;
+        font-size: 0.64rem;
+        gap: 3px;
+      }
+
+      .mockup-tab-btn svg {
+        width: 11px;
+        height: 11px;
+        flex-shrink: 0;
+      }
+
+      .phone-flagship {
+        width: min(316px, calc(100vw - 32px));
+        height: 500px;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .stat-card-box {
+        padding: 16px;
+      }
+
+      .about-ecosystem-card {
+        padding: 26px 16px;
+        border-radius: 20px;
+      }
+
+      .about-title {
+        font-size: 1.85rem;
+      }
+
+      .pillar-box {
+        padding: 16px 14px;
+        gap: 12px;
+      }
+
+      .feature-card {
+        padding: 24px 18px;
+        border-radius: 18px;
+      }
+
+      .step-card {
+        padding: 24px 18px;
+        border-radius: 18px;
+      }
+
+      .compliance-card {
+        padding: 24px 16px;
+        border-radius: 20px;
+      }
+
+      .faq-question {
+        padding: 16px 18px;
+        font-size: 0.98rem;
+      }
+
+      .faq-answer {
+        padding: 0 18px 18px 18px;
+        font-size: 0.88rem;
+      }
+
+      .download-cta-section {
+        padding: 56px 0;
+      }
+
+      .cta-box-card {
+        padding: 36px 16px;
+        border-radius: 22px;
+      }
+
+      .cta-title {
+        font-size: 1.85rem;
+      }
+
+      footer {
+        padding: 48px 0 24px 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ============================================================
+       TOP NAVBAR WITH DIRECT MOBILE DROPDOWN
+       ============================================================ -->
+  <header class="navbar" id="topNav">
+    <div class="container nav-inner">
+      <a href="#" class="brand-logo" aria-label="NexGate Home">
+        <div class="brand-icon-box">
+          <img src="assets/images/logo.png" alt="NexGate Logo" class="brand-logo-img" onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
+        </div>
+        <div class="brand-title-wrap">
+          <span class="brand-title">NexGate</span>
+          <span class="brand-subtitle">by NexBuild Technologies</span>
+        </div>
+      </a>
+
+      <!-- Desktop Nav Links -->
+      <nav class="desktop-nav-wrap">
+        <ul class="nav-links" id="navLinks">
+          <li><a href="#about" class="nav-link">About</a></li>
+          <li><a href="#features" class="nav-link">Features</a></li>
+          <li><a href="#how-it-works" class="nav-link">How It Works</a></li>
+          <li><a href="#security" class="nav-link">Security</a></li>
+          <li><a href="#faq" class="nav-link">FAQs</a></li>
+          <li><a href="privacy-policy.html" class="nav-link" target="_blank">Privacy</a></li>
+          <li>
+            <!-- Direct Google Play Store Download Button -->
+            <a href="https://play.google.com/store/apps/details?id=com.greengate.guard.greengate_guard_app"
+              target="_blank" rel="noopener noreferrer" class="nav-cta" id="navDownloadBtn">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M3.609 1.814L13.793 12 3.61 22.186c-.347-.35-.558-.871-.558-1.503V3.317c0-.632.211-1.153.557-1.503zM15.207 13.414l2.586 2.586-11.47 6.623 8.884-9.209zm0-2.828L6.323 1.377l11.47 6.623-2.586 2.586zm1.414 1.414l3.774 2.18c.942.544.942 1.43 0 1.974l-3.774 2.18-2.121-2.121 2.121-2.213z" />
+              </svg>
+              <span>Download App</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+
+      <!-- Mobile Hamburger / Close Button -->
+      <button class="menu-toggle" id="menuToggle" onclick="toggleNavDropdown()" aria-label="Toggle navigation menu">
+        <svg id="burgerSvg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+        <svg id="closeSvg" style="display:none;" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Mobile Navigation Dropdown (Directly drops down from header) -->
+    <div class="mobile-dropdown-menu" id="mobileDropdownMenu">
+      <div class="mobile-menu-container">
+        <!-- Official Mobile Brand Header -->
+        <div style="display: flex; align-items: center; gap: 10px; padding: 6px 14px 12px 14px; border-bottom: 1px solid #f1f5f9; margin-bottom: 6px;">
+          <img src="assets/images/logo.png" alt="NexGate Logo" style="width: 32px; height: 32px; border-radius: 9px; object-fit: contain; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25); background: #ffffff;" onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
+          <div>
+            <div style="font-weight: 800; font-size: 1.05rem; color: #0f172a; line-height: 1.15;">NexGate</div>
+            <div style="font-size: 0.62rem; font-weight: 700; color: #4f46e5; text-transform: uppercase; letter-spacing: 0.06em;">by NexBuild Technologies</div>
+          </div>
+        </div>
+
+        <a href="#about" class="mob-menu-item" onclick="closeNavDropdown()">
+          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
+            <path d="M9 22v-4h6v4"/>
+            <path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/>
+            <path d="M12 10h.01"/><path d="M12 14h.01"/>
+            <path d="M16 10h.01"/><path d="M16 14h.01"/>
+          </svg>
+          <span class="mob-title">About</span>
+          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+
+        <a href="#features" class="mob-menu-item" onclick="closeNavDropdown()">
+          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+          <span class="mob-title">Features</span>
+          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+
+        <a href="#how-it-works" class="mob-menu-item" onclick="closeNavDropdown()">
+          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polygon points="10 8 16 12 10 16 10 8"/>
+          </svg>
+          <span class="mob-title">How It Works</span>
+          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+
+        <a href="#security" class="mob-menu-item" onclick="closeNavDropdown()">
+          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <span class="mob-title">Security & Privacy</span>
+          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+
+        <a href="#faq" class="mob-menu-item" onclick="closeNavDropdown()">
+          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span class="mob-title">FAQs</span>
+          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+
+        <a href="privacy-policy.html" target="_blank" class="mob-menu-item" onclick="closeNavDropdown()">
+          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+          <span class="mob-title">Privacy Policy</span>
+          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+
+        <div class="mob-cta-box">
+          <a href="https://play.google.com/store/apps/details?id=com.greengate.guard.greengate_guard_app"
+            target="_blank" rel="noopener noreferrer" class="mob-play-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3.609 1.814L13.793 12 3.61 22.186c-.347-.35-.558-.871-.558-1.503V3.317c0-.632.211-1.153.557-1.503zM15.207 13.414l2.586 2.586-11.47 6.623 8.884-9.209zm0-2.828L6.323 1.377l11.47 6.623-2.586 2.586zm1.414 1.414l3.774 2.18c.942.544.942 1.43 0 1.974l-3.774 2.18-2.121-2.121 2.121-2.213z" />
+            </svg>
+            <span>Download on Google Play</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       HERO SECTION WITH ACCURATE FLUTTER RESIDENT APP MOCKUP
+       ============================================================ -->
+  <section class="hero-section">
+    <div class="container hero-grid">
+      <div class="hero-content">
+        <div class="hero-badge-pill">
+          <img src="assets/images/logo.png" alt="NexGate Logo" class="pill-logo-icon" onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
+          <span class="pulse-dot"></span>
+          <span>Official App &bull; NexGate &amp; GreenGate</span>
+        </div>
+
+        <h1 class="hero-title">
+          Smart Gate Access & <span class="gradient-text">Visitor Security</span> For Modern Housing
+        </h1>
+
+        <p class="hero-subtitle">
+          NexGate transforms society gate management with <strong>sub-second visitor approvals</strong>, digital QR visitor
+          passes, household family management, and real-time security guard cross-verification.
+        </p>
+
+        <div class="hero-actions">
+          <!-- Primary Play Store Button -->
+          <a href="https://play.google.com/store/apps/details?id=com.greengate.guard.greengate_guard_app" target="_blank"
+            rel="noopener noreferrer" class="btn-playstore-hero" id="heroPlayStoreBtn">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M3.609 1.814L13.793 12 3.61 22.186c-.347-.35-.558-.871-.558-1.503V3.317c0-.632.211-1.153.557-1.503zM15.207 13.414l2.586 2.586-11.47 6.623 8.884-9.209zm0-2.828L6.323 1.377l11.47 6.623-2.586 2.586zm1.414 1.414l3.774 2.18c.942.544.942 1.43 0 1.974l-3.774 2.18-2.121-2.121 2.121-2.213z" />
+            </svg>
+            <div class="play-text-col">
+              <small>GET IT ON</small>
+              <strong>Google Play</strong>
+            </div>
+          </a>
+
+          <!-- How to Use Link -->
+          <a href="#how-it-works" class="btn-secondary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polygon points="10 8 16 12 10 16 10 8" />
+            </svg>
+            <span>How It Works</span>
+          </a>
+        </div>
+
+        <div class="hero-trust-row">
+          <div class="trust-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            <span>Play Store Certified</span>
+          </div>
+
+          <div class="trust-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+            <span>Sub-Second Gate Sync</span>
+          </div>
+
+          <div class="trust-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            <span>Encrypted Photo Vault</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hero Visual: ACCURATE FLUTTER RESIDENT APP MOCKUP (COMPACT & BALANCED) -->
+      <div class="hero-visual-wrap">
+        <!-- Interactive Screen Switcher on top (Locked 3-Column Pill) -->
+        <div class="mockup-switcher-bar">
+          <button class="mockup-tab-btn active" id="tabAlertBtn" onclick="switchMockupTab('alert')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            <span>Gate Alert</span>
+          </button>
+          <button class="mockup-tab-btn" id="tabQrBtn" onclick="switchMockupTab('qr')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <rect x="7" y="7" width="3" height="3" />
+            </svg>
+            <span>Digital Pass</span>
+          </button>
+          <button class="mockup-tab-btn" id="tabHouseBtn" onclick="switchMockupTab('household')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+            </svg>
+            <span>Family & Cars</span>
+          </button>
+        </div>
+
+        <!-- Flagship Smartphone Frame -->
+        <div class="phone-flagship">
+          <div class="phone-glass-screen">
+
+            <!-- Realistic Status Bar with Dynamic Island -->
+            <div class="phone-status-bar">
+              <span>09:41</span>
+              <div class="dynamic-island">
+                <div class="island-lens"></div>
+                <div class="island-sensor"></div>
+              </div>
+              <div class="status-icons">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9z"/>
+                </svg>
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="2" y="7" width="18" height="11" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <rect x="4" y="9" width="12" height="7" fill="currentColor"/>
+                </svg>
+              </div>
+            </div>
+
+            <!-- Custom Flutter AppBar -->
+            <div class="flutter-app-bar">
+              <div class="appbar-left">
+                <div class="resident-avatar-small">TJ</div>
+                <div>
+                  <div class="society-header-title">
+                    <span>Callalily CHS Ltd</span>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="#2563eb">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                  </div>
+                  <div class="society-sub-flat">Flat A-402 &bull; Tushal Jadhav</div>
+                </div>
+              </div>
+              <div class="icon-badge-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                <span class="unread-dot"></span>
+              </div>
+            </div>
+
+            <!-- Screen Scrollable/Fixed Body -->
+            <div class="phone-screen-body">
+              <!-- TAB 1: Live Urgent Gate Alert Screen (Exact UrgentGateAlertCard) -->
+              <div class="screen-tab-content" id="screenTabAlert">
+                <!-- UrgentGateAlertCard -->
+                <div class="flutter-urgent-card">
+                  <div class="alert-header-strip">
+                    <div class="alert-title-wrap">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="#d97706">
+                        <path d="M12 2a4 4 0 0 0-4 4v3.2A6 6 0 0 0 6 15v2h12v-2a6 6 0 0 0-2-5.8V6a4 4 0 0 0-4-4z"/>
+                      </svg>
+                      <span>VISITOR WAITING AT GATE</span>
+                    </div>
+                    <span class="gate-pill-badge">Main Gate 1</span>
+                  </div>
+
+                  <div class="visitor-content-body">
+                    <div class="visitor-photo-box">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </div>
+                    <div class="visitor-text-col">
+                      <h4>Ramesh Kumar</h4>
+                      <div class="visitor-badge-row">
+                        <span class="purpose-badge">DELIVERY</span>
+                        <span class="company-label">Zomato Food Order</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="gate-meta-box">
+                    <div class="meta-pair">
+                      <span>Guard On Duty</span>
+                      <strong>Suresh Shinde</strong>
+                    </div>
+                    <div class="meta-pair">
+                      <span>Vehicle No.</span>
+                      <strong>MH-12-AB-3921</strong>
+                    </div>
+                  </div>
+
+                  <div class="card-actions-row">
+                    <button class="btn-flutter-deny" id="mockDenyBtn" onclick="handleMockDecision('denied')">Deny Entry</button>
+                    <button class="btn-flutter-allow" id="mockAllowBtn" onclick="handleMockDecision('allowed')">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      <span>Allow Entry</span>
+                    </button>
+                  </div>
+
+                  <div class="phone-toast" id="mockToast"></div>
+                </div>
+
+                <!-- Quick Actions Grid -->
+                <div class="quick-actions-bar">
+                  <div class="quick-act-card" onclick="switchMockupTab('qr')">
+                    <div class="act-icon" style="background: #eff6ff; color: #2563eb;">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <rect x="7" y="7" width="3" height="3" />
+                        <rect x="14" y="7" width="3" height="3" />
+                      </svg>
+                    </div>
+                    <span>Invite</span>
+                  </div>
+
+                  <div class="quick-act-card" onclick="switchMockupTab('qr')">
+                    <div class="act-icon" style="background: #f5f3ff; color: #7c3aed;">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                      </svg>
+                    </div>
+                    <span>Passes</span>
+                  </div>
+
+                  <div class="quick-act-card" onclick="switchMockupTab('household')">
+                    <div class="act-icon" style="background: #ecfdf5; color: #059669;">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                      </svg>
+                    </div>
+                    <span>Family</span>
+                  </div>
+
+                  <div class="quick-act-card" onclick="switchMockupTab('household')">
+                    <div class="act-icon" style="background: #fffbeb; color: #d97706;">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="1" y="3" width="15" height="13" />
+                        <circle cx="5.5" cy="18.5" r="2.5" />
+                        <circle cx="18.5" cy="18.5" r="2.5" />
+                      </svg>
+                    </div>
+                    <span>Vehicles</span>
+                  </div>
+                </div>
+
+                <!-- Security Status Strip -->
+                <div class="security-status-strip">
+                  <div class="status-left">
+                    <div class="shield-badge">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      </svg>
+                    </div>
+                    <div class="status-txt-wrap">
+                      <h6>Gate Security Active</h6>
+                      <p>All 3 Gates Operational &bull; 2 Guards On Duty</p>
+                    </div>
+                  </div>
+                  <span class="pulse-dot" style="width: 6px; height: 6px;"></span>
+                </div>
+              </div>
+
+              <!-- TAB 2: Digital Pass Screen -->
+              <div class="screen-tab-qr" id="screenTabQr">
+                <div class="qr-card-view">
+                  <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 4px;">
+                    <img src="assets/images/logo.png" alt="NexGate Logo" style="width: 14px; height: 14px; border-radius: 3px;" onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
+                    <span style="font-size: 0.62rem; font-weight: 800; color: #4f46e5; background: #eef2ff; padding: 2px 7px; border-radius: 5px; text-transform: uppercase;">Single-Entry Guest Pass</span>
+                  </div>
+                  <h4 style="font-size: 0.92rem; font-weight: 800; color: #0f172a; margin-top: 5px;">Pooja Sharma (Guest)</h4>
+                  <p style="font-size: 0.66rem; color: #64748b;">Valid Today Until 11:59 PM &bull; Flat A-402</p>
+
+                  <div class="qr-code-box">
+                    <svg width="92" height="92" viewBox="0 0 100 100" fill="#0f172a">
+                      <rect x="5" y="5" width="25" height="25" fill="#0f172a"/>
+                      <rect x="9" y="9" width="17" height="17" fill="#ffffff"/>
+                      <rect x="13" y="13" width="9" height="9" fill="#0f172a"/>
+                      <rect x="70" y="5" width="25" height="25" fill="#0f172a"/>
+                      <rect x="74" y="9" width="17" height="17" fill="#ffffff"/>
+                      <rect x="78" y="13" width="9" height="9" fill="#0f172a"/>
+                      <rect x="5" y="70" width="25" height="25" fill="#0f172a"/>
+                      <rect x="9" y="74" width="17" height="17" fill="#ffffff"/>
+                      <rect x="13" y="78" width="9" height="9" fill="#0f172a"/>
+                      <rect x="40" y="10" width="10" height="10" fill="#0f172a"/>
+                      <rect x="40" y="40" width="20" height="20" fill="#0f172a"/>
+                      <rect x="70" y="40" width="15" height="10" fill="#0f172a"/>
+                      <rect x="40" y="70" width="15" height="15" fill="#0f172a"/>
+                      <rect x="65" y="70" width="25" height="20" fill="#0f172a"/>
+                    </svg>
+                  </div>
+
+                  <div style="font-size: 0.65rem; font-weight: 700; color: #10b981; margin-bottom: 7px;">
+                    Pass Code: NX-9482-A4
+                  </div>
+
+                  <button class="btn-flutter-allow" style="width: 100%;" onclick="alert('Digital Pass shared to WhatsApp!')">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                      <polyline points="16 6 12 2 8 6"/>
+                      <line x1="12" y1="2" x2="12" y2="15"/>
+                    </svg>
+                    <span>Share Pass via WhatsApp</span>
+                  </button>
+                </div>
+
+                <div class="security-status-strip" style="width: 100%; box-sizing: border-box;">
+                  <div class="status-left">
+                    <div class="shield-badge" style="background: #eff6ff; color: #2563eb;">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <rect x="7" y="7" width="3" height="3" />
+                      </svg>
+                    </div>
+                    <div class="status-txt-wrap">
+                      <h6>Contactless Gate Entry</h6>
+                      <p>Guard scans QR &bull; Instant gate clearance</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- TAB 3: Household Management Screen -->
+              <div class="screen-tab-household" id="screenTabHousehold">
+                <div style="font-size: 0.68rem; font-weight: 800; color: #0f172a; margin-bottom: 1px;">Registered Household Members</div>
+                <div class="household-item">
+                  <div style="display: flex; gap: 7px; align-items: center;">
+                    <div style="width: 28px; height: 28px; border-radius: 7px; background: #e0e7ff; color: #4338ca; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 800;">TJ</div>
+                    <div>
+                      <strong style="font-size: 0.74rem; display: block; color: #0f172a;">Tushal Jadhav</strong>
+                      <span style="font-size: 0.62rem; color: #64748b;">Primary Owner &bull; Flat Admin</span>
+                    </div>
+                  </div>
+                  <span style="font-size: 0.58rem; font-weight: 700; color: #10b981; background: #ecfdf5; padding: 2px 5px; border-radius: 4px;">ACTIVE</span>
+                </div>
+
+                <div class="household-item">
+                  <div style="display: flex; gap: 7px; align-items: center;">
+                    <div style="width: 28px; height: 28px; border-radius: 7px; background: #fce7f3; color: #be185d; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 800;">PJ</div>
+                    <div>
+                      <strong style="font-size: 0.74rem; display: block; color: #0f172a;">Pooja Jadhav</strong>
+                      <span style="font-size: 0.62rem; color: #64748b;">Family Member &bull; Co-Resident</span>
+                    </div>
+                  </div>
+                  <span style="font-size: 0.58rem; font-weight: 700; color: #10b981; background: #ecfdf5; padding: 2px 5px; border-radius: 4px;">ACTIVE</span>
+                </div>
+
+                <div style="font-size: 0.68rem; font-weight: 800; color: #0f172a; margin-top: 3px; margin-bottom: 1px;">Registered Vehicles</div>
+                <div class="household-item">
+                  <div style="display: flex; gap: 7px; align-items: center;">
+                    <div style="width: 28px; height: 28px; border-radius: 7px; background: #fef3c7; color: #b45309; display: flex; align-items: center; justify-content: center; font-size: 0.68rem;">🚗</div>
+                    <div>
+                      <strong style="font-size: 0.74rem; display: block; color: #0f172a;">MH-02-CB-8812</strong>
+                      <span style="font-size: 0.62rem; color: #64748b;">Honda City &bull; Silver &bull; Slot P-12</span>
+                    </div>
+                  </div>
+                  <span style="font-size: 0.58rem; font-weight: 700; color: #2563eb; background: #eff6ff; padding: 2px 5px; border-radius: 4px;">VERIFIED</span>
+                </div>
+
+                <div class="security-status-strip" style="width: 100%; box-sizing: border-box;">
+                  <div class="status-left">
+                    <div class="shield-badge" style="background: #fdf2f8; color: #db2777;">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                      </svg>
+                    </div>
+                    <div class="status-txt-wrap">
+                      <h6>Guard Gate Intercom</h6>
+                      <p>Instant 1-tap call to Main Gate 1 &amp; 2</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Flutter Bottom Navigation Bar -->
+            <div class="flutter-bottom-nav">
+              <div class="nav-tab-item active" id="bNavAlert" onclick="switchMockupTab('alert')">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+                </svg>
+                <span>Home</span>
+              </div>
+              <div class="nav-tab-item" id="bNavQr" onclick="switchMockupTab('qr')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                <span>Visitors</span>
+              </div>
+              <div class="nav-tab-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                <span>Alerts</span>
+              </div>
+              <div class="nav-tab-item" id="bNavHouse" onclick="switchMockupTab('household')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span>Profile</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       STATS / IMPACT METRICS (ENTERPRISE TRUST STRIP)
+       ============================================================ -->
+  <section class="stats-section">
+    <div class="container stats-grid">
+      <!-- Stat 1 -->
+      <div class="stat-card-box">
+        <div class="stat-icon-wrap" style="background: #eff6ff; color: #2563eb;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+        </div>
+        <div class="stat-content-col">
+          <div class="stat-number">&lt; 1.2s</div>
+          <div class="stat-label">Sub-Second Gate Sync</div>
+        </div>
+      </div>
+
+      <!-- Stat 2 -->
+      <div class="stat-card-box">
+        <div class="stat-icon-wrap" style="background: #ecfdf5; color: #059669;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <polyline points="9 12 12 15 16 10"/>
+          </svg>
+        </div>
+        <div class="stat-content-col">
+          <div class="stat-number">100%</div>
+          <div class="stat-label">Intrusion Deterrence</div>
+        </div>
+      </div>
+
+      <!-- Stat 3 -->
+      <div class="stat-card-box">
+        <div class="stat-icon-wrap" style="background: #f5f3ff; color: #7c3aed;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <div class="stat-content-col">
+          <div class="stat-number">3-Tier</div>
+          <div class="stat-label">Resident &bull; Guard &bull; Admin</div>
+        </div>
+      </div>
+
+      <!-- Stat 4 -->
+      <div class="stat-card-box">
+        <div class="stat-icon-wrap" style="background: #fffbeb; color: #d97706;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+        <div class="stat-content-col">
+          <div class="stat-number">AES-256</div>
+          <div class="stat-label">Bank-Grade Photo Vault</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       ABOUT THE ECOSYSTEM & ARCHITECTURE (HIGH-TECH SHOWCASE)
+       ============================================================ -->
+  <section class="section-padding" id="about">
+    <div class="container">
+      <div class="about-ecosystem-card">
+        <div class="about-grid">
+          <div>
+            <span class="section-badge" style="color: #60a5fa; background: rgba(37,99,235,0.2); border-color: rgba(59,130,246,0.3);">3-Tier Platform Architecture</span>
+            <h2 class="about-title">Built by NexBuild Technologies</h2>
+            <p class="about-desc">
+              <strong>NexGate &amp; GreenGate</strong> is an advanced residential gate security platform engineered by <strong>NexBuild Technologies</strong> (Mumbai, India). Our mission is to eliminate unverified paper logbooks and manual intercom delays by connecting security guards, residents, and society administrators through a unified, real-time digital ecosystem.
+            </p>
+
+            <div class="company-stamp">
+              <img src="assets/images/logo.png" alt="NexGate Logo" style="width: 34px; height: 34px; border-radius: 9px; object-fit: contain; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4); background: #ffffff; padding: 2px; flex-shrink: 0;" onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
+              <div>
+                <strong style="color: #ffffff; display: block; font-size: 0.95rem;">Official NexGate &amp; GreenGate Platform</strong>
+                <span style="color: #94a3b8; font-size: 0.78rem;">NexBuild Technologies &bull; Headquartered in Mumbai, India</span>
+              </div>
+            </div>
+
+            <!-- Sub-Second Realtime Event Pipeline (Architecture Card) -->
+            <div class="sync-pipeline-card">
+              <div class="pipeline-title">Sub-Second Gate Event Pipeline</div>
+              <div class="pipeline-flow">
+                <div class="pipeline-node">
+                  <span class="p-icon">🛡️</span>
+                  <span>Guard Terminal</span>
+                </div>
+                <div class="pipeline-arrow">
+                  <svg width="22" height="12" viewBox="0 0 22 12" fill="none"><path d="M0 6h18m0 0l-5-5m5 5l-5 5" stroke="#06b6d4" stroke-width="2.2" stroke-linecap="round"/></svg>
+                  <span class="p-latency">&lt;0.4s</span>
+                </div>
+                <div class="pipeline-node">
+                  <span class="p-icon">☁️</span>
+                  <span>AWS Cloud</span>
+                </div>
+                <div class="pipeline-arrow">
+                  <svg width="22" height="12" viewBox="0 0 22 12" fill="none"><path d="M0 6h18m0 0l-5-5m5 5l-5 5" stroke="#06b6d4" stroke-width="2.2" stroke-linecap="round"/></svg>
+                  <span class="p-latency">&lt;0.4s</span>
+                </div>
+                <div class="pipeline-node">
+                  <span class="p-icon">📱</span>
+                  <span>Resident App</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pillars-grid">
+            <!-- Pillar 1 -->
+            <div class="pillar-box">
+              <span class="pillar-badge-top" style="background: rgba(79, 70, 229, 0.25); color: #c7d2fe; border: 1px solid rgba(99, 102, 241, 0.35);">Resident Mobile App</span>
+              <div class="pillar-icon" style="background: rgba(79, 70, 229, 0.25); color: #818cf8;">
+                <img src="assets/images/logo.png" alt="NexGate Logo" style="width: 24px; height: 24px; border-radius: 6px; object-fit: contain;" onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
+              </div>
+              <div class="pillar-content">
+                <h5>1. NexGate Resident App</h5>
+                <p>Native Flutter mobile app for apartment owners and tenants to approve visitors, generate encrypted QR guest passes, and manage household members.</p>
+              </div>
+            </div>
+
+            <!-- Pillar 2 -->
+            <div class="pillar-box">
+              <span class="pillar-badge-top" style="background: rgba(16, 185, 129, 0.25); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.35);">Live on Play Store</span>
+              <div class="pillar-icon" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+              </div>
+              <div class="pillar-content">
+                <h5>2. GreenGate Guard Terminal</h5>
+                <p>Dedicated security guard application at society gates for instant visitor entry logging, live camera photo capture, and sub-second resident pings.</p>
+              </div>
+            </div>
+
+            <!-- Pillar 3 -->
+            <div class="pillar-box">
+              <span class="pillar-badge-top" style="background: rgba(124, 58, 237, 0.25); color: #c4b5fd; border: 1px solid rgba(124, 58, 237, 0.35);">Cloud Portal</span>
+              <div class="pillar-icon" style="background: rgba(124, 58, 237, 0.2); color: #a78bfa;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                  <line x1="8" y1="21" x2="16" y2="21" />
+                  <line x1="12" y1="17" x2="12" y2="21" />
+                </svg>
+              </div>
+              <div class="pillar-content">
+                <h5>3. Central Society Management System</h5>
+                <p>Society committee dashboard for approving new tenant registrations, overseeing guard shifts, viewing entry analytics, and broadcasting emergency notices.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       APP FEATURES (MODERN SaaS CARDS - WHAT IT DOES)
+       ============================================================ */ -->
+  <section class="section-padding" id="features">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-badge">Comprehensive Capabilities</span>
+        <h2 class="section-title">What Does NexGate Do For Your Society?</h2>
+        <p class="section-desc">
+          Everything you need to secure your premises, speed up daily delivery entries, and keep flat owners in total
+          control of who enters their home.
+        </p>
+      </div>
+
+      <div class="features-grid">
+        <!-- Feature 1 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrap icon-blue">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+          </div>
+          <h3>Sub-Second Gate Approvals</h3>
+          <p>
+            Receive instant heads-up push notifications with the visitor's name, company, vehicle number, and photo the
+            exact moment they arrive at the security gate.
+          </p>
+          <div class="feature-tag-list">
+            <span class="feature-micro-tag">FCM Push Notifications</span>
+            <span class="feature-micro-tag">Sub-Second Delivery</span>
+            <span class="feature-micro-tag">1-Tap Decision</span>
+          </div>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrap icon-purple">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <rect x="7" y="7" width="3" height="3" />
+              <rect x="14" y="7" width="3" height="3" />
+              <rect x="7" y="14" width="3" height="3" />
+              <rect x="14" y="14" width="3" height="3" />
+            </svg>
+          </div>
+          <h3>Encrypted Digital QR Passes</h3>
+          <p>
+            Expecting family, friends, or a home repair technician? Generate a secure digital pass with an embedded QR
+            code and share it via WhatsApp for contactless gate entry.
+          </p>
+          <div class="feature-tag-list">
+            <span class="feature-micro-tag">Share via WhatsApp</span>
+            <span class="feature-micro-tag">Time-Restricted</span>
+            <span class="feature-micro-tag">Contactless Clearance</span>
+          </div>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrap icon-emerald">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <h3>Multi-Resident Family Sync</h3>
+          <p>
+            Add your spouse, elderly parents, or flatmates to your apartment unit. Every registered member receives gate
+            alerts simultaneously so no visitor is left waiting outside.
+          </p>
+          <div class="feature-tag-list">
+            <span class="feature-micro-tag">Multi-Device Alerts</span>
+            <span class="feature-micro-tag">Role Management</span>
+            <span class="feature-micro-tag">Flat Security</span>
+          </div>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrap icon-amber">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="1" y="3" width="15" height="13" />
+              <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+              <circle cx="5.5" cy="18.5" r="2.5" />
+              <circle cx="18.5" cy="18.5" r="2.5" />
+            </svg>
+          </div>
+          <h3>Resident Vehicle Registry</h3>
+          <p>
+            Register your two-wheelers and four-wheelers with plate numbers and vehicle colors. Guards can instantly
+            recognize verified resident vehicles without stopping them.
+          </p>
+          <div class="feature-tag-list">
+            <span class="feature-micro-tag">Fast Gate Lane</span>
+            <span class="feature-micro-tag">Parking Allocation</span>
+            <span class="feature-micro-tag">Anti-Theft Check</span>
+          </div>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrap icon-rose">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+              <circle cx="12" cy="13" r="4" />
+            </svg>
+          </div>
+          <h3>Guard Camera Verification</h3>
+          <p>
+            Guards take a live photo of unknown visitors before sending the notification. Residents see exactly who is at
+            the gate before deciding to approve or deny entry.
+          </p>
+          <div class="feature-tag-list">
+            <span class="feature-micro-tag">Visual Verification</span>
+            <span class="feature-micro-tag">Private Storage Vault</span>
+            <span class="feature-micro-tag">Anti-Impersonation</span>
+          </div>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="feature-card">
+          <div class="feature-icon-wrap icon-indigo">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+          <h3>Zero-Knowledge Privacy Vault</h3>
+          <p>
+            Visitor photos and phone numbers are stored in an encrypted vault accessible solely to the relevant resident.
+            Data is automatically purged per retention policies.
+          </p>
+          <div class="feature-tag-list">
+            <span class="feature-micro-tag">AES-256 Encryption</span>
+            <span class="feature-micro-tag">Privacy Compliant</span>
+            <span class="feature-micro-tag">Play Store Verified</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       HOW TO USE THE APP (CONNECTED TIMELINE - KASE USE KARNA HE)
+       ============================================================ -->
+  <section class="section-padding steps-section" id="how-it-works">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-badge">Step-by-Step Guide</span>
+        <h2 class="section-title">How To Get Started With NexGate</h2>
+        <p class="section-desc">
+          Getting set up takes less than 2 minutes. Follow these simple steps to activate gate security for your flat.
+        </p>
+      </div>
+
+      <div class="steps-container">
+        <!-- Step 1 -->
+        <div class="step-card">
+          <div class="step-badge">01</div>
+          <h4>Download Official App</h4>
+          <p>
+            Download the official application directly from the Google Play Store on your Android mobile device.
+          </p>
+          <a href="https://play.google.com/store/apps/details?id=com.greengate.guard.greengate_guard_app" target="_blank"
+            rel="noopener noreferrer" class="step-highlight">
+            <span>Get on Google Play</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </a>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="step-card">
+          <div class="step-badge">02</div>
+          <h4>Instant OTP Login</h4>
+          <p>
+            Enter your mobile number. You will receive an instant 6-digit SMS OTP to verify your account securely without any passwords to remember.
+          </p>
+          <div class="step-highlight">
+            <span>Secure &bull; Passwordless</span>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="step-card">
+          <div class="step-badge">03</div>
+          <h4>Select Your Flat</h4>
+          <p>
+            Choose your Building Wing, Floor, and Flat Number (e.g. Flat A-402). Your Society Admin verifies and activates your profile seamlessly.
+          </p>
+          <div class="step-highlight">
+            <span>Verified Society Roster</span>
+          </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="step-card">
+          <div class="step-badge">04</div>
+          <h4>Approve in 1 Tap</h4>
+          <p>
+            Whenever a guest, courier, or delivery arrives at the gate, your phone pops up with their photo. Tap <strong>Allow Entry</strong> or <strong>Deny</strong> instantly!
+          </p>
+          <div class="step-highlight">
+            <span>Real-Time Push Alerts</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       DATA PRIVACY & COMPLIANCE (PLAY STORE TRANSPARENT STANDARDS)
+       ============================================================ -->
+  <section class="section-padding" id="security">
+    <div class="container">
+      <div class="compliance-card">
+        <div class="compliance-content">
+          <span class="section-badge">Privacy & Play Store Compliance</span>
+          <h3>Strict Data Protection Built-In</h3>
+          <p>
+            At NexBuild Technologies, resident and visitor privacy is fundamental. We follow rigorous security standards,
+            strictly abide by Google Play Store Data Safety guidelines, and store photos exclusively in encrypted vaults.
+          </p>
+
+          <div class="compliance-badges">
+            <div class="c-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              <span>TLS 1.3 / HTTPS In-Transit</span>
+            </div>
+
+            <div class="c-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+              <span>Private Encrypted Photo Vault</span>
+            </div>
+
+            <div class="c-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+              </svg>
+              <span>Never Sold to 3rd-Party Advertisers</span>
+            </div>
+
+            <div class="c-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              <span>1-Click Account & Data Erasure</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="policy-box-callout">
+          <h4>Google Play Store Compliance</h4>
+          <p>
+            Our comprehensive Privacy Policy explains data retention, required Android permissions, and account deletion
+            mechanisms in full transparent detail.
+          </p>
+          <a href="privacy-policy.html" target="_blank" class="btn-policy">
+            <span>Read Official Privacy Policy</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       FREQUENTLY ASKED QUESTIONS (FAQ)
+       ============================================================ -->
+  <section class="section-padding faq-section" id="faq">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-badge">Common Questions</span>
+        <h2 class="section-title">Frequently Asked Questions</h2>
+        <p class="section-desc">
+          Answers to questions frequently asked by residents, security guards, and society committee members.
+        </p>
+      </div>
+
+      <div class="faq-wrapper">
+        <!-- Q1 -->
+        <div class="faq-item active">
+          <div class="faq-question" onclick="toggleFaq(this)">
+            <span>How does the guard notify me when a delivery person arrives?</span>
+            <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+          <div class="faq-answer">
+            When a delivery agent arrives at the security gate, the guard selects your flat number, inputs the delivery
+            company (e.g., Zomato, Swiggy, Amazon, Blinkit), and captures a verification photo. Within less than a second,
+            your smartphone receives a high-priority push notification with sound and vibration. You simply tap
+            <strong>Allow Entry</strong> or <strong>Deny Entry</strong> directly from your screen.
+          </div>
+        </div>
+
+        <!-- Q2 -->
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFaq(this)">
+            <span>Can multiple family members in the same flat approve visitors?</span>
+            <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+          <div class="faq-answer">
+            Yes! Through the Household Management section, the primary flat owner can add family members by mobile number. All
+            registered household members receive incoming visitor alerts simultaneously, ensuring no visitor is left
+            waiting if one person is in a meeting or away from their phone.
+          </div>
+        </div>
+
+        <!-- Q3 -->
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFaq(this)">
+            <span>What is a Digital Pass and how does it work?</span>
+            <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+          <div class="faq-answer">
+            A Digital Pass is a pre-approved entry invite with an encrypted QR code. You can create one for guests or
+            service technicians arriving on a specific day and share it directly via WhatsApp. When your guest arrives at
+            the gate, the guard scans the QR code for instant entry clearance without calling you.
+          </div>
+        </div>
+
+        <!-- Q4 -->
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFaq(this)">
+            <span>Who owns and operates NexGate &amp; GreenGate?</span>
+            <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+          <div class="faq-answer">
+            NexGate &amp; GreenGate are developed, maintained, and operated by <strong>NexBuild Technologies</strong>, based in
+            Mumbai, Maharashtra, India. We partner with registered housing societies, residential welfare associations
+            (RWAs), and property developers to provide state-of-the-art society access technology.
+          </div>
+        </div>
+
+        <!-- Q5 -->
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFaq(this)">
+            <span>How do I delete my account or personal information?</span>
+            <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+          <div class="faq-answer">
+            You can request full account and data deletion at any time by emailing our dedicated privacy desk at
+            <strong>helpdesk@nex-build.com</strong> with your registered mobile number and apartment unit details.
+          </div>
+        </div>
+      </div>
+
+      <!-- Direct Assistance Prompt for Society Committees -->
+      <div style="margin-top: 36px; padding: 22px 28px; border-radius: 18px; background: #ffffff; border: 1px solid var(--border-color); box-shadow: 0 4px 18px -4px rgba(15,23,42,0.06); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="width: 42px; height: 42px; border-radius: 12px; background: #eef2ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0;">💬</div>
+          <div>
+            <strong style="display: block; font-size: 0.98rem; color: #0f172a;">Need personalized assistance or society onboarding?</strong>
+            <span style="font-size: 0.84rem; color: #64748b;">Our engineering team in Mumbai directly supports society committees and RWAs.</span>
+          </div>
+        </div>
+        <a href="mailto:helpdesk@nex-build.com" style="display: inline-flex; align-items: center; gap: 7px; padding: 10px 20px; border-radius: 10px; background: var(--primary); color: #ffffff; font-size: 0.86rem; font-weight: 700; white-space: nowrap; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+          <span>Contact Society Desk</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       DOWNLOAD CALL-TO-ACTION (HIGH-CONVERSION CTA)
+       ============================================================ -->
+  <section class="section-padding download-cta-section" id="download">
+    <div class="container" style="text-align: center; max-width: 820px; position: relative; z-index: 2;">
+      <span
+        style="display: inline-block; padding: 6px 18px; border-radius: var(--radius-full); background: rgba(255,255,255,0.12); color: #93c5fd; font-size: 0.8rem; font-weight: 800; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.08em; border: 1px solid rgba(255,255,255,0.18);">
+        Experience Smarter Living
+      </span>
+      <h2
+        style="font-family: var(--font-heading); font-size: 2.85rem; font-weight: 900; color: #ffffff; line-height: 1.15; margin-bottom: 18px; letter-spacing: -0.03em;">
+        Get The Official App on Google Play
+      </h2>
+      <p style="font-size: 1.1rem; color: #cbd5e1; line-height: 1.65; margin-bottom: 34px;">
+        Join your society's secure digital network. Verify visitors from anywhere in the world with total peace of mind.
+      </p>
+
+      <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 16px; margin-bottom: 28px;">
+        <!-- Direct Google Play Store Button -->
+        <a href="https://play.google.com/store/apps/details?id=com.greengate.guard.greengate_guard_app" target="_blank"
+          rel="noopener noreferrer"
+          style="display: inline-flex; align-items: center; gap: 14px; background: #000000; color: #ffffff; padding: 12px 28px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.3); text-align: left; box-shadow: 0 12px 28px rgba(0,0,0,0.5); transition: transform 0.2s ease;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M3.609 1.814L13.793 12 3.61 22.186c-.347-.35-.558-.871-.558-1.503V3.317c0-.632.211-1.153.557-1.503zM15.207 13.414l2.586 2.586-11.47 6.623 8.884-9.209zm0-2.828L6.323 1.377l11.47 6.623-2.586 2.586zm1.414 1.414l3.774 2.18c.942.544.942 1.43 0 1.974l-3.774 2.18-2.121-2.121 2.121-2.213z" />
+          </svg>
+          <div>
+            <div style="font-size: 0.68rem; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Available on</div>
+            <div style="font-size: 1.15rem; font-weight: 800; line-height: 1;">Google Play Store</div>
+          </div>
+        </a>
+
+        <!-- Privacy Policy Link -->
+        <a href="privacy-policy.html" target="_blank"
+          style="display: inline-flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.1); color: #ffffff; padding: 12px 24px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.22); font-weight: 700; font-size: 0.95rem;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
+          </svg>
+          <span>Privacy Policy</span>
+        </a>
+      </div>
+
+      <div style="font-size: 0.82rem; color: #94a3b8;">
+        Package ID: <code
+          style="background: rgba(255,255,255,0.12); padding: 4px 12px; border-radius: 6px; color: #93c5fd; font-family: monospace;">com.greengate.guard.greengate_guard_app</code>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       FOOTER & COMPANY INFO (4-COLUMN TECH ENTERPRISE)
+       ============================================================ -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <!-- Col 1: Brand & Bio -->
+        <div class="footer-brand">
+          <div class="footer-brand-header">
+            <img src="assets/images/logo.png" alt="NexGate Logo" class="footer-logo-img" onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
+            <div>
+              <h4>NexGate &amp; GreenGate</h4>
+              <span class="footer-brand-subtitle">by NexBuild Technologies</span>
+            </div>
+          </div>
+          <p>
+            The next-generation gated society security and resident management suite by <strong>NexBuild
+              Technologies</strong>. Making residential living safer, smarter, and hassle-free.
+          </p>
+          <div style="font-size: 0.82rem; color: #94a3b8;">
+            Empowering gated residential communities across India.
+          </div>
+        </div>
+
+        <!-- Col 2: Navigation -->
+        <div>
+          <div class="footer-title">Platform Quick Links</div>
+          <ul class="footer-list">
+            <li><a href="#about">About Ecosystem</a></li>
+            <li><a href="#features">Features &amp; Capabilities</a></li>
+            <li><a href="#how-it-works">How to Use Guide</a></li>
+            <li><a href="#security">Security &amp; Privacy Vault</a></li>
+            <li><a href="#faq">Frequently Asked Questions</a></li>
+          </ul>
+        </div>
+
+        <!-- Col 3: Legal & Store -->
+        <div>
+          <div class="footer-title">Trust &amp; Compliance</div>
+          <ul class="footer-list">
+            <li><a href="https://play.google.com/store/apps/details?id=com.greengate.guard.greengate_guard_app"
+                target="_blank" rel="noopener noreferrer">Google Play Store App</a></li>
+            <li><a href="privacy-policy.html" target="_blank">Google Play Privacy Policy</a></li>
+            <li><a href="#security">Data Safety Guidelines</a></li>
+            <li><a href="mailto:helpdesk@nex-build.com">Account Deletion Desk</a></li>
+          </ul>
+        </div>
+
+        <!-- Col 4: Official Contact & Developer Info -->
+        <div>
+          <div class="footer-title">Organization &amp; Support</div>
+          <div class="footer-contact-card">
+            <p><strong>Developer:</strong> NexBuild Technologies</p>
+            <p><strong>Headquarters:</strong> Mumbai, Maharashtra, India</p>
+            <p style="margin-top: 8px;"><strong>Support Email:</strong><br><a
+                href="mailto:helpdesk@nex-build.com">helpdesk@nex-build.com</a></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>
+          &copy; 2026 NexBuild Technologies. All rights reserved.
+        </div>
+        <div class="footer-legal-links">
+          <a href="https://play.google.com/store/apps/details?id=com.greengate.guard.greengate_guard_app"
+            target="_blank" rel="noopener noreferrer">Google Play Store</a>
+          <a href="privacy-policy.html">Privacy Policy</a>
+          <a href="#faq">Support Desk</a>
+          <a href="#topNav">Back to Top &uarr;</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ============================================================
+       JAVASCRIPT FOR INTERACTIVE DEMO & TABS
+       ============================================================ -->
+  <script>
+    // Tab switcher on mockup - STABLE & SYNCHRONIZED
+    function switchMockupTab(tab) {
+      const alertScreen = document.getElementById('screenTabAlert');
+      const qrScreen = document.getElementById('screenTabQr');
+      const houseScreen = document.getElementById('screenTabHousehold');
+
+      const btnAlert = document.getElementById('tabAlertBtn');
+      const btnQr = document.getElementById('tabQrBtn');
+      const btnHouse = document.getElementById('tabHouseBtn');
+
+      const bNavAlert = document.getElementById('bNavAlert');
+      const bNavQr = document.getElementById('bNavQr');
+      const bNavHouse = document.getElementById('bNavHouse');
+
+      if (!alertScreen || !qrScreen || !houseScreen) return;
+
+      alertScreen.style.display = 'none';
+      qrScreen.style.display = 'none';
+      houseScreen.style.display = 'none';
+
+      if (btnAlert) btnAlert.classList.remove('active');
+      if (btnQr) btnQr.classList.remove('active');
+      if (btnHouse) btnHouse.classList.remove('active');
+
+      if (bNavAlert) bNavAlert.classList.remove('active');
+      if (bNavQr) bNavQr.classList.remove('active');
+      if (bNavHouse) bNavHouse.classList.remove('active');
+
+      if (tab === 'alert') {
+        alertScreen.style.display = 'flex';
+        if (btnAlert) btnAlert.classList.add('active');
+        if (bNavAlert) bNavAlert.classList.add('active');
+      } else if (tab === 'qr') {
+        qrScreen.style.display = 'flex';
+        if (btnQr) btnQr.classList.add('active');
+        if (bNavQr) bNavQr.classList.add('active');
+      } else if (tab === 'household') {
+        houseScreen.style.display = 'flex';
+        if (btnHouse) btnHouse.classList.add('active');
+        if (bNavHouse) bNavHouse.classList.add('active');
+      }
+    }
+
+    // Allow / Deny demo interaction
+    function handleMockDecision(action) {
+      const toast = document.getElementById('mockToast');
+      const allowBtn = document.getElementById('mockAllowBtn');
+      const denyBtn = document.getElementById('mockDenyBtn');
+
+      if (!toast) return;
+
+      toast.style.display = 'block';
+
+      if (action === 'allowed') {
+        toast.style.background = '#065f46';
+        toast.innerHTML = '&#10004; Visitor Access Allowed! Gate guard notified.';
+        allowBtn.style.opacity = '0.6';
+        denyBtn.style.opacity = '1';
+      } else {
+        toast.style.background = '#991b1b';
+        toast.innerHTML = '&#10006; Visitor Access Denied! Security notified.';
+        denyBtn.style.opacity = '0.6';
+        allowBtn.style.opacity = '1';
+      }
+
+      setTimeout(() => {
+        toast.style.display = 'none';
+        allowBtn.style.opacity = '1';
+        denyBtn.style.opacity = '1';
+      }, 3500);
+    }
+
+    // FAQ Accordion
+    function toggleFaq(element) {
+      const parent = element.parentElement;
+      const wasActive = parent.classList.contains('active');
+
+      document.querySelectorAll('.faq-item').forEach(item => {
+        item.classList.remove('active');
+      });
+
+      if (!wasActive) {
+        parent.classList.add('active');
+      }
+    }
+
+    // Mobile Navbar Dropdown Controls
+    function toggleNavDropdown() {
+      const nav = document.getElementById('topNav');
+      if (!nav) return;
+      nav.classList.toggle('nav-open');
+    }
+
+    function closeNavDropdown() {
+      const nav = document.getElementById('topNav');
+      if (nav) {
+        nav.classList.remove('nav-open');
+      }
+    }
+
+    // Close when clicking outside navbar
+    document.addEventListener('click', function (e) {
+      const nav = document.getElementById('topNav');
+      if (nav && nav.classList.contains('nav-open')) {
+        if (!nav.contains(e.target)) {
+          closeNavDropdown();
+        }
+      }
+    });
+
+    // Floating Back to Top visibility on scroll
+    window.addEventListener('scroll', function () {
+      const topBtn = document.getElementById('backToTopBtn');
+      if (topBtn) {
+        if (window.scrollY > 400) {
+          topBtn.classList.add('visible');
+        } else {
+          topBtn.classList.remove('visible');
+        }
+      }
+    });
+  </script>
+
+  <!-- Floating Back to Top Button -->
+  <button class="back-to-top-btn" id="backToTopBtn" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" aria-label="Back to Top">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="18 15 12 9 6 15"></polyline>
+    </svg>
+  </button>
+
+</body>
+
+</html>
