@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class KioskHelper {
-  static const MethodChannel _channel = MethodChannel('com.greengate.guard/kiosk');
+  static const MethodChannel _channel = MethodChannel('com.nexbuild.nexguard/kiosk');
 
   /// Starts Android Lock Task mode (Kiosk pinning)
   static Future<bool> startLockTask() async {

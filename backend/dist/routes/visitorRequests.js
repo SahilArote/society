@@ -240,7 +240,7 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
         try {
             console.log(`[FCM] Sending VISITOR_REQUEST notification for requestId: ${requestId} to resident: ${resident.id}`);
             (0, pushNotificationService_1.sendPushToUser)(resident.id, {
-                title: `🚨 New Visitor Request`,
+                title: ` New Visitor Request`,
                 body: `${name} is waiting at ${gateName} for Flat ${flat.flatNumber}. Tap to view and respond.`,
                 icon: '/icons/icon-192.png',
                 badge: '/icons/favicon-32.png',
