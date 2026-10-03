@@ -45,14 +45,31 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/resident', residentRoutes);
 
+// Serve Static Files (Landing Page, Assets, Privacy Policy)
+const getPublicDir = (): string | null => {
+  const candidates = [
+    path.resolve(__dirname, 'public'),
+    path.resolve(__dirname, '../public'),
+    path.resolve(process.cwd(), 'public'),
+    path.resolve(process.cwd(), 'backend/public'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return null;
+};
+
+const publicDir = getPublicDir();
+if (publicDir) {
+  app.use(express.static(publicDir));
+}
+
 // Privacy Policy Endpoints (Serves Google Play Store & In-App compliance webpage)
 const getPrivacyPolicyPath = (): string | null => {
   const candidates = [
     path.resolve(__dirname, 'public/privacy-policy.html'),
     path.resolve(__dirname, '../public/privacy-policy.html'),
     path.resolve(process.cwd(), 'public/privacy-policy.html'),
-    path.resolve(process.cwd(), 'privacy-policy.html'),
-    path.resolve(__dirname, '../../privacy-policy.html'),
   ];
   for (const c of candidates) {
     if (fs.existsSync(c)) return c;
