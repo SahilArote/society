@@ -42,14 +42,30 @@ app.use('/api/visitor-requests', visitorRequests_1.default);
 app.use('/api/admin', admin_1.default);
 app.use('/api/notifications', notifications_1.default);
 app.use('/api/resident', resident_1.default);
+// Serve Static Files (Landing Page, Assets, Privacy Policy)
+const getPublicDir = () => {
+    const candidates = [
+        path_1.default.resolve(__dirname, 'public'),
+        path_1.default.resolve(__dirname, '../public'),
+        path_1.default.resolve(process.cwd(), 'public'),
+        path_1.default.resolve(process.cwd(), 'backend/public'),
+    ];
+    for (const c of candidates) {
+        if (fs_1.default.existsSync(c))
+            return c;
+    }
+    return null;
+};
+const publicDir = getPublicDir();
+if (publicDir) {
+    app.use(express_1.default.static(publicDir));
+}
 // Privacy Policy Endpoints (Serves Google Play Store & In-App compliance webpage)
 const getPrivacyPolicyPath = () => {
     const candidates = [
         path_1.default.resolve(__dirname, 'public/privacy-policy.html'),
         path_1.default.resolve(__dirname, '../public/privacy-policy.html'),
         path_1.default.resolve(process.cwd(), 'public/privacy-policy.html'),
-        path_1.default.resolve(process.cwd(), 'privacy-policy.html'),
-        path_1.default.resolve(__dirname, '../../privacy-policy.html'),
     ];
     for (const c of candidates) {
         if (fs_1.default.existsSync(c))
