@@ -86,7 +86,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 24),
             const Text(
-              'NexGate',
+              'NexGuard',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,

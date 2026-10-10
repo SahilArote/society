@@ -85,6 +85,13 @@ app.get('/privacy-policy', servePrivacyPolicy);
 app.get('/privacy', servePrivacyPolicy);
 app.get('/api/privacy-policy', servePrivacyPolicy);
 app.get('/api/privacy', servePrivacyPolicy);
+// Admin Portal & Login Redirects
+app.get('/login', (_req, res) => {
+    res.redirect('http://localhost:5174/login');
+});
+app.get('/admin', (_req, res) => {
+    res.redirect('http://localhost:5174/');
+});
 // Unmatched API Routes Handler (Never return HTML)
 app.use('/api/*', (req, res) => {
     res.status(404).json({

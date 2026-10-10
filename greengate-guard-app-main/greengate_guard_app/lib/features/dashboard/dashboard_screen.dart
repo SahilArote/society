@@ -149,7 +149,7 @@ class DashboardScreen extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: AppColors.successLight,
                             borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                            border: Border.all(color: AppColors.success.withOpacity(0.3)),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,

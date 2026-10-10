@@ -29,19 +29,19 @@ void main() async {
   ApiService.setBaseUrl(storage.getServerUrl());
   final guardRepo = GuardRepository(storage);
 
-  runApp(NexGateGuardApp(guardRepo: guardRepo));
+  runApp(NexGuardApp(guardRepo: guardRepo));
 }
 
 
-class NexGateGuardApp extends StatelessWidget {
+class NexGuardApp extends StatelessWidget {
   final GuardRepository guardRepo;
 
-  const NexGateGuardApp({super.key, required this.guardRepo});
+  const NexGuardApp({super.key, required this.guardRepo});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'NexGate',
+      title: 'NexGuard',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: SplashScreen(guardRepo: guardRepo),
