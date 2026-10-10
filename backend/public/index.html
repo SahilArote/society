@@ -2991,6 +2991,7 @@
           <li><a href="#security" class="nav-link">Security</a></li>
           <li><a href="#faq" class="nav-link">FAQs</a></li>
           <li><a href="privacy-policy.html" class="nav-link" target="_blank">Privacy</a></li>
+          <li><a href="login/index.html" class="nav-link" style="color: #4f46e5; font-weight: 700; background: rgba(79, 70, 229, 0.08); padding: 6px 14px; border-radius: 8px; border: 1px solid rgba(79, 70, 229, 0.2);">Admin Login</a></li>
           <li>
             <!-- Direct Google Play Store Download Button -->
             <a href="https://play.google.com/store/apps/details?id=com.greengate.guard.greengate_guard_app"
@@ -3090,6 +3091,16 @@
           </svg>
           <span class="mob-title">Privacy Policy</span>
           <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+
+        <a href="login/index.html" class="mob-menu-item" onclick="closeNavDropdown()" style="background: rgba(79, 70, 229, 0.08); border-radius: 10px;">
+          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+            <polyline points="10 17 15 12 10 7"/>
+            <line x1="15" y1="12" x2="3" y2="12"/>
+          </svg>
+          <span class="mob-title" style="color: #4f46e5; font-weight: 700;">Admin Login</span>
+          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
         </a>
 
         <div class="mob-cta-box">
@@ -4500,6 +4511,23 @@
     function handleEmailClick(event, email) {
       copyToClipboard(email, null);
     }
+
+    // Auto-detect #login, ?login, or path-based login
+    (function checkLoginRouting() {
+      const hash = (window.location.hash || '').toLowerCase();
+      const search = (window.location.search || '').toLowerCase();
+      const path = (window.location.pathname || '').toLowerCase();
+      if (
+        hash === '#login' ||
+        hash === '#/login' ||
+        hash === '#admin' ||
+        search.includes('login') ||
+        path.endsWith('/login') ||
+        path.endsWith('/login/')
+      ) {
+        window.location.replace("http://localhost:5174/login");
+      }
+    })();
   </script>
 
   <!-- Floating Back to Top Button -->
