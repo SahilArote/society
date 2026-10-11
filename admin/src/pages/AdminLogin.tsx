@@ -20,7 +20,7 @@ export default function AdminLogin() {
     setError('');
     try {
       await adminLogin(email, password);
-      navigate('/dashboard');
+      navigate('/admin/dashboard');
     } catch (err: any) {
       setError(err.message || 'Invalid email or password. Try admin@greengate.in / admin123');
     } finally {

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="nexgate-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="100%" stop-color="#7C3AED" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#4F46E5" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <rect width="100" height="100" rx="22" fill="url(#nexgate-grad)" filter="url(#glow)"/>
+  <!-- Left Pillar -->
+  <rect x="22" y="22" width="14" height="56" rx="5" fill="#FFFFFF"/>
+  <!-- Right Pillar -->
+  <rect x="64" y="22" width="14" height="56" rx="5" fill="#FFFFFF"/>
+  <!-- Diagonal Portal Bridge forming N -->
+  <polygon points="36,26 36,44 64,74 64,56" fill="#FFFFFF"/>
+  <!-- Glowing Connectivity Beacon -->
+  <circle cx="50" cy="50" r="5" fill="#06B6D4"/>
+</svg>
