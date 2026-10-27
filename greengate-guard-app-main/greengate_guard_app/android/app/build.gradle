@@ -29,7 +29,7 @@ apply plugin: 'kotlin-android'
 apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
 android {
-    namespace "com.greengate.guard.greengate_guard_app"
+    namespace "com.nexbuild.nexguard"
     compileSdkVersion 33
     ndkVersion flutter.ndkVersion
 
@@ -47,8 +47,8 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.greengate.guard.greengate_guard_app"
-        minSdkVersion 21
+        applicationId "com.nexbuild.nexguard"
+        minSdkVersion 24
         targetSdkVersion 33
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - tushal
     paths:
       - 'backend/**'
       - '.github/workflows/deploy-backend.yml'

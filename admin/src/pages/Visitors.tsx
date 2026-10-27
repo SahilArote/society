@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, AlertTriangle, Users, Package, Wrench, Car, Eye,
   CheckCircle2, XCircle, Clock, Download, QrCode, Phone, ShieldCheck,
-  Building, LogOut, X, Share2, Printer, Loader2, Trash2
+  Building, LogOut, X, Share2, Printer, Loader2, Trash2, Ticket
 } from 'lucide-react';
 import type { AdminVisitor } from '../types';
 import StatCard, { CircularGauge } from '../components/StatCard';
+import InvitedVisitorsSection from '../components/InvitedVisitorsSection';
 import {
   fetchAdminVisitors,
   approveAdminVisitor,
@@ -17,7 +18,7 @@ import {
 } from '../services/api';
 import { initAdminSocket } from '../services/socket';
 
-type Tab = 'live' | 'today' | 'history';
+type Tab = 'live' | 'today' | 'history' | 'invites';
 
 const purposeCfg: Record<string, { icon: React.ElementType; color: string; label: string }> = {
   guest:       { icon: Users,   color: 'var(--accent-light)', label: 'Guest' },
@@ -82,6 +83,7 @@ export default function Visitors() {
   };
 
   const loadVisitors = async () => {
+    if (tab === 'invites') return;
     try {
       setLoading(true);
       const res = await fetchAdminVisitors({ tab });
@@ -101,6 +103,7 @@ export default function Visitors() {
   };
 
   useEffect(() => {
+    if (tab === 'invites') return;
     let active = true;
     loadVisitors();
 
@@ -238,62 +241,16 @@ export default function Visitors() {
         )}
       </AnimatePresence>
 
-      {/* Top Stats Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-        <StatCard
-          icon={Users}
-          label="Total Today"
-          value={visitors.length}
-          pill={{ text: 'Live Gates', color: 'var(--sky)', bg: 'var(--sky-bg)' }}
-          sub={`${insideCount} inside · ${visitors.filter(v => v.status === 'exited').length} exited`}
-          accentColor="var(--accent)"
-          bgColor="var(--accent-bg)"
-          delay={0}
-        />
-
-        <StatCard
-          icon={CheckCircle2}
-          label="Currently Inside"
-          value={insideCount}
-          pill={{ text: 'Verified Guests', color: 'var(--green)', bg: 'var(--green-bg)' }}
-          sub={insideCount > 0 ? `${insideCount} visitor${insideCount > 1 ? 's' : ''} on premises` : 'No visitors on premises'}
-          accentColor="var(--green)"
-          bgColor="var(--green-bg)"
-          delay={0.06}
-        />
-
-        <StatCard
-          icon={Clock}
-          label="Pending Approval"
-          value={pendingCount}
-          pill={pendingCount > 0
-            ? { text: `⚡ ${pendingCount} Action Req.`, color: 'var(--amber)', bg: 'var(--amber-bg)' }
-            : { text: 'All Clear ✓', color: 'var(--green)', bg: 'var(--green-bg)' }
-          }
-          sub={pendingCount > 0 ? `${pendingCount} awaiting approval` : 'No queue at gate barriers'}
-          accentColor="var(--amber)"
-          bgColor="var(--amber-bg)"
-          delay={0.12}
-          onClick={() => setTab('live')}
-        />
-
-        <StatCard
-          icon={XCircle}
-          label="Denied Entries"
-          value={deniedCount}
-          pill={{ text: 'Guarded', color: 'var(--red)', bg: 'var(--red-bg)' }}
-          sub={deniedCount > 0 ? `${deniedCount} denied visitor${deniedCount > 1 ? 's' : ''}` : 'No denied visitors'}
-          accentColor="var(--red)"
-          bgColor="var(--red-bg)"
-          delay={0.18}
-        />
-      </div>
-
-      {/* Tabs + Filter Bar */}
-      <motion.div className="card card-p" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+      {/* Top Tab Bar & Quick Action */}
+      <motion.div className="card card-p" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
           <div className="tab-bar">
-            {([['live', 'Live Now', liveCount], ['today', 'All Today', visitors.length], ['history', 'History', null]] as const).map(([k, l, c]) => (
+            {([
+              ['live', 'Live Now', liveCount],
+              ['today', 'All Today', visitors.length],
+              ['history', 'History', null],
+              ['invites', 'Invite Visitors', 8]
+            ] as const).map(([k, l, c]) => (
               <button
                 key={k}
                 onClick={() => setTab(k)}
@@ -306,45 +263,109 @@ export default function Visitors() {
             ))}
           </div>
 
-          <button
-            id="export-csv-btn"
-            onClick={exportCSV}
-            className="btn-success"
-            style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-          >
-            <Download size={13} /> Export CSV Log
-          </button>
+          {tab !== 'invites' && (
+            <button
+              id="export-csv-btn"
+              onClick={exportCSV}
+              className="btn-success"
+              style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+            >
+              <Download size={13} /> Export CSV Log
+            </button>
+          )}
         </div>
+      </motion.div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
-            <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search visitor, phone, flat, or host resident..."
-              className="field-input"
-              style={{ paddingLeft: 36 }}
-              id="visitors-search"
+      {tab === 'invites' ? (
+        <InvitedVisitorsSection
+          onBackToLive={() => setTab('today')}
+          onShowToast={showToast}
+        />
+      ) : (
+        <>
+
+          {/* Top Stats Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+            <StatCard
+              icon={Users}
+              label="Total Today"
+              value={visitors.length}
+              pill={{ text: 'Live Gates', color: 'var(--sky)', bg: 'var(--sky-bg)' }}
+              sub={`${insideCount} inside · ${visitors.filter(v => v.status === 'exited').length} exited`}
+              accentColor="var(--accent)"
+              bgColor="var(--accent-bg)"
+              delay={0}
+            />
+
+            <StatCard
+              icon={CheckCircle2}
+              label="Currently Inside"
+              value={insideCount}
+              pill={{ text: 'Verified Guests', color: 'var(--green)', bg: 'var(--green-bg)' }}
+              sub={insideCount > 0 ? `${insideCount} visitor${insideCount > 1 ? 's' : ''} on premises` : 'No visitors on premises'}
+              accentColor="var(--green)"
+              bgColor="var(--green-bg)"
+              delay={0.06}
+            />
+
+            <StatCard
+              icon={Clock}
+              label="Pending Approval"
+              value={pendingCount}
+              pill={pendingCount > 0
+                ? { text: `⚡ ${pendingCount} Action Req.`, color: 'var(--amber)', bg: 'var(--amber-bg)' }
+                : { text: 'All Clear ✓', color: 'var(--green)', bg: 'var(--green-bg)' }
+              }
+              sub={pendingCount > 0 ? `${pendingCount} awaiting approval` : 'No queue at gate barriers'}
+              accentColor="var(--amber)"
+              bgColor="var(--amber-bg)"
+              delay={0.12}
+              onClick={() => setTab('live')}
+            />
+
+            <StatCard
+              icon={XCircle}
+              label="Denied Entries"
+              value={deniedCount}
+              pill={{ text: 'Guarded', color: 'var(--red)', bg: 'var(--red-bg)' }}
+              sub={deniedCount > 0 ? `${deniedCount} denied visitor${deniedCount > 1 ? 's' : ''}` : 'No denied visitors'}
+              accentColor="var(--red)"
+              bgColor="var(--red-bg)"
+              delay={0.18}
             />
           </div>
 
-          <select value={gate} onChange={e => setGate(e.target.value)} className="field-select" style={{ width: 'auto' }} id="gate-filter">
-            <option value="all">All Gates</option>
-            <option value="Main Gate">Main Gate</option>
-            <option value="East Gate">East Gate</option>
-            <option value="Service Gate">Service Gate</option>
-          </select>
+          {/* Filter Bar */}
+          <motion.div className="card card-p" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
+                <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search visitor, phone, flat, or host resident..."
+                  className="field-input"
+                  style={{ paddingLeft: 36 }}
+                  id="visitors-search"
+                />
+              </div>
 
-          <select value={purpose} onChange={e => setPurpose(e.target.value)} className="field-select" style={{ width: 'auto' }} id="purpose-filter">
-            <option value="all">All Purposes</option>
-            <option value="guest">Guest</option>
-            <option value="delivery">Delivery</option>
-            <option value="maintenance">Service & Maintenance</option>
-            <option value="cab">Cab / Taxi</option>
-          </select>
-        </div>
-      </motion.div>
+              <select value={gate} onChange={e => setGate(e.target.value)} className="field-select" style={{ width: 'auto' }} id="gate-filter">
+                <option value="all">All Gates</option>
+                <option value="Main Gate">Main Gate</option>
+                <option value="East Gate">East Gate</option>
+                <option value="Service Gate">Service Gate</option>
+              </select>
+
+              <select value={purpose} onChange={e => setPurpose(e.target.value)} className="field-select" style={{ width: 'auto' }} id="purpose-filter">
+                <option value="all">All Purposes</option>
+                <option value="guest">Guest</option>
+                <option value="delivery">Delivery</option>
+                <option value="maintenance">Service & Maintenance</option>
+                <option value="cab">Cab / Taxi</option>
+              </select>
+            </div>
+          </motion.div>
 
       {/* Table */}
       <motion.div className="card" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
@@ -552,6 +573,8 @@ export default function Visitors() {
           </div>
         )}
       </motion.div>
+      </>
+      )}
 
       {/* Digital VIP Visitor Gate Pass Modal */}
       <AnimatePresence>

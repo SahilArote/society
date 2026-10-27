@@ -97,6 +97,32 @@ export interface AdminVisitor {
 }
 
 // ========================
+// Pre-Approved / Invited Visitor Types
+// ========================
+
+export type InviteStatus = 'expected' | 'checked_in' | 'upcoming' | 'expired' | 'revoked';
+
+export interface InvitedVisitor {
+  id: string;
+  passCode: string;
+  visitorName: string;
+  visitorPhone?: string;
+  purpose: 'guest' | 'delivery' | 'service' | 'cab';
+  status: InviteStatus;
+  flatNumber: string;
+  residentName: string;
+  residentRole?: 'owner' | 'tenant';
+  residentPhone?: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  validUntil: string;
+  entryType: 'single_entry' | 'multi_day';
+  notes?: string;
+  createdAt: string;
+  vehicleNumber?: string;
+  gateCheckInTime?: string;
+  guardName?: string;
+}
 // Guard Types
 // ========================
 
