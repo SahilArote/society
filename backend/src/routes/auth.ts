@@ -578,10 +578,17 @@ router.post('/guard/login', async (req: Request, res: Response) => {
     const cleanInput = String(rawId).trim();
     const cleanPin = String(rawPin).trim();
 
-    // 1. Locate Guard User strictly in MySQL database
-    let user = await findUserById(cleanInput);
+    // 1. Locate Guard User strictly in MySQL database (prioritizing mobile number)
+    const cleanDigits = cleanInput.replace(/\D/g, '').slice(-10);
+    let user = null;
+    if (cleanDigits.length >= 10) {
+      user = await findUserByMobile(cleanDigits);
+    }
     if (!user) {
       user = await findUserByMobile(cleanInput);
+    }
+    if (!user) {
+      user = await findUserById(cleanInput);
     }
 
     // Strict: Reject if guard is not found or not a GUARD in database

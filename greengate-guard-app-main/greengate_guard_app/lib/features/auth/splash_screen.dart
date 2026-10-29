@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
@@ -22,9 +23,9 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   void _checkAuthAndNavigate() {
-    Timer(const Duration(milliseconds: 1800), () {
+    Timer(const Duration(milliseconds: 1400), () {
       if (!mounted) return;
-      if (widget.guardRepo.isAuthenticated) {
+      if (!kIsWeb && widget.guardRepo.isAuthenticated) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => MainNavigation(guardRepo: widget.guardRepo),
@@ -86,7 +87,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 24),
             const Text(
-              'NexGate',
+              'NexGuard',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,

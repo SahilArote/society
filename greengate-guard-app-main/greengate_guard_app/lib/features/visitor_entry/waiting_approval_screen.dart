@@ -81,12 +81,10 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
   Widget build(BuildContext context) {
     final reqTimeFormatted = DateFormat('hh:mm a').format(widget.request.requestTime);
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) {
-          _navigateBackToDashboard();
-        }
+    return WillPopScope(
+      onWillPop: () async {
+        _navigateBackToDashboard();
+        return false;
       },
       child: Scaffold(
         backgroundColor: AppColors.background,

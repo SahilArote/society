@@ -110,6 +110,38 @@ const serveDeleteAccountPage = (_req, res) => {
 app.get('/delete-account', serveDeleteAccountPage);
 app.get('/account-deletion', serveDeleteAccountPage);
 app.get('/api/delete-account', serveDeleteAccountPage);
+// Admin Portal Static Serving & SPA Fallback
+const getAdminDistDir = () => {
+    const candidates = [
+        path_1.default.resolve(__dirname, '../../admin/dist'),
+        path_1.default.resolve(__dirname, '../admin/dist'),
+        path_1.default.resolve(process.cwd(), 'admin/dist'),
+        path_1.default.resolve(process.cwd(), '../admin/dist'),
+    ];
+    for (const c of candidates) {
+        if (fs_1.default.existsSync(c))
+            return c;
+    }
+    return null;
+};
+const adminDistDir = getAdminDistDir();
+if (adminDistDir) {
+    app.use('/admin', express_1.default.static(adminDistDir));
+    app.get('/login', (_req, res) => {
+        res.redirect('/admin/login');
+    });
+    app.get(['/admin', '/admin/*'], (_req, res) => {
+        res.sendFile(path_1.default.join(adminDistDir, 'index.html'));
+    });
+}
+else {
+    app.get('/login', (_req, res) => {
+        res.redirect('http://localhost:5174/login');
+    });
+    app.get('/admin', (_req, res) => {
+        res.redirect('http://localhost:5174/');
+    });
+}
 // Unmatched API Routes Handler (Never return HTML)
 app.use('/api/*', (req, res) => {
     res.status(404).json({

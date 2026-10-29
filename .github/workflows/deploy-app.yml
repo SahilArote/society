@@ -1,0 +1,82 @@
+name: Deploy App (Landing & Admin) to AWS (society/app)
+
+on:
+  push:
+    branches:
+      - main
+      - tushal
+    paths:
+      - 'admin/**'
+      - '.github/workflows/deploy-app.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy Frontend App (dist only to /society/app)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 🔨 Install Dependencies & Build Frontend (on CI runner)
+        working-directory: admin
+        run: |
+          echo "Installing dependencies on CI runner..."
+          npm install
+          echo "Compiling Vite frontend to dist..."
+          npm run build
+
+      - name: 📦 Bundle Only dist & Runtime Server Files
+        working-directory: admin
+        run: |
+          echo "Packaging built dist, server.js and ecosystem config..."
+          tar -czf deploy-app.tar.gz dist server.js ecosystem.config.js
+          ls -lh deploy-app.tar.gz
+
+      - name: 🔑 Configure SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" | tr -d '\r' > ~/.ssh/lightsail.pem
+          chmod 600 ~/.ssh/lightsail.pem
+          ssh-keyscan -H ${{ secrets.LIGHTSAIL_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 🚀 Upload dist Bundle to Server
+        run: |
+          echo "Ensuring /home/${{ secrets.LIGHTSAIL_USER }}/society/app exists..."
+          ssh -i ~/.ssh/lightsail.pem ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} "mkdir -p /home/${{ secrets.LIGHTSAIL_USER }}/society/app"
+
+          echo "Uploading deploy-app.tar.gz..."
+          scp -i ~/.ssh/lightsail.pem admin/deploy-app.tar.gz ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}:/home/${{ secrets.LIGHTSAIL_USER }}/society/app/deploy-app.tar.gz
+
+      - name: 🔄 Extract on Server & Reload PM2 (Zero Server Build)
+        run: |
+          ssh -i ~/.ssh/lightsail.pem ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} bash << 'EOF'
+            set -e
+            cd /home/ec2-user/society/app
+
+            echo "📦 Extracting pre-built dist bundle..."
+            tar -xzf deploy-app.tar.gz
+            rm -f deploy-app.tar.gz
+
+            echo "🔄 Managing PM2 processes..."
+            if pm2 describe society-app > /dev/null 2>&1; then
+              echo "Reloading existing society-app process..."
+              pm2 reload society-app --update-env
+            else
+              echo "Starting society-app via ecosystem.config.js..."
+              pm2 start ecosystem.config.js
+            fi
+            pm2 save
+
+            echo "🩺 Verifying Frontend Health..."
+            sleep 2
+            curl -f http://localhost:3006/ > /dev/null
+            echo ""
+            echo "✅ Frontend deployment successful! Live on port 3006 in /society/app."
+          EOF

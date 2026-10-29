@@ -1,9 +1,10 @@
-name: Deploy Backend to AWS Lightsail
+name: Deploy Backend to AWS (society/api)
 
 on:
   push:
     branches:
       - main
+      - tushal
     paths:
       - 'backend/**'
       - '.github/workflows/deploy-backend.yml'
@@ -11,7 +12,7 @@ on:
 
 jobs:
   build-and-deploy:
-    name: Build & Deploy Backend (dist only)
+    name: Build & Deploy Backend (dist to /society/api)
     runs-on: ubuntu-latest
 
     steps:
@@ -22,23 +23,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
 
       - name: 🔨 Install Dependencies & Build Backend
         working-directory: backend
         run: |
           echo "Installing dependencies for compilation..."
-          npm ci
+          npm install
           echo "Building TypeScript to dist..."
           npm run build
 
       - name: 📦 Bundle Only dist & Runtime Configs
         working-directory: backend
         run: |
-          echo "Creating compressed tar bundle of dist & configs..."
-          tar -czf deploy.tar.gz dist package.json package-lock.json ecosystem.config.js public
-          ls -lh deploy.tar.gz
+          echo "Creating compressed tar bundle of backend..."
+          tar -czf deploy-backend.tar.gz dist package.json package-lock.json ecosystem.config.js public
+          ls -lh deploy-backend.tar.gz
 
       - name: 🔑 Configure SSH Key
         run: |
@@ -47,28 +46,45 @@ jobs:
           chmod 600 ~/.ssh/lightsail.pem
           ssh-keyscan -H ${{ secrets.LIGHTSAIL_HOST }} >> ~/.ssh/known_hosts
 
-      - name: 🚀 Upload dist Bundle to Server
+      - name: 🚀 Upload Bundle to Server
         run: |
-          echo "Uploading deploy.tar.gz to /home/${{ secrets.LIGHTSAIL_USER }}/society/..."
-          scp -i ~/.ssh/lightsail.pem backend/deploy.tar.gz ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}:/home/${{ secrets.LIGHTSAIL_USER }}/society/deploy.tar.gz
+          echo "Ensuring /home/${{ secrets.LIGHTSAIL_USER }}/society/api exists..."
+          ssh -i ~/.ssh/lightsail.pem ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} "mkdir -p /home/${{ secrets.LIGHTSAIL_USER }}/society/api"
 
-      - name: 🔄 Extract on Server & Reload PM2
+          echo "Uploading deploy-backend.tar.gz..."
+          scp -i ~/.ssh/lightsail.pem backend/deploy-backend.tar.gz ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}:/home/${{ secrets.LIGHTSAIL_USER }}/society/api/deploy-backend.tar.gz
+
+      - name: 🔄 Extract on Server & Reload PM2 (society-api)
         run: |
           ssh -i ~/.ssh/lightsail.pem ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} bash << 'EOF'
             set -e
-            cd /home/ec2-user/society
+            cd /home/ec2-user/society/api
 
-            echo "📦 Extracting new dist bundle..."
-            tar -xzf deploy.tar.gz
-            rm -f deploy.tar.gz
+            echo "📦 Extracting backend bundle..."
+            tar -xzf deploy-backend.tar.gz
+            rm -f deploy-backend.tar.gz
+
+            # Copy parent .env if local .env doesn't exist yet
+            if [ ! -f .env ] && [ -f /home/ec2-user/society/.env ]; then
+              echo "📋 Copying existing .env from /home/ec2-user/society/.env..."
+              cp /home/ec2-user/society/.env .env
+            fi
 
             echo "📥 Updating production dependencies..."
-            npm ci --omit=dev
+            npm install --omit=dev
 
-            echo "🔄 Zero-downtime PM2 reload..."
+            echo "🔄 Managing PM2 processes..."
+            # Stop legacy root process if present
             if pm2 describe society > /dev/null 2>&1; then
-              pm2 reload society --update-env
+              echo "Stopping legacy 'society' root process..."
+              pm2 delete society || true
+            fi
+
+            if pm2 describe society-api > /dev/null 2>&1; then
+              echo "Reloading existing society-api process..."
+              pm2 reload society-api --update-env
             else
+              echo "Starting society-api via ecosystem.config.js..."
               pm2 start ecosystem.config.js
             fi
             pm2 save
@@ -77,5 +93,5 @@ jobs:
             sleep 2
             curl -f http://localhost:5001/api/health
             echo ""
-            echo "✅ Deployment Successful! Backend is live on port 5001."
+            echo "✅ Backend deployment successful! Running on port 5001 in /society/api."
           EOF

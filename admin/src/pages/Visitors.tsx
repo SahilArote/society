@@ -86,7 +86,12 @@ export default function Visitors() {
       setLoading(true);
       const res = await fetchAdminVisitors({ tab });
       const list = Array.isArray(res) ? res : (res as any)?.visitors || (res as any)?.data || [];
-      setVisitors(list);
+      const sorted = [...list].sort((a: any, b: any) => {
+        const timeA = new Date(a.requestedAt || a.enteredAt || 0).getTime();
+        const timeB = new Date(b.requestedAt || b.enteredAt || 0).getTime();
+        return timeB - timeA;
+      });
+      setVisitors(sorted);
     } catch (err: any) {
       console.error('Failed to load visitors:', err);
       showToast('Could not load visitors from server');
@@ -181,15 +186,21 @@ export default function Visitors() {
     showToast('Downloaded visitors export CSV');
   };
 
-  const filtered = visitors.filter(v => {
-    if (tab === 'live' && !['pending', 'inside'].includes(v.status)) return false;
-    if (tab === 'history' && !['exited', 'denied', 'expired'].includes(v.status)) return false;
-    if (gate !== 'all' && v.gate !== gate) return false;
-    if (purpose !== 'all' && v.purpose !== purpose) return false;
-    return v.name.toLowerCase().includes(search.toLowerCase()) ||
-      v.flatNumber.toLowerCase().includes(search.toLowerCase()) ||
-      v.residentName.toLowerCase().includes(search.toLowerCase());
-  });
+  const filtered = visitors
+    .filter(v => {
+      if (tab === 'live' && !['pending', 'inside'].includes(v.status)) return false;
+      if (tab === 'history' && !['exited', 'denied', 'expired'].includes(v.status)) return false;
+      if (gate !== 'all' && v.gate !== gate) return false;
+      if (purpose !== 'all' && v.purpose !== purpose) return false;
+      return v.name.toLowerCase().includes(search.toLowerCase()) ||
+        v.flatNumber.toLowerCase().includes(search.toLowerCase()) ||
+        v.residentName.toLowerCase().includes(search.toLowerCase());
+    })
+    .sort((a, b) => {
+      const timeA = new Date(a.requestedAt || a.enteredAt || 0).getTime();
+      const timeB = new Date(b.requestedAt || b.enteredAt || 0).getTime();
+      return timeB - timeA;
+    });
 
   const liveCount = visitors.filter(v => ['pending', 'inside'].includes(v.status)).length;
   const insideCount = visitors.filter(v => v.status === 'inside').length;

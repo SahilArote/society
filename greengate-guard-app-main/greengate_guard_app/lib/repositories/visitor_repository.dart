@@ -257,6 +257,24 @@ class VisitorRepository extends ChangeNotifier {
     }
   }
 
+  // Simulate Resident decision for testing/demo
+  Future<void> simulateResidentDecision({
+    required String requestId,
+    required bool isApproved,
+    String? reason,
+  }) async {
+    final index = _requests.indexWhere((r) => r.id == requestId);
+    if (index != -1) {
+      _requests[index].status = isApproved ? VisitorStatus.approved : VisitorStatus.rejected;
+      if (!isApproved && reason != null) {
+        _requests[index].rejectionReason = reason;
+      }
+      _requests[index].decisionTime = DateTime.now();
+      await _storage.saveRequests(_requests);
+      notifyListeners();
+    }
+  }
+
   // Reset requests
   Future<void> resetToSeedData() async {
     _requests = [];

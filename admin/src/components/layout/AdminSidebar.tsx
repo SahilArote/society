@@ -8,14 +8,14 @@ import {
 import { mockAdminUser } from '../../data/mockData';
 
 const NAV = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', section: 'Management' },
-  { to: '/residents', icon: Users, label: 'Residents', section: 'Management' },
-  { to: '/visitors', icon: UserCheck, label: 'Visitors', section: 'Management' },
-  { to: '/gates', icon: DoorOpen, label: 'Gates & Guards', section: 'Management' },
-  { to: '/announcements', icon: Megaphone, label: 'Announcements', section: 'Society', badge: 'Soon' },
-  { to: '/notifications', icon: Bell, label: 'Notifications', section: 'Society', badge: 'Soon' },
-  { to: '/reports', icon: BarChart3, label: 'Reports', section: 'Society', badge: 'Soon' },
-  { to: '/settings', icon: Settings, label: 'Settings', section: 'Configuration' },
+  { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard', section: 'Management' },
+  { to: '/admin/residents', icon: Users, label: 'Residents', section: 'Management' },
+  { to: '/admin/visitors', icon: UserCheck, label: 'Visitors', section: 'Management' },
+  { to: '/admin/gates', icon: DoorOpen, label: 'Gates & Guards', section: 'Management' },
+  { to: '/admin/announcements', icon: Megaphone, label: 'Announcements', section: 'Society', badge: 'Soon' },
+  { to: '/admin/notifications', icon: Bell, label: 'Notifications', section: 'Society', badge: 'Soon' },
+  { to: '/admin/reports', icon: BarChart3, label: 'Reports', section: 'Society', badge: 'Soon' },
+  { to: '/admin/settings', icon: Settings, label: 'Settings', section: 'Configuration' },
 ];
 
 const grouped = NAV.reduce((acc, item) => {
@@ -135,7 +135,7 @@ export function AdminSidebar() {
             </div>
           </div>
           <button
-            onClick={() => { localStorage.removeItem('gg_admin_auth'); navigate('/login'); }}
+            onClick={() => { localStorage.removeItem('gg_admin_auth'); navigate('/admin/login'); }}
             id="sidebar-logout-btn"
             className="btn-icon"
             title="Logout"

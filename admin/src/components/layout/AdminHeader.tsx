@@ -23,7 +23,8 @@ const PAGE_META: Record<string, { title: string; sub: string }> = {
 export function AdminHeader() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const meta = PAGE_META[pathname] ?? { title: 'Admin', sub: '' };
+  const normalizedKey = pathname.replace(/^\/admin/, '') || '/dashboard';
+  const meta = PAGE_META[normalizedKey] ?? PAGE_META[pathname] ?? { title: 'Admin', sub: '' };
 
   const [time, setTime] = useState('');
   const [date, setDate] = useState('');
@@ -103,12 +104,12 @@ export function AdminHeader() {
   const q = cmdSearch.toLowerCase().trim();
   const searchResults = [
     // Navigation items
-    { type: 'Page', title: 'Dashboard', sub: '', icon: Shield, link: '/dashboard' },
-    { type: 'Page', title: 'Residents Management', sub: '', icon: Users, link: '/residents' },
-    { type: 'Page', title: 'Visitors Log', sub: '', icon: UserCheck, link: '/visitors' },
-    { type: 'Page', title: 'Gates & CCTV Guard Roster', sub: '', icon: DoorOpen, link: '/gates' },
-    { type: 'Page', title: 'Announcements', sub: '', icon: Megaphone, link: '/announcements' },
-    { type: 'Page', title: 'Society Settings', sub: '', icon: Settings, link: '/settings' },
+    { type: 'Page', title: 'Dashboard', sub: '', icon: Shield, link: '/admin/dashboard' },
+    { type: 'Page', title: 'Residents Management', sub: '', icon: Users, link: '/admin/residents' },
+    { type: 'Page', title: 'Visitors Log', sub: '', icon: UserCheck, link: '/admin/visitors' },
+    { type: 'Page', title: 'Gates & CCTV Guard Roster', sub: '', icon: DoorOpen, link: '/admin/gates' },
+    { type: 'Page', title: 'Announcements', sub: '', icon: Megaphone, link: '/admin/announcements' },
+    { type: 'Page', title: 'Society Settings', sub: '', icon: Settings, link: '/admin/settings' },
     // Flats
     ...mockFlats.map(f => ({
       type: 'Flat',
@@ -304,7 +305,7 @@ export function AdminHeader() {
                     textAlign: 'center'
                   }}>
                     <button
-                      onClick={() => { setShowNotifPopover(false); navigate('/notifications'); }}
+                      onClick={() => { setShowNotifPopover(false); navigate('/admin/notifications'); }}
                       style={{
                         background: 'none', border: 'none', color: 'var(--accent-light)',
                         fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex',

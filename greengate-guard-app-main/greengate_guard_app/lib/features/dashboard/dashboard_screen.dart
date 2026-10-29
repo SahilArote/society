@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
@@ -149,7 +150,7 @@ class DashboardScreen extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: AppColors.successLight,
                             borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                            border: Border.all(color: AppColors.success.withOpacity(0.3)),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
@@ -457,6 +458,9 @@ class DashboardScreen extends StatelessWidget {
     }
     if (path.startsWith('assets/')) {
       return Image.asset(path, fit: BoxFit.cover);
+    }
+    if (kIsWeb) {
+      return const Icon(Icons.person, size: 28, color: AppColors.primary);
     }
     return Image.file(File(path), fit: BoxFit.cover);
   }
