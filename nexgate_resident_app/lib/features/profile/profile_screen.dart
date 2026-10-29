@@ -6,6 +6,7 @@ import '../../core/utils/haptic_helper.dart';
 import '../../core/widgets/confirmation_dialog.dart';
 import '../../core/widgets/custom_app_bar.dart';
 import '../../services/auth_service.dart';
+import '../../services/api_service.dart';
 import '../auth/login_screen.dart';
 import '../household/family_members_screen.dart';
 import '../household/flat_details_screen.dart';
@@ -32,6 +33,59 @@ class ProfileScreen extends StatelessWidget {
         MaterialPageRoute(builder: (_) => const LoginScreen()),
         (route) => false,
       );
+    }
+  }
+
+
+  Future<void> _handleDeleteAccount(BuildContext context) async {
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Delete NexGate Account',
+      message: 'Are you sure you want to permanently delete your account? This action is irreversible. Your flat occupancy binding, visitor approval history, family members, and registered vehicles will be permanently purged.',
+      confirmLabel: 'Permanently Delete',
+      isDestructive: true,
+      icon: Icons.delete_forever_rounded,
+    );
+
+    if (confirmed == true) {
+      if (!context.mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(
+          child: CircularProgressIndicator(color: AppColors.error),
+        ),
+      );
+
+      try {
+        await ApiService.deleteAccount();
+        await AuthService.logout();
+
+        if (!context.mounted) return;
+        Navigator.of(context).pop();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Your account and resident data have been permanently deleted.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      } catch (e) {
+        if (!context.mounted) return;
+        Navigator.of(context).pop();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete account: ' + e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -242,6 +296,15 @@ class ProfileScreen extends StatelessWidget {
                   subtitle: 'Log out of this resident device',
                   isDestructive: true,
                   onTap: () => _handleLogout(context),
+                ),
+                _SettingsTile(
+                  icon: Icons.delete_forever_rounded,
+                  iconColor: AppColors.error,
+                  iconBg: AppColors.errorBackground,
+                  title: 'Delete Account',
+                  subtitle: 'Permanently erase account and resident records',
+                  isDestructive: true,
+                  onTap: () => _handleDeleteAccount(context),
                 ),
               ]),
 

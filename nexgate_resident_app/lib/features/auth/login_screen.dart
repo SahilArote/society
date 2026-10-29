@@ -297,7 +297,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'End-to-End Encrypted Society Security',
+                      'Encrypted Connection',
                       style: AppTypography.caption.copyWith(
                         color: AppColors.mutedText,
                       ),

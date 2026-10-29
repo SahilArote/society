@@ -358,4 +358,17 @@ class ApiService {
       return false;
     }
   }
+
+  // ==========================================================
+  // ACCOUNT DELETION (Google Play Policy Compliance)
+  // ==========================================================
+
+  static Future<bool> deleteAccount() async {
+    final response = await http.delete(
+      Uri.parse(ApiEndpoints.deleteAccount),
+      headers: _headers(),
+    );
+    final json = _handleResponse(response);
+    return json['success'] == true;
+  }
 }

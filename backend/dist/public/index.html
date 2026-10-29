@@ -4,16 +4,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NexGate & GreenGate — Smart Society Management & Gate Security</title>
+  <title>NexGate & NexGuard — Smart Society Management & Gate Security</title>
   <meta name="description"
-    content="NexGate & GreenGate: The official residential gate security and visitor management platform by NexBuild Technologies. Download the live Play Store app for instant visitor approvals, digital passes, and verified security.">
+    content="NexGate & NexGuard: The official residential gate security and visitor management platform by NexBuild Technologies. Download the live Play Store app for instant visitor approvals, digital passes, and verified security.">
   <meta name="keywords"
-    content="NexGate, GreenGate, society management app, resident gate security, visitor management system, digital gate pass, housing society security app, NexBuild Technologies, GreenGate Guard App">
+    content="NexGate, NexGuard, society management app, resident gate security, visitor management system, digital gate pass, housing society security app, NexBuild Technologies, NexGuard Guard App">
   <meta name="author" content="NexBuild Technologies">
 
   <!-- Open Graph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="NexGate & GreenGate — Smart Society Management & Gate Security">
+  <meta property="og:title" content="NexGate & NexGuard — Smart Society Management & Gate Security">
   <meta property="og:description"
     content="Official residential security app on Google Play Store. Sub-second gate approvals, digital QR passes, and guard camera verification.">
 
@@ -25,8 +25,8 @@
     rel="stylesheet">
 
   <!-- Official App Favicon -->
-  <link rel="icon" type="image/png" href="assets/images/logo.png">
-  <link rel="apple-touch-icon" href="assets/images/logo.png">
+  <link rel="icon" type="image/png" href="public/assets/images/logo.png">
+  <link rel="apple-touch-icon" href="public/assets/images/logo.png">
 
   <style>
     /* ============================================================
@@ -34,14 +34,19 @@
        ============================================================ */
     :root {
       /* Tier-1 SaaS Design System Tokens (Purple, Blue & White) */
-      --primary: #4f46e5;            /* Primary Indigo */
-      --primary-blue: #2563eb;       /* Electric Blue */
-      --primary-purple: #7c3aed;     /* Vibrant Purple */
-      --primary-dark: #3730a3;       /* Deep Indigo */
-      --primary-navy: #0f172a;       /* High-contrast Slate Navy */
+      --primary: #4f46e5;
+      /* Primary Indigo */
+      --primary-blue: #2563eb;
+      /* Electric Blue */
+      --primary-purple: #7c3aed;
+      /* Vibrant Purple */
+      --primary-dark: #3730a3;
+      /* Deep Indigo */
+      --primary-navy: #0f172a;
+      /* High-contrast Slate Navy */
       --primary-gradient: linear-gradient(135deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%);
       --accent-gradient: linear-gradient(90deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%);
-      
+
       --accent-blue-soft: #eff6ff;
       --accent-blue-border: #bfdbfe;
       --accent-purple-soft: #faf5ff;
@@ -49,14 +54,19 @@
       --accent-indigo-soft: #eef2ff;
       --accent-indigo-border: #c7d2fe;
 
-      --bg-main: #f8fafc;            /* Clean Surface Low */
-      --bg-card: #ffffff;            /* Pure Crisp White Card */
+      --bg-main: #f8fafc;
+      /* Clean Surface Low */
+      --bg-card: #ffffff;
+      /* Pure Crisp White Card */
       --bg-card-subtle: #f1f5f9;
       --bg-dark: #0f172a;
 
-      --text-main: #0f172a;          /* High-Contrast Main Text */
-      --text-secondary: #475569;     /* Secondary Slate Text */
-      --text-muted: #64748b;         /* Muted Label Text */
+      --text-main: #0f172a;
+      /* High-Contrast Main Text */
+      --text-secondary: #475569;
+      /* Secondary Slate Text */
+      --text-muted: #64748b;
+      /* Muted Label Text */
       --text-light: #ffffff;
 
       --border-color: #e2e8f0;
@@ -115,7 +125,10 @@
       position: relative;
     }
 
-    header, section, footer, main {
+    header,
+    section,
+    footer,
+    main {
       max-width: 100vw;
       overflow-x: hidden;
     }
@@ -325,10 +338,12 @@
         transform: scale(0.95);
         box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7);
       }
+
       70% {
         transform: scale(1);
         box-shadow: 0 0 0 8px rgba(79, 70, 229, 0);
       }
+
       100% {
         transform: scale(0.95);
         box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
@@ -750,6 +765,7 @@
         opacity: 0;
         transform: translateY(3px);
       }
+
       to {
         opacity: 1;
         transform: translateY(0);
@@ -1166,6 +1182,7 @@
       justify-content: space-between;
       box-sizing: border-box;
     }
+
     /* Phone Mockup Layout Spacing */
 
     /* ============================================================
@@ -2088,9 +2105,20 @@
     }
 
     @keyframes cta-pulse-indigo {
-      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7); }
-      70% { transform: scale(1); box-shadow: 0 0 0 7px rgba(79, 70, 229, 0); }
-      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); }
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7);
+      }
+
+      70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 7px rgba(79, 70, 229, 0);
+      }
+
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
+      }
     }
 
     .cta-title {
@@ -2312,9 +2340,11 @@
       .cta-features-grid {
         grid-template-columns: 1fr;
       }
+
       .cta-title {
         font-size: 2.15rem;
       }
+
       .cta-showcase-card {
         padding: 38px 22px 28px 22px;
       }
@@ -2587,6 +2617,7 @@
         opacity: 0;
         transform: translateY(-8px);
       }
+
       to {
         opacity: 1;
         transform: translateY(0);
@@ -2974,7 +3005,8 @@
     <div class="container nav-inner">
       <a href="#" class="brand-logo" aria-label="NexGate Home">
         <div class="brand-icon-box">
-          <img src="assets/images/logo.png" alt="NexGate Logo" class="brand-logo-img" onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
+          <img src="public/assets/images/logo.png" alt="NexGate Logo" class="brand-logo-img"
+            onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
         </div>
         <div class="brand-title-wrap">
           <span class="brand-title">NexGate</span>
@@ -2993,7 +3025,7 @@
           <li><a href="privacy-policy.html" class="nav-link" target="_blank">Privacy</a></li>
           <li>
             <!-- Direct Google Play Store Download Button -->
-            <a href="https://play.google.com/store/apps/details?id=com.greengate.guard.greengate_guard_app"
+            <a href="https://play.google.com/store/apps/details?id=com.NexGuard.guard.NexGuard_guard_app"
               target="_blank" rel="noopener noreferrer" class="nav-cta" id="navDownloadBtn">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
                 <path
@@ -3007,14 +3039,14 @@
 
       <!-- Mobile Hamburger / Close Button -->
       <button class="menu-toggle" id="menuToggle" onclick="toggleNavDropdown()" aria-label="Toggle navigation menu">
-        <svg id="burgerSvg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"
-          stroke-linecap="round" stroke-linejoin="round">
+        <svg id="burgerSvg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
           <line x1="3" y1="12" x2="21" y2="12" />
           <line x1="3" y1="6" x2="21" y2="6" />
           <line x1="3" y1="18" x2="21" y2="18" />
         </svg>
-        <svg id="closeSvg" style="display:none;" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-          stroke-linecap="round" stroke-linejoin="round">
+        <svg id="closeSvg" style="display:none;" width="24" height="24" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
@@ -3025,78 +3057,112 @@
     <div class="mobile-dropdown-menu" id="mobileDropdownMenu">
       <div class="mobile-menu-container">
         <!-- Official Mobile Brand Header -->
-        <div style="display: flex; align-items: center; gap: 10px; padding: 6px 14px 12px 14px; border-bottom: 1px solid #f1f5f9; margin-bottom: 6px;">
-          <img src="assets/images/logo.png" alt="NexGate Logo" style="width: 32px; height: 32px; border-radius: 9px; object-fit: contain; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25); background: #ffffff;" onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
+        <div
+          style="display: flex; align-items: center; gap: 10px; padding: 6px 14px 12px 14px; border-bottom: 1px solid #f1f5f9; margin-bottom: 6px;">
+          <img src="public/assets/images/logo.png" alt="NexGate Logo"
+            style="width: 32px; height: 32px; border-radius: 9px; object-fit: contain; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25); background: #ffffff;"
+            onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
           <div>
             <div style="font-weight: 800; font-size: 1.05rem; color: #0f172a; line-height: 1.15;">NexGate</div>
-            <div style="font-size: 0.62rem; font-weight: 700; color: #4f46e5; text-transform: uppercase; letter-spacing: 0.06em;">by NexBuild Technologies</div>
+            <div
+              style="font-size: 0.62rem; font-weight: 700; color: #4f46e5; text-transform: uppercase; letter-spacing: 0.06em;">
+              by NexBuild Technologies</div>
           </div>
         </div>
 
         <a href="#about" class="mob-menu-item" onclick="closeNavDropdown()">
-          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
-            <path d="M9 22v-4h6v4"/>
-            <path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/>
-            <path d="M12 10h.01"/><path d="M12 14h.01"/>
-            <path d="M16 10h.01"/><path d="M16 14h.01"/>
+          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
+            <path d="M9 22v-4h6v4" />
+            <path d="M8 6h.01" />
+            <path d="M16 6h.01" />
+            <path d="M12 6h.01" />
+            <path d="M12 10h.01" />
+            <path d="M12 14h.01" />
+            <path d="M16 10h.01" />
+            <path d="M16 14h.01" />
           </svg>
           <span class="mob-title">About</span>
-          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
         </a>
 
         <a href="#features" class="mob-menu-item" onclick="closeNavDropdown()">
-          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
           </svg>
           <span class="mob-title">Features</span>
-          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
         </a>
 
         <a href="#how-it-works" class="mob-menu-item" onclick="closeNavDropdown()">
-          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <polygon points="10 8 16 12 10 16 10 8"/>
+          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <polygon points="10 8 16 12 10 16 10 8" />
           </svg>
           <span class="mob-title">How It Works</span>
-          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
         </a>
 
         <a href="#security" class="mob-menu-item" onclick="closeNavDropdown()">
-          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
           <span class="mob-title">Security & Privacy</span>
-          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
         </a>
 
         <a href="#faq" class="mob-menu-item" onclick="closeNavDropdown()">
-          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
           </svg>
           <span class="mob-title">FAQs</span>
-          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
         </a>
 
         <a href="privacy-policy.html" target="_blank" class="mob-menu-item" onclick="closeNavDropdown()">
-          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-            <polyline points="10 9 9 9 8 9"/>
+          <svg class="mob-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
           </svg>
           <span class="mob-title">Privacy Policy</span>
-          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          <svg class="mob-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
         </a>
 
         <div class="mob-cta-box">
-          <a href="https://play.google.com/store/apps/details?id=com.greengate.guard.greengate_guard_app"
-            target="_blank" rel="noopener noreferrer" class="mob-play-btn">
+          <a href="https://play.google.com/store/apps/details?id=com.NexGuard.guard.NexGuard_guard_app" target="_blank"
+            rel="noopener noreferrer" class="mob-play-btn">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M3.609 1.814L13.793 12 3.61 22.186c-.347-.35-.558-.871-.558-1.503V3.317c0-.632.211-1.153.557-1.503zM15.207 13.414l2.586 2.586-11.47 6.623 8.884-9.209zm0-2.828L6.323 1.377l11.47 6.623-2.586 2.586zm1.414 1.414l3.774 2.18c.942.544.942 1.43 0 1.974l-3.774 2.18-2.121-2.121 2.121-2.213z" />
+              <path
+                d="M3.609 1.814L13.793 12 3.61 22.186c-.347-.35-.558-.871-.558-1.503V3.317c0-.632.211-1.153.557-1.503zM15.207 13.414l2.586 2.586-11.47 6.623 8.884-9.209zm0-2.828L6.323 1.377l11.47 6.623-2.586 2.586zm1.414 1.414l3.774 2.18c.942.544.942 1.43 0 1.974l-3.774 2.18-2.121-2.121 2.121-2.213z" />
             </svg>
             <span>Download on Google Play</span>
           </a>
@@ -3112,9 +3178,10 @@
     <div class="container hero-grid">
       <div class="hero-content">
         <div class="hero-badge-pill">
-          <img src="assets/images/logo.png" alt="NexGate Logo" class="pill-logo-icon" onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
+          <img src="public/assets/images/logo.png" alt="NexGate Logo" class="pill-logo-icon"
+            onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
           <span class="pulse-dot"></span>
-          <span>Official App &bull; NexGate &amp; GreenGate</span>
+          <span>Official App &bull; NexGate &amp; NexGuard</span>
         </div>
 
         <h1 class="hero-title">
@@ -3122,13 +3189,14 @@
         </h1>
 
         <p class="hero-subtitle">
-          NexGate transforms society gate management with <strong>sub-second visitor approvals</strong>, digital QR visitor
+          NexGate transforms society gate management with <strong>sub-second visitor approvals</strong>, digital QR
+          visitor
           passes, household family management, and real-time security guard cross-verification.
         </p>
 
         <div class="hero-actions">
           <!-- Primary Play Store Button -->
-          <a href="https://play.google.com/store/apps/details?id=com.greengate.guard.greengate_guard_app" target="_blank"
+          <a href="https://play.google.com/store/apps/details?id=com.NexGuard.guard.NexGuard_guard_app" target="_blank"
             rel="noopener noreferrer" class="btn-playstore-hero" id="heroPlayStoreBtn">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
               <path
@@ -3214,15 +3282,18 @@
               <div class="dynamic-island" id="phoneDynamicIsland">
                 <div class="island-lens" id="islandLens"></div>
                 <div class="island-sensor" id="islandSensor"></div>
-                <div id="islandText" style="display:none; color:#ffffff; font-size:0.62rem; font-weight:700; white-space:nowrap;"></div>
+                <div id="islandText"
+                  style="display:none; color:#ffffff; font-size:0.62rem; font-weight:700; white-space:nowrap;"></div>
               </div>
               <div class="status-icons">
                 <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9z"/>
+                  <path
+                    d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9z" />
                 </svg>
                 <svg viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="2" y="7" width="18" height="11" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                  <rect x="4" y="9" width="12" height="7" fill="currentColor"/>
+                  <rect x="2" y="7" width="18" height="11" rx="2" ry="2" fill="none" stroke="currentColor"
+                    stroke-width="2" />
+                  <rect x="4" y="9" width="12" height="7" fill="currentColor" />
                 </svg>
               </div>
             </div>
@@ -3235,7 +3306,8 @@
                   <div class="society-header-title">
                     <span>Callalily CHS Ltd</span>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="#2563eb">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                      <path
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                     </svg>
                   </div>
                   <div class="society-sub-flat">Flat A-402 &bull; Tushal Jadhav</div>
@@ -3259,7 +3331,7 @@
                   <div class="alert-header-strip">
                     <div class="alert-title-wrap">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="#2563eb">
-                        <path d="M12 2a4 4 0 0 0-4 4v3.2A6 6 0 0 0 6 15v2h12v-2a6 6 0 0 0-2-5.8V6a4 4 0 0 0-4-4z"/>
+                        <path d="M12 2a4 4 0 0 0-4 4v3.2A6 6 0 0 0 6 15v2h12v-2a6 6 0 0 0-2-5.8V6a4 4 0 0 0-4-4z" />
                       </svg>
                       <span>VISITOR WAITING AT GATE</span>
                     </div>
@@ -3268,8 +3340,10 @@
 
                   <div class="visitor-content-body">
                     <div class="visitor-photo-box">
-                      <img src="assets/images/visitor_ramesh.jpg" alt="Ramesh Kumar" class="visitor-photo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none; width: 24px; height: 24px; color: #2563eb;">
+                      <img src="public/assets/images/visitor_ramesh.jpg" alt="Ramesh Kumar" class="visitor-photo-img"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="display:none; width: 24px; height: 24px; color: #2563eb;">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                         <circle cx="12" cy="7" r="4" />
                       </svg>
@@ -3278,7 +3352,8 @@
                       <h4>Ramesh Kumar</h4>
                       <div class="visitor-badge-row">
                         <span class="purpose-badge">DELIVERY</span>
-                        <span class="company-label"><span style="color:#4f46e5; font-size:0.6rem;">●</span> Zomato Order</span>
+                        <span class="company-label"><span style="color:#4f46e5; font-size:0.6rem;">●</span> Zomato
+                          Order</span>
                       </div>
                     </div>
                   </div>
@@ -3296,9 +3371,11 @@
 
                   <!-- Action Buttons -->
                   <div class="card-actions-row" id="cardActionsRow">
-                    <button class="btn-flutter-deny" id="mockDenyBtn" onclick="handleMockDecision('denied')">Deny Entry</button>
+                    <button class="btn-flutter-deny" id="mockDenyBtn" onclick="handleMockDecision('denied')">Deny
+                      Entry</button>
                     <button class="btn-flutter-allow" id="mockAllowBtn" onclick="handleMockDecision('allowed')">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
                       <span>Allow Entry</span>
@@ -3308,7 +3385,8 @@
                   <!-- In-place clean decision confirmation -->
                   <div class="card-decision-state" id="cardDecisionState">
                     <div class="decision-result-pill" id="decisionResultPill">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" id="decisionIcon">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5" id="decisionIcon">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
                       <span id="decisionText">Visitor Access Allowed &bull; Guard Notified</span>
@@ -3321,10 +3399,10 @@
                   <div class="quick-act-card" onclick="switchMockupTab('qr')">
                     <div class="act-icon" style="background: #ede9fe; color: #7c3aed;">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                        <circle cx="8.5" cy="7" r="4"/>
-                        <line x1="20" y1="8" x2="20" y2="14"/>
-                        <line x1="23" y1="11" x2="17" y2="11"/>
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="8.5" cy="7" r="4" />
+                        <line x1="20" y1="8" x2="20" y2="14" />
+                        <line x1="23" y1="11" x2="17" y2="11" />
                       </svg>
                     </div>
                     <span>Invite</span>
@@ -3383,29 +3461,35 @@
               <!-- TAB 2: Digital Pass Screen -->
               <div class="screen-tab-qr" id="screenTabQr">
                 <div class="qr-card-view">
-                  <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 4px;">
-                    <img src="assets/images/logo.png" alt="NexGate Logo" style="width: 14px; height: 14px; border-radius: 3px;" onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
-                    <span style="font-size: 0.62rem; font-weight: 800; color: #4f46e5; background: #eef2ff; padding: 2px 7px; border-radius: 5px; text-transform: uppercase;">Single-Entry Guest Pass</span>
+                  <div
+                    style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 4px;">
+                    <img src="public/assets/images/logo.png" alt="NexGate Logo"
+                      style="width: 14px; height: 14px; border-radius: 3px;"
+                      onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
+                    <span
+                      style="font-size: 0.62rem; font-weight: 800; color: #4f46e5; background: #eef2ff; padding: 2px 7px; border-radius: 5px; text-transform: uppercase;">Single-Entry
+                      Guest Pass</span>
                   </div>
-                  <h4 style="font-size: 0.92rem; font-weight: 800; color: #0f172a; margin-top: 5px;">Pooja Sharma (Guest)</h4>
+                  <h4 style="font-size: 0.92rem; font-weight: 800; color: #0f172a; margin-top: 5px;">Pooja Sharma
+                    (Guest)</h4>
                   <p style="font-size: 0.66rem; color: #64748b;">Valid Today Until 11:59 PM &bull; Flat A-402</p>
 
                   <div class="qr-code-box">
                     <svg width="92" height="92" viewBox="0 0 100 100" fill="#0f172a">
-                      <rect x="5" y="5" width="25" height="25" fill="#0f172a"/>
-                      <rect x="9" y="9" width="17" height="17" fill="#ffffff"/>
-                      <rect x="13" y="13" width="9" height="9" fill="#0f172a"/>
-                      <rect x="70" y="5" width="25" height="25" fill="#0f172a"/>
-                      <rect x="74" y="9" width="17" height="17" fill="#ffffff"/>
-                      <rect x="78" y="13" width="9" height="9" fill="#0f172a"/>
-                      <rect x="5" y="70" width="25" height="25" fill="#0f172a"/>
-                      <rect x="9" y="74" width="17" height="17" fill="#ffffff"/>
-                      <rect x="13" y="78" width="9" height="9" fill="#0f172a"/>
-                      <rect x="40" y="10" width="10" height="10" fill="#0f172a"/>
-                      <rect x="40" y="40" width="20" height="20" fill="#0f172a"/>
-                      <rect x="70" y="40" width="15" height="10" fill="#0f172a"/>
-                      <rect x="40" y="70" width="15" height="15" fill="#0f172a"/>
-                      <rect x="65" y="70" width="25" height="20" fill="#0f172a"/>
+                      <rect x="5" y="5" width="25" height="25" fill="#0f172a" />
+                      <rect x="9" y="9" width="17" height="17" fill="#ffffff" />
+                      <rect x="13" y="13" width="9" height="9" fill="#0f172a" />
+                      <rect x="70" y="5" width="25" height="25" fill="#0f172a" />
+                      <rect x="74" y="9" width="17" height="17" fill="#ffffff" />
+                      <rect x="78" y="13" width="9" height="9" fill="#0f172a" />
+                      <rect x="5" y="70" width="25" height="25" fill="#0f172a" />
+                      <rect x="9" y="74" width="17" height="17" fill="#ffffff" />
+                      <rect x="13" y="78" width="9" height="9" fill="#0f172a" />
+                      <rect x="40" y="10" width="10" height="10" fill="#0f172a" />
+                      <rect x="40" y="40" width="20" height="20" fill="#0f172a" />
+                      <rect x="70" y="40" width="15" height="10" fill="#0f172a" />
+                      <rect x="40" y="70" width="15" height="15" fill="#0f172a" />
+                      <rect x="65" y="70" width="25" height="20" fill="#0f172a" />
                     </svg>
                   </div>
 
@@ -3413,11 +3497,12 @@
                     Pass Code: NX-9482-A4
                   </div>
 
-                  <button class="btn-flutter-allow" style="width: 100%;" onclick="alert('Digital Pass shared to WhatsApp!')">
+                  <button class="btn-flutter-allow" style="width: 100%;"
+                    onclick="alert('Digital Pass shared to WhatsApp!')">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                      <polyline points="16 6 12 2 8 6"/>
-                      <line x1="12" y1="2" x2="12" y2="15"/>
+                      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                      <polyline points="16 6 12 2 8 6" />
+                      <line x1="12" y1="2" x2="12" y2="15" />
                     </svg>
                     <span>Share Pass via WhatsApp</span>
                   </button>
@@ -3441,46 +3526,58 @@
 
               <!-- TAB 3: Household Management Screen -->
               <div class="screen-tab-household" id="screenTabHousehold">
-                <div style="font-size: 0.68rem; font-weight: 800; color: #0f172a; margin-bottom: 1px;">Registered Household Members</div>
+                <div style="font-size: 0.68rem; font-weight: 800; color: #0f172a; margin-bottom: 1px;">Registered
+                  Household Members</div>
                 <div class="household-item">
                   <div style="display: flex; gap: 7px; align-items: center;">
-                    <div style="width: 28px; height: 28px; border-radius: 7px; background: #e0e7ff; color: #4338ca; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 800;">TJ</div>
+                    <div
+                      style="width: 28px; height: 28px; border-radius: 7px; background: #e0e7ff; color: #4338ca; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 800;">
+                      TJ</div>
                     <div>
                       <strong style="font-size: 0.74rem; display: block; color: #0f172a;">Tushal Jadhav</strong>
                       <span style="font-size: 0.62rem; color: #64748b;">Primary Owner &bull; Flat Admin</span>
                     </div>
                   </div>
-                  <span style="font-size: 0.58rem; font-weight: 700; color: #4338ca; background: #eef2ff; padding: 2px 5px; border-radius: 4px;">ACTIVE</span>
+                  <span
+                    style="font-size: 0.58rem; font-weight: 700; color: #4338ca; background: #eef2ff; padding: 2px 5px; border-radius: 4px;">ACTIVE</span>
                 </div>
 
                 <div class="household-item">
                   <div style="display: flex; gap: 7px; align-items: center;">
-                    <div style="width: 28px; height: 28px; border-radius: 7px; background: #faf5ff; color: #7c3aed; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 800;">PJ</div>
+                    <div
+                      style="width: 28px; height: 28px; border-radius: 7px; background: #faf5ff; color: #7c3aed; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 800;">
+                      PJ</div>
                     <div>
                       <strong style="font-size: 0.74rem; display: block; color: #0f172a;">Pooja Jadhav</strong>
                       <span style="font-size: 0.62rem; color: #64748b;">Family Member &bull; Co-Resident</span>
                     </div>
                   </div>
-                  <span style="font-size: 0.58rem; font-weight: 700; color: #4338ca; background: #eef2ff; padding: 2px 5px; border-radius: 4px;">ACTIVE</span>
+                  <span
+                    style="font-size: 0.58rem; font-weight: 700; color: #4338ca; background: #eef2ff; padding: 2px 5px; border-radius: 4px;">ACTIVE</span>
                 </div>
 
-                <div style="font-size: 0.68rem; font-weight: 800; color: #0f172a; margin-top: 3px; margin-bottom: 1px;">Registered Vehicles</div>
+                <div style="font-size: 0.68rem; font-weight: 800; color: #0f172a; margin-top: 3px; margin-bottom: 1px;">
+                  Registered Vehicles</div>
                 <div class="household-item">
                   <div style="display: flex; gap: 7px; align-items: center;">
-                    <div style="width: 28px; height: 28px; border-radius: 7px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 0.68rem;">🚗</div>
+                    <div
+                      style="width: 28px; height: 28px; border-radius: 7px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 0.68rem;">
+                      🚗</div>
                     <div>
                       <strong style="font-size: 0.74rem; display: block; color: #0f172a;">MH-02-CB-8812</strong>
                       <span style="font-size: 0.62rem; color: #64748b;">Honda City &bull; Silver &bull; Slot P-12</span>
                     </div>
                   </div>
-                  <span style="font-size: 0.58rem; font-weight: 700; color: #2563eb; background: #eff6ff; padding: 2px 5px; border-radius: 4px;">VERIFIED</span>
+                  <span
+                    style="font-size: 0.58rem; font-weight: 700; color: #2563eb; background: #eff6ff; padding: 2px 5px; border-radius: 4px;">VERIFIED</span>
                 </div>
 
                 <div class="security-status-strip" style="width: 100%; box-sizing: border-box;">
                   <div class="status-left">
                     <div class="shield-badge" style="background: #eef2ff; color: #4338ca;">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                        <path
+                          d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                       </svg>
                     </div>
                     <div class="status-txt-wrap">
@@ -3541,7 +3638,7 @@
       <div class="stat-card-box">
         <div class="stat-icon-wrap" style="background: #eff6ff; color: #2563eb;">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
           </svg>
         </div>
         <div class="stat-content-col">
@@ -3554,8 +3651,8 @@
       <div class="stat-card-box">
         <div class="stat-icon-wrap" style="background: #eef2ff; color: #4338ca;">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            <polyline points="9 12 12 15 16 10"/>
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            <polyline points="9 12 12 15 16 10" />
           </svg>
         </div>
         <div class="stat-content-col">
@@ -3568,10 +3665,10 @@
       <div class="stat-card-box">
         <div class="stat-icon-wrap" style="background: #f5f3ff; color: #7c3aed;">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
           </svg>
         </div>
         <div class="stat-content-col">
@@ -3584,8 +3681,8 @@
       <div class="stat-card-box">
         <div class="stat-icon-wrap" style="background: #eff6ff; color: #2563eb;">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
         </div>
         <div class="stat-content-col">
@@ -3604,17 +3701,26 @@
       <div class="about-ecosystem-card">
         <div class="about-grid">
           <div>
-            <span class="section-badge" style="color: #4338ca; background: #eef2ff; border: 1px solid #c7d2fe; font-weight: 800;">3-Tier Platform Architecture</span>
+            <span class="section-badge"
+              style="color: #4338ca; background: #eef2ff; border: 1px solid #c7d2fe; font-weight: 800;">3-Tier Platform
+              Architecture</span>
             <h2 class="about-title">Built by <span class="gradient-text-nexbuild">NexBuild Technologies</span></h2>
             <p class="about-desc">
-              <strong>NexGate &amp; GreenGate</strong> is an advanced residential gate security platform engineered by <strong>NexBuild Technologies</strong> (Mumbai, India). Our mission is to eliminate unverified paper logbooks and manual intercom delays by connecting security guards, residents, and society administrators through a unified, real-time digital ecosystem.
+              <strong>NexGate &amp; NexGuard</strong> is an advanced residential gate security platform engineered by
+              <strong>NexBuild Technologies</strong> (Mumbai, India). Our mission is to eliminate unverified paper
+              logbooks and manual intercom delays by connecting security guards, residents, and society administrators
+              through a unified, real-time digital ecosystem.
             </p>
 
             <div class="company-stamp">
-              <img src="assets/images/logo.png" alt="NexGate Logo" style="width: 36px; height: 36px; border-radius: 10px; object-fit: contain; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.2); background: #ffffff; padding: 2px; flex-shrink: 0;" onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
+              <img src="public/assets/images/logo.png" alt="NexGate Logo"
+                style="width: 36px; height: 36px; border-radius: 10px; object-fit: contain; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.2); background: #ffffff; padding: 2px; flex-shrink: 0;"
+                onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
               <div>
-                <strong style="color: #0f172a; display: block; font-size: 0.95rem;">Official NexGate &amp; GreenGate Platform</strong>
-                <span style="color: #64748b; font-size: 0.78rem;">NexBuild Technologies &bull; Headquartered in Mumbai, India</span>
+                <strong style="color: #0f172a; display: block; font-size: 0.95rem;">Official NexGate &amp; NexGuard
+                  Platform</strong>
+                <span style="color: #64748b; font-size: 0.78rem;">NexBuild Technologies &bull; Headquartered in Mumbai,
+                  India</span>
               </div>
             </div>
 
@@ -3627,7 +3733,9 @@
                   <span>Guard Terminal</span>
                 </div>
                 <div class="pipeline-arrow">
-                  <svg width="22" height="12" viewBox="0 0 22 12" fill="none"><path d="M0 6h18m0 0l-5-5m5 5l-5 5" stroke="#4f46e5" stroke-width="2.2" stroke-linecap="round"/></svg>
+                  <svg width="22" height="12" viewBox="0 0 22 12" fill="none">
+                    <path d="M0 6h18m0 0l-5-5m5 5l-5 5" stroke="#4f46e5" stroke-width="2.2" stroke-linecap="round" />
+                  </svg>
                   <span class="p-latency">&lt;0.4s</span>
                 </div>
                 <div class="pipeline-node">
@@ -3635,7 +3743,9 @@
                   <span>AWS Cloud</span>
                 </div>
                 <div class="pipeline-arrow">
-                  <svg width="22" height="12" viewBox="0 0 22 12" fill="none"><path d="M0 6h18m0 0l-5-5m5 5l-5 5" stroke="#4f46e5" stroke-width="2.2" stroke-linecap="round"/></svg>
+                  <svg width="22" height="12" viewBox="0 0 22 12" fill="none">
+                    <path d="M0 6h18m0 0l-5-5m5 5l-5 5" stroke="#4f46e5" stroke-width="2.2" stroke-linecap="round" />
+                  </svg>
                   <span class="p-latency">&lt;0.4s</span>
                 </div>
                 <div class="pipeline-node">
@@ -3649,33 +3759,40 @@
           <div class="pillars-grid">
             <!-- Pillar 1: Resident Mobile App (Indigo Accent) -->
             <div class="pillar-box">
-              <span class="pillar-badge-top" style="background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe;">Resident Mobile App</span>
+              <span class="pillar-badge-top"
+                style="background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe;">Resident Mobile App</span>
               <div class="pillar-icon" style="background: #e0e7ff; color: #4338ca;">
-                <img src="assets/images/logo.png" alt="NexGate Logo" style="width: 24px; height: 24px; border-radius: 6px; object-fit: contain;" onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
+                <img src="public/assets/images/logo.png" alt="NexGate Logo"
+                  style="width: 24px; height: 24px; border-radius: 6px; object-fit: contain;"
+                  onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
               </div>
               <div class="pillar-content">
                 <h5>1. NexGate Resident App</h5>
-                <p>Native Flutter mobile app for apartment owners and tenants to approve visitors, generate encrypted QR guest passes, and manage household members.</p>
+                <p>Native Flutter mobile app for apartment owners and tenants to approve visitors, generate encrypted QR
+                  guest passes, and manage household members.</p>
               </div>
             </div>
 
             <!-- Pillar 2: Guard Terminal (Electric Blue Accent - Zero RGB) -->
             <div class="pillar-box">
-              <span class="pillar-badge-top" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;">Live on Play Store</span>
+              <span class="pillar-badge-top"
+                style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;">Live on Play Store</span>
               <div class="pillar-icon" style="background: #dbeafe; color: #2563eb;">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 </svg>
               </div>
               <div class="pillar-content">
-                <h5>2. GreenGate Guard Terminal</h5>
-                <p>Dedicated security guard application at society gates for instant visitor entry logging, live camera photo capture, and sub-second resident pings.</p>
+                <h5>2. NexGuard Guard Terminal</h5>
+                <p>Dedicated security guard application at society gates for instant visitor entry logging, live camera
+                  photo capture, and sub-second resident pings.</p>
               </div>
             </div>
 
             <!-- Pillar 3: Central Society Management System (Purple Accent) -->
             <div class="pillar-box">
-              <span class="pillar-badge-top" style="background: #faf5ff; color: #7c3aed; border: 1px solid #e9d5ff;">Cloud Portal</span>
+              <span class="pillar-badge-top"
+                style="background: #faf5ff; color: #7c3aed; border: 1px solid #e9d5ff;">Cloud Portal</span>
               <div class="pillar-icon" style="background: #f3e8ff; color: #7c3aed;">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                   <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
@@ -3685,7 +3802,8 @@
               </div>
               <div class="pillar-content">
                 <h5>3. Central Society Management System</h5>
-                <p>Society committee dashboard for approving new tenant registrations, overseeing guard shifts, viewing entry analytics, and broadcasting emergency notices.</p>
+                <p>Society committee dashboard for approving new tenant registrations, overseeing guard shifts, viewing
+                  entry analytics, and broadcasting emergency notices.</p>
               </div>
             </div>
           </div>
@@ -3806,7 +3924,8 @@
           </div>
           <h3>Guard Camera Verification</h3>
           <p>
-            Guards take a live photo of unknown visitors before sending the notification. Residents see exactly who is at
+            Guards take a live photo of unknown visitors before sending the notification. Residents see exactly who is
+            at
             the gate before deciding to approve or deny entry.
           </p>
           <div class="feature-tag-list">
@@ -3826,7 +3945,8 @@
           </div>
           <h3>Zero-Knowledge Privacy Vault</h3>
           <p>
-            Visitor photos and phone numbers are stored in an encrypted vault accessible solely to the relevant resident.
+            Visitor photos and phone numbers are stored in an encrypted vault accessible solely to the relevant
+            resident.
             Data is automatically purged per retention policies.
           </p>
           <div class="feature-tag-list">
@@ -3860,7 +3980,7 @@
           <p>
             Download the official application directly from the Google Play Store on your Android mobile device.
           </p>
-          <a href="https://play.google.com/store/apps/details?id=com.greengate.guard.greengate_guard_app" target="_blank"
+          <a href="https://play.google.com/store/apps/details?id=com.NexGuard.guard.NexGuard_guard_app" target="_blank"
             rel="noopener noreferrer" class="step-highlight">
             <span>Get on Google Play</span>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -3875,7 +3995,8 @@
           <div class="step-badge">02</div>
           <h4>Instant OTP Login</h4>
           <p>
-            Enter your mobile number. You will receive an instant 6-digit SMS OTP to verify your account securely without any passwords to remember.
+            Enter your mobile number. You will receive an instant 6-digit SMS OTP to verify your account securely
+            without any passwords to remember.
           </p>
           <div class="step-highlight">
             <span>Secure &bull; Passwordless</span>
@@ -3887,7 +4008,8 @@
           <div class="step-badge">03</div>
           <h4>Select Your Flat</h4>
           <p>
-            Choose your Building Wing, Floor, and Flat Number (e.g. Flat A-402). Your Society Admin verifies and activates your profile seamlessly.
+            Choose your Building Wing, Floor, and Flat Number (e.g. Flat A-402). Your Society Admin verifies and
+            activates your profile seamlessly.
           </p>
           <div class="step-highlight">
             <span>Verified Society Roster</span>
@@ -3899,7 +4021,8 @@
           <div class="step-badge">04</div>
           <h4>Approve in 1 Tap</h4>
           <p>
-            Whenever a guest, courier, or delivery arrives at the gate, your phone pops up with their photo. Tap <strong>Allow Entry</strong> or <strong>Deny</strong> instantly!
+            Whenever a guest, courier, or delivery arrives at the gate, your phone pops up with their photo. Tap
+            <strong>Allow Entry</strong> or <strong>Deny</strong> instantly!
           </p>
           <div class="step-highlight">
             <span>Real-Time Push Alerts</span>
@@ -3919,8 +4042,10 @@
           <span class="section-badge">Privacy & Play Store Compliance</span>
           <h3>Strict Data Protection Built-In</h3>
           <p>
-            At NexBuild Technologies, resident and visitor privacy is fundamental. We follow rigorous security standards,
-            strictly abide by Google Play Store Data Safety guidelines, and store photos exclusively in encrypted vaults.
+            At NexBuild Technologies, resident and visitor privacy is fundamental. We follow rigorous security
+            standards,
+            strictly abide by Google Play Store Data Safety guidelines, and store photos exclusively in encrypted
+            vaults.
           </p>
 
           <div class="compliance-badges">
@@ -4000,7 +4125,8 @@
           </div>
           <div class="faq-answer">
             When a delivery agent arrives at the security gate, the guard selects your flat number, inputs the delivery
-            company (e.g., Zomato, Swiggy, Amazon, Blinkit), and captures a verification photo. Within less than a second,
+            company (e.g., Zomato, Swiggy, Amazon, Blinkit), and captures a verification photo. Within less than a
+            second,
             your smartphone receives a high-priority push notification with sound and vibration. You simply tap
             <strong>Allow Entry</strong> or <strong>Deny Entry</strong> directly from your screen.
           </div>
@@ -4015,7 +4141,8 @@
             </svg>
           </div>
           <div class="faq-answer">
-            Yes! Through the Household Management section, the primary flat owner can add family members by mobile number. All
+            Yes! Through the Household Management section, the primary flat owner can add family members by mobile
+            number. All
             registered household members receive incoming visitor alerts simultaneously, ensuring no visitor is left
             waiting if one person is in a meeting or away from their phone.
           </div>
@@ -4031,7 +4158,8 @@
           </div>
           <div class="faq-answer">
             A Digital Pass is a pre-approved entry invite with an encrypted QR code. You can create one for guests or
-            service technicians arriving on a specific day and share it directly via WhatsApp. When your guest arrives at
+            service technicians arriving on a specific day and share it directly via WhatsApp. When your guest arrives
+            at
             the gate, the guard scans the QR code for instant entry clearance without calling you.
           </div>
         </div>
@@ -4039,13 +4167,14 @@
         <!-- Q4 -->
         <div class="faq-item">
           <div class="faq-question" onclick="toggleFaq(this)">
-            <span>Who owns and operates NexGate &amp; GreenGate?</span>
+            <span>Who owns and operates NexGate &amp; NexGuard?</span>
             <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </div>
           <div class="faq-answer">
-            NexGate &amp; GreenGate are developed, maintained, and operated by <strong>NexBuild Technologies</strong>, based in
+            NexGate &amp; NexGuard are developed, maintained, and operated by <strong>NexBuild Technologies</strong>,
+            based in
             Mumbai, Maharashtra, India. We partner with registered housing societies, residential welfare associations
             (RWAs), and property developers to provide state-of-the-art society access technology.
           </div>
@@ -4067,17 +4196,26 @@
       </div>
 
       <!-- Direct Assistance Prompt for Society Committees -->
-      <div style="margin-top: 36px; padding: 22px 28px; border-radius: 20px; background: #ffffff; border: 1.5px solid #e0e7ff; box-shadow: 0 8px 24px -4px rgba(37, 99, 235, 0.06); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+      <div
+        style="margin-top: 36px; padding: 22px 28px; border-radius: 20px; background: #ffffff; border: 1.5px solid #e0e7ff; box-shadow: 0 8px 24px -4px rgba(37, 99, 235, 0.06); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
         <div style="display: flex; align-items: center; gap: 14px;">
-          <div style="width: 44px; height: 44px; border-radius: 12px; background: #eef2ff; color: #4338ca; border: 1.5px solid #c7d2fe; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.1);">💬</div>
+          <div
+            style="width: 44px; height: 44px; border-radius: 12px; background: #eef2ff; color: #4338ca; border: 1.5px solid #c7d2fe; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.1);">
+            💬</div>
           <div>
-            <strong style="display: block; font-size: 0.98rem; color: #0f172a;">Need personalized assistance or society onboarding?</strong>
-            <span style="font-size: 0.84rem; color: #64748b;">Our engineering team in Mumbai directly supports society committees and RWAs.</span>
+            <strong style="display: block; font-size: 0.98rem; color: #0f172a;">Need personalized assistance or society
+              onboarding?</strong>
+            <span style="font-size: 0.84rem; color: #64748b;">Our engineering team in Mumbai directly supports society
+              committees and RWAs.</span>
           </div>
         </div>
-        <a href="mailto:helpdesk@nex-build.com?subject=Society%20Committee%20Assistance%20Inquiry%20-%20NexGate&body=Hello%20NexBuild%20Support%20Team%2C%0A%0AWe%20are%20reaching%20out%20from%20our%20housing%20society%20committee%20for%20assistance%2Fonboarding.%0A%0ASociety%20Name%3A%20%0ACity%3A%20%0AContact%20Person%3A%20%0APhone%3A%20%0A%0AThank%20you." onclick="handleEmailClick(event, 'helpdesk@nex-build.com')" style="display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; border-radius: 12px; background: linear-gradient(135deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%); color: #ffffff; font-size: 0.88rem; font-weight: 700; white-space: nowrap; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35); text-decoration: none;">
+        <a href="mailto:helpdesk@nex-build.com?subject=Society%20Committee%20Assistance%20Inquiry%20-%20NexGate&body=Hello%20NexBuild%20Support%20Team%2C%0A%0AWe%20are%20reaching%20out%20from%20our%20housing%20society%20committee%20for%20assistance%2Fonboarding.%0A%0ASociety%20Name%3A%20%0ACity%3A%20%0AContact%20Person%3A%20%0APhone%3A%20%0A%0AThank%20you."
+          onclick="handleEmailClick(event, 'helpdesk@nex-build.com')"
+          style="display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; border-radius: 12px; background: linear-gradient(135deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%); color: #ffffff; font-size: 0.88rem; font-weight: 700; white-space: nowrap; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35); text-decoration: none;">
           <span>Contact Society Desk</span>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
         </a>
       </div>
     </div>
@@ -4099,7 +4237,8 @@
           Get The Official App on <span class="gradient-text-play">Google Play</span>
         </h2>
         <p class="cta-subtitle">
-          Empower your gated community with instantaneous gate sync, instant visitor approvals, cryptographic passes, and 24/7 dedicated society support.
+          Empower your gated community with instantaneous gate sync, instant visitor approvals, cryptographic passes,
+          and 24/7 dedicated society support.
         </p>
 
         <!-- 3 Modern Feature Highlight Cards (Blue, Indigo, Purple) -->
@@ -4107,7 +4246,8 @@
           <!-- Card 1: Gate Sync (Blue Accent) -->
           <div class="cta-feat-box cta-feat-blue">
             <div class="cta-feat-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                stroke-linecap="round" stroke-linejoin="round">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
               </svg>
             </div>
@@ -4120,7 +4260,8 @@
           <!-- Card 2: Play Protect Verified (Indigo/Blue Accent) -->
           <div class="cta-feat-box cta-feat-indigo">
             <div class="cta-feat-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                 <path d="m9 12 2 2 4-4"></path>
               </svg>
@@ -4134,9 +4275,12 @@
           <!-- Card 3: Dedicated Support Desk (Purple Accent) -->
           <div class="cta-feat-box cta-feat-purple">
             <div class="cta-feat-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
-                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+                <path
+                  d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z">
+                </path>
               </svg>
             </div>
             <div class="cta-feat-info">
@@ -4149,26 +4293,29 @@
         <!-- Action Buttons Row (Blue, Purple & White) -->
         <div class="cta-buttons-wrap">
           <!-- Google Play Store Button (Blue, Purple & White Palette - Zero RGB) -->
-          <a href="https://play.google.com/store/apps/details?id=com.greengate.guard.greengate_guard_app" target="_blank"
-            rel="noopener noreferrer"
-            class="btn-cta-playstore">
+          <a href="https://play.google.com/store/apps/details?id=com.NexGuard.guard.NexGuard_guard_app" target="_blank"
+            rel="noopener noreferrer" class="btn-cta-playstore">
             <!-- Clean Blue & Purple Gradient Google Play SVG -->
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3.609 1.814L13.793 12 3.61 22.186c-.347-.35-.558-.871-.558-1.503V3.317c0-.632.211-1.153.557-1.503z" fill="#3b82f6"/>
-              <path d="M15.207 13.414l2.586 2.586-11.47 6.623 8.884-9.209z" fill="#818cf8"/>
-              <path d="M15.207 10.586L6.323 1.377l11.47 6.623-2.586 2.586z" fill="#60a5fa"/>
-              <path d="M16.621 12l3.774 2.18c.942.544.942 1.43 0 1.974l-3.774 2.18-2.121-2.121 2.121-2.213z" fill="#a855f7"/>
+              <path
+                d="M3.609 1.814L13.793 12 3.61 22.186c-.347-.35-.558-.871-.558-1.503V3.317c0-.632.211-1.153.557-1.503z"
+                fill="#3b82f6" />
+              <path d="M15.207 13.414l2.586 2.586-11.47 6.623 8.884-9.209z" fill="#818cf8" />
+              <path d="M15.207 10.586L6.323 1.377l11.47 6.623-2.586 2.586z" fill="#60a5fa" />
+              <path d="M16.621 12l3.774 2.18c.942.544.942 1.43 0 1.974l-3.774 2.18-2.121-2.121 2.121-2.213z"
+                fill="#a855f7" />
             </svg>
             <div>
-              <div style="font-size: 0.65rem; text-transform: uppercase; color: #93c5fd; font-weight: 700; letter-spacing: 0.05em;">GET IT ON</div>
+              <div
+                style="font-size: 0.65rem; text-transform: uppercase; color: #93c5fd; font-weight: 700; letter-spacing: 0.05em;">
+                GET IT ON</div>
               <div style="font-size: 1.18rem; font-weight: 800; line-height: 1.1; color: #ffffff;">Google Play</div>
             </div>
           </a>
 
           <!-- Vibrant Blue-to-Purple Email Helpdesk Button -->
           <a href="mailto:helpdesk@nex-build.com?subject=NexGate%20Support%20%26%20Assistance%20Inquiry&body=Hello%20NexGate%20Support%20Team%2C%0A%0AI%20need%20assistance%20regarding%3A%0AMobile%20Number%3A%20%0ASociety%20Name%3A%20%0AFlat%20Number%3A%20%0A%0AThank%20you."
-            onclick="handleEmailClick(event, 'helpdesk@nex-build.com')"
-            class="btn-cta-email">
+            onclick="handleEmailClick(event, 'helpdesk@nex-build.com')" class="btn-cta-email">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
               <rect x="2" y="4" width="20" height="16" rx="2" />
               <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
@@ -4192,17 +4339,23 @@
         <div class="cta-bottom-strip">
           <div style="display: flex; align-items: center; gap: 7px;">
             <span style="color: #64748b; font-weight: 600;">Package ID:</span>
-            <code style="background: #f8fafc; padding: 4px 10px; border-radius: 8px; color: #1e1b4b; font-family: monospace; border: 1px solid #c7d2fe; font-weight: 700; font-size: 0.8rem;">com.greengate.guard.greengate_guard_app</code>
+            <code
+              style="background: #f8fafc; padding: 4px 10px; border-radius: 8px; color: #1e1b4b; font-family: monospace; border: 1px solid #c7d2fe; font-weight: 700; font-size: 0.8rem;">com.NexGuard.guard.NexGuard_guard_app</code>
           </div>
           <span style="color: #cbd5e1;">&bull;</span>
           <div style="display: flex; align-items: center; gap: 6px;">
             <span style="color: #64748b; font-weight: 600;">Support Desk:</span>
-            <a href="mailto:helpdesk@nex-build.com?subject=NexGate%20Support%20Request" onclick="handleEmailClick(event, 'helpdesk@nex-build.com')" style="color: #2563eb; font-weight: 800; text-decoration: underline;">helpdesk@nex-build.com</a>
-            <button type="button" class="cta-copy-btn" onclick="copyToClipboard('helpdesk@nex-build.com', this)" title="Copy email address to clipboard">Copy</button>
+            <a href="mailto:helpdesk@nex-build.com?subject=NexGate%20Support%20Request"
+              onclick="handleEmailClick(event, 'helpdesk@nex-build.com')"
+              style="color: #2563eb; font-weight: 800; text-decoration: underline;">helpdesk@nex-build.com</a>
+            <button type="button" class="cta-copy-btn" onclick="copyToClipboard('helpdesk@nex-build.com', this)"
+              title="Copy email address to clipboard">Copy</button>
           </div>
           <span style="color: #cbd5e1;">&bull;</span>
           <div style="display: flex; align-items: center; gap: 6px; color: #4f46e5; font-weight: 700;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2.5">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
             <span>256-Bit Encrypted Vault</span>
           </div>
         </div>
@@ -4219,9 +4372,10 @@
         <!-- Col 1: Brand & Bio -->
         <div class="footer-brand">
           <div class="footer-brand-header">
-            <img src="assets/images/logo.png" alt="NexGate Logo" class="footer-logo-img" onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
+            <img src="public/assets/images/logo.png" alt="NexGate Logo" class="footer-logo-img"
+              onerror="this.src='nexgate_resident_app/assets/images/logo.png'">
             <div>
-              <h4>NexGate &amp; GreenGate</h4>
+              <h4>NexGate &amp; NexGuard</h4>
               <span class="footer-brand-subtitle">by NexBuild Technologies</span>
             </div>
           </div>
@@ -4229,7 +4383,8 @@
             The next-generation gated society security and resident management suite by <strong>NexBuild
               Technologies</strong>. Making residential living safer, smarter, and hassle-free.
           </p>
-          <div style="font-size: 0.80rem; color: #4338ca; background: #eef2ff; border: 1px solid #c7d2fe; padding: 5px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700;">
+          <div
+            style="font-size: 0.80rem; color: #4338ca; background: #eef2ff; border: 1px solid #c7d2fe; padding: 5px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700;">
             <span>🏛️</span>
             <span>Empowering gated residential communities across India</span>
           </div>
@@ -4251,11 +4406,13 @@
         <div>
           <div class="footer-title">Trust &amp; Compliance</div>
           <ul class="footer-list">
-            <li><a href="https://play.google.com/store/apps/details?id=com.greengate.guard.greengate_guard_app"
+            <li><a href="https://play.google.com/store/apps/details?id=com.NexGuard.guard.NexGuard_guard_app"
                 target="_blank" rel="noopener noreferrer">Google Play Store App</a></li>
             <li><a href="privacy-policy.html" target="_blank">Google Play Privacy Policy</a></li>
             <li><a href="#security">Data Safety Guidelines</a></li>
-            <li><a href="mailto:helpdesk@nex-build.com?subject=Account%20Deletion%20Request%20-%20NexGate&body=Hello%20Support%20Team%2C%0A%0APlease%20process%20deletion%20of%20my%20account.%0A%0ARegistered%20Mobile%20Number%3A%20%0ASociety%20%2F%20Flat%20Number%3A%20%0A%0AThank%20you." onclick="handleEmailClick(event, 'helpdesk@nex-build.com')">Account Deletion Desk</a></li>
+            <li><a
+                href="mailto:helpdesk@nex-build.com?subject=Account%20Deletion%20Request%20-%20NexGate&body=Hello%20Support%20Team%2C%0A%0APlease%20process%20deletion%20of%20my%20account.%0A%0ARegistered%20Mobile%20Number%3A%20%0ASociety%20%2F%20Flat%20Number%3A%20%0A%0AThank%20you."
+                onclick="handleEmailClick(event, 'helpdesk@nex-build.com')">Account Deletion Desk</a></li>
           </ul>
         </div>
 
@@ -4267,8 +4424,11 @@
             <p><strong>Headquarters:</strong> Mumbai, Maharashtra, India</p>
             <p style="margin-top: 10px;"><strong>Support Email:</strong><br>
               <span style="display: inline-flex; align-items: center; gap: 6px; margin-top: 4px;">
-                <a href="mailto:helpdesk@nex-build.com?subject=NexGate%20Support%20Inquiry" onclick="handleEmailClick(event, 'helpdesk@nex-build.com')" style="color: #4f46e5; font-weight: 800; text-decoration: underline;">helpdesk@nex-build.com</a>
-                <button type="button" onclick="copyToClipboard('helpdesk@nex-build.com', this)" style="background: #7c3aed; border: none; border-radius: 6px; padding: 3px 9px; font-size: 0.72rem; font-weight: 700; color: #ffffff; cursor: pointer; transition: all 0.15s ease;">Copy</button>
+                <a href="mailto:helpdesk@nex-build.com?subject=NexGate%20Support%20Inquiry"
+                  onclick="handleEmailClick(event, 'helpdesk@nex-build.com')"
+                  style="color: #4f46e5; font-weight: 800; text-decoration: underline;">helpdesk@nex-build.com</a>
+                <button type="button" onclick="copyToClipboard('helpdesk@nex-build.com', this)"
+                  style="background: #7c3aed; border: none; border-radius: 6px; padding: 3px 9px; font-size: 0.72rem; font-weight: 700; color: #ffffff; cursor: pointer; transition: all 0.15s ease;">Copy</button>
               </span>
             </p>
           </div>
@@ -4280,8 +4440,8 @@
           &copy; 2026 NexBuild Technologies. All rights reserved.
         </div>
         <div class="footer-legal-links">
-          <a href="https://play.google.com/store/apps/details?id=com.greengate.guard.greengate_guard_app"
-            target="_blank" rel="noopener noreferrer">Google Play Store</a>
+          <a href="https://play.google.com/store/apps/details?id=com.NexGuard.guard.NexGuard_guard_app" target="_blank"
+            rel="noopener noreferrer">Google Play Store</a>
           <a href="privacy-policy.html" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
           <a href="#faq">Support Desk</a>
           <a href="#topNav">Back to Top &uarr;</a>
@@ -4503,8 +4663,10 @@
   </script>
 
   <!-- Floating Back to Top Button -->
-  <button class="back-to-top-btn" id="backToTopBtn" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" aria-label="Back to Top">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <button class="back-to-top-btn" id="backToTopBtn" onclick="window.scrollTo({top: 0, behavior: 'smooth'})"
+    aria-label="Back to Top">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+      stroke-linecap="round" stroke-linejoin="round">
       <polyline points="18 15 12 9 6 15"></polyline>
     </svg>
   </button>
