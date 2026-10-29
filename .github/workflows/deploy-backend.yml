@@ -19,16 +19,17 @@ jobs:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 🟢 Setup Node.js 20
+      - name: 🟢 Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: 🔨 Install Dependencies & Build Backend
         working-directory: backend
         run: |
           echo "Installing dependencies for compilation..."
           npm install
+          chmod -R +x node_modules/.bin || true
           echo "Building TypeScript to dist..."
           npm run build
 
