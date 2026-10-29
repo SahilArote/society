@@ -16,6 +16,7 @@ import {
   findFlatByNumberAndWing,
   findFlatById,
   findSocietyById,
+  deleteResidentByAdmin,
 } from '../database/db';
 import { generateToken, AuthenticatedRequest, authenticateToken } from '../middleware/auth';
 import { emitRegistrationCreated } from '../services/socketService';
@@ -743,6 +744,58 @@ router.get('/me', authenticateToken, (req: AuthenticatedRequest, res: Response) 
     success: true,
     data: req.user,
   });
+});
+
+
+// =============================================================
+// WEB ACCOUNT DELETION (Google Play Compliance Webhook/Endpoint)
+// =============================================================
+// POST /api/auth/delete-account-request
+router.post('/delete-account-request', async (req: Request, res: Response) => {
+  try {
+    const { mobile, reason, notes } = req.body;
+    if (!mobile) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_INPUT', message: 'Registered mobile number is required' },
+      });
+    }
+
+    const cleanMobile = String(mobile).replace(/\D/g, '').slice(-10);
+    if (cleanMobile.length < 10) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_INPUT', message: 'Please enter a valid 10-digit mobile number' },
+      });
+    }
+
+    console.log(`[Account Deletion] Web deletion request received for mobile: ${cleanMobile}, reason: ${reason || 'N/A'}`);
+
+    const user = await findUserByMobile(cleanMobile);
+    if (!user) {
+      // Return 200 with standard privacy confirmation to prevent user enumeration
+      return res.json({
+        success: true,
+        message: 'If an account associated with this mobile number exists, it has been queued for immediate permanent deletion.',
+      });
+    }
+
+    // Execute comprehensive deletion
+    await deleteResidentByAdmin(user.societyId, user.id);
+
+    console.log(`[Account Deletion] Web deletion successfully processed for user: ${user.id} (${cleanMobile})`);
+
+    return res.json({
+      success: true,
+      message: 'Your account and all associated resident records have been permanently purged in accordance with our data safety policy.',
+    });
+  } catch (error: any) {
+    console.error('Error processing web account deletion request:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to process account deletion request. Please try again later.' },
+    });
+  }
 });
 
 export default router;

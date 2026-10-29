@@ -91,6 +91,33 @@ app.get('/privacy', servePrivacyPolicy);
 app.get('/api/privacy-policy', servePrivacyPolicy);
 app.get('/api/privacy', servePrivacyPolicy);
 
+// Account Deletion Endpoints (Google Play Compliance Public Web URL)
+const getDeleteAccountPagePath = (): string | null => {
+  const candidates = [
+    path.resolve(__dirname, 'public/delete-account.html'),
+    path.resolve(__dirname, '../public/delete-account.html'),
+    path.resolve(process.cwd(), 'public/delete-account.html'),
+    path.resolve(process.cwd(), 'backend/public/delete-account.html'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return null;
+};
+
+const serveDeleteAccountPage = (_req: Request, res: Response) => {
+  const pagePath = getDeleteAccountPagePath();
+  if (pagePath) {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.sendFile(pagePath);
+  }
+  return res.status(404).send('Account deletion page not found on server.');
+};
+
+app.get('/delete-account', serveDeleteAccountPage);
+app.get('/account-deletion', serveDeleteAccountPage);
+app.get('/api/delete-account', serveDeleteAccountPage);
+
 // Unmatched API Routes Handler (Never return HTML)
 app.use('/api/*', (req: Request, res: Response) => {
   res.status(404).json({

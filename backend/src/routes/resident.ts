@@ -7,6 +7,7 @@ import {
   findVehiclesByResident,
   createVehicle,
   deleteVehicle,
+  deleteResidentByAdmin,
 } from '../database/db';
 import { getMysqlPool } from '../database/mysql';
 
@@ -241,6 +242,45 @@ router.delete(
       return res.status(500).json({
         success: false,
         error: { code: 'SERVER_ERROR', message: 'Failed to delete vehicle' },
+      });
+    }
+  }
+);
+
+// =============================================================
+// IN-APP ACCOUNT DELETION (Google Play Compliance)
+// =============================================================
+// DELETE /api/resident/account
+router.delete(
+  '/account',
+  authenticateToken,
+  authorizeRoles('RESIDENT'),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const residentId = req.user!.id;
+      const societyId = req.user!.societyId;
+
+      console.log(`[Account Deletion] In-app request initiated by resident: ${residentId} (${req.user?.mobile})`);
+
+      const deleted = await deleteResidentByAdmin(societyId, residentId);
+      if (!deleted) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'USER_NOT_FOUND', message: 'Resident account could not be found or was already deleted' },
+        });
+      }
+
+      console.log(`[Account Deletion] Successfully deleted resident ${residentId} and unlinked flats.`);
+
+      return res.json({
+        success: true,
+        message: 'Your account and all associated resident data have been permanently deleted.',
+      });
+    } catch (error: any) {
+      console.error('Error processing in-app account deletion:', error);
+      return res.status(500).json({
+        success: false,
+        error: { code: 'SERVER_ERROR', message: 'Failed to delete account. Please try again or contact administration.' },
       });
     }
   }

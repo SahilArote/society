@@ -190,4 +190,34 @@ router.delete('/vehicles/:id', auth_1.authenticateToken, (0, auth_1.authorizeRol
         });
     }
 });
+// =============================================================
+// IN-APP ACCOUNT DELETION (Google Play Compliance)
+// =============================================================
+// DELETE /api/resident/account
+router.delete('/account', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('RESIDENT'), async (req, res) => {
+    try {
+        const residentId = req.user.id;
+        const societyId = req.user.societyId;
+        console.log(`[Account Deletion] In-app request initiated by resident: ${residentId} (${req.user?.mobile})`);
+        const deleted = await (0, db_1.deleteResidentByAdmin)(societyId, residentId);
+        if (!deleted) {
+            return res.status(404).json({
+                success: false,
+                error: { code: 'USER_NOT_FOUND', message: 'Resident account could not be found or was already deleted' },
+            });
+        }
+        console.log(`[Account Deletion] Successfully deleted resident ${residentId} and unlinked flats.`);
+        return res.json({
+            success: true,
+            message: 'Your account and all associated resident data have been permanently deleted.',
+        });
+    }
+    catch (error) {
+        console.error('Error processing in-app account deletion:', error);
+        return res.status(500).json({
+            success: false,
+            error: { code: 'SERVER_ERROR', message: 'Failed to delete account. Please try again or contact administration.' },
+        });
+    }
+});
 exports.default = router;
