@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/constants/app_colors.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/login_screen.dart';
 import 'features/splash/splash_screen.dart';
+import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 import 'services/storage_service.dart';
+
+final GlobalKey<NavigatorState> residentNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +24,6 @@ void main() async {
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
-      statusBarBrightness: Brightness.light,
       systemNavigationBarColor: Colors.white,
       systemNavigationBarIconBrightness: Brightness.dark,
       systemNavigationBarDividerColor: AppColors.border,
@@ -33,6 +36,14 @@ void main() async {
   // Initialize push & local notification channels
   await NotificationService.initialize();
 
+  // Route user to login and clear navigation stack whenever 401 occurs
+  AuthService.onUnauthorized = () {
+    residentNavigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  };
+
   runApp(const NexGateResidentApp());
 }
 
@@ -43,6 +54,7 @@ class NexGateResidentApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: residentNavigatorKey,
       title: 'NexGate Resident',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,

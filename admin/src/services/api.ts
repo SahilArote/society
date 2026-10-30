@@ -40,12 +40,16 @@ function getAuthHeaders(): Record<string, string> {
 }
 
 export async function adminLogin(email: string, password: string) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
   try {
     const res = await fetch(`${API_BASE_URL}/auth/admin/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.trim(), password: password.trim() }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
     const json = await res.json();
     if (res.ok && json.success) {
       setAdminSession(json.token || json.data?.token, json.admin || json.data?.user || { id: 'admin_user', email, name: 'Admin', role: 'ADMIN' });
@@ -79,25 +83,36 @@ async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Re
   if (options.body instanceof FormData) {
     delete headers['Content-Type'];
   }
-  let res = await fetch(targetUrl, { ...options, headers });
 
-  if (res.status === 401 || res.status === 403) {
-    try {
-      const loginRes = await fetch(`${API_BASE_URL}/auth/admin/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'admin@greengate.in', password: 'admin123' }),
-      });
-      const loginJson = await loginRes.json();
-      if (loginRes.ok && loginJson.success && loginJson.data?.token) {
-        setAdminSession(loginJson.data.token, loginJson.data.user);
-        headers['Authorization'] = `Bearer ${loginJson.data.token}`;
-        res = await fetch(targetUrl, { ...options, headers });
-      }
-    } catch (e) {
-      console.warn('Auto re-login error:', e);
+  // Enforce 15-second strict timeout on all HTTP calls
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  let res: Response;
+  try {
+    res = await fetch(targetUrl, {
+      ...options,
+      headers,
+      signal: options.signal || controller.signal,
+    });
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('Request timed out after 15 seconds. Please check your network connection.');
+    }
+    throw err;
+  }
+  clearTimeout(timeoutId);
+
+  // When token is rejected (401), immediately invalidate cached session and log out
+  if (res.status === 401) {
+    console.warn('[Admin API] 401 Unauthorized received. Clearing cached session and redirecting to login.');
+    clearAdminSession();
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login' && !window.location.pathname.endsWith('/login')) {
+      window.location.href = '/login';
     }
   }
+
   return res;
 }
 
@@ -201,9 +216,17 @@ export async function createAdminFlat(data: {
 
 export async function downloadCsvTemplate(): Promise<void> {
   const token = getAdminToken();
-  const res = await fetch(`${API_BASE_URL}/admin/flats/csv-template`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}/admin/flats/csv-template`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!res.ok) {
     throw new Error(`Failed to download template (HTTP ${res.status})`);

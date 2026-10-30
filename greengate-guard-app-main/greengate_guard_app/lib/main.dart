@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/login_screen.dart';
 import 'features/auth/splash_screen.dart';
 import 'repositories/guard_repository.dart';
 import 'services/storage_service.dart';
 import 'services/api_service.dart';
+
+final GlobalKey<NavigatorState> guardNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,9 +32,17 @@ void main() async {
   ApiService.setBaseUrl(storage.getServerUrl());
   final guardRepo = GuardRepository(storage);
 
+  // When token is rejected (401), immediately evict cached session and route to login
+  ApiService.onUnauthorized = () {
+    guardRepo.logout();
+    guardNavigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => LoginScreen(guardRepo: guardRepo)),
+      (route) => false,
+    );
+  };
+
   runApp(NexGuardApp(guardRepo: guardRepo));
 }
-
 
 class NexGuardApp extends StatelessWidget {
   final GuardRepository guardRepo;
@@ -41,6 +52,7 @@ class NexGuardApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: guardNavigatorKey,
       title: 'NexGuard',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,

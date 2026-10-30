@@ -78,4 +78,15 @@ class AuthService {
     await StorageService.clearSession();
     currentUser.value = null;
   }
+
+  /// Callback dispatched when 401 Unauthorized is returned by API
+  static VoidCallback? onUnauthorized;
+
+  /// Handles 401 Unauthorized by evicting cached session and notifying UI
+  static Future<void> handleUnauthorized() async {
+    SocketService.disconnect();
+    await StorageService.clearSession();
+    currentUser.value = null;
+    onUnauthorized?.call();
+  }
 }

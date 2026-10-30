@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -8,6 +9,7 @@ import '../models/registration_model.dart';
 import '../models/user_model.dart';
 import '../models/vehicle_model.dart';
 import '../models/visitor_model.dart';
+import 'auth_service.dart';
 import 'storage_service.dart';
 
 class ApiException implements Exception {
@@ -26,6 +28,9 @@ class ApiException implements Exception {
 class ApiService {
   ApiService._();
 
+  /// Global strict 15-second timeout duration for all network calls
+  static const Duration timeoutDuration = Duration(seconds: 15);
+
   static Map<String, String> _headers({bool withAuth = true}) {
     final headers = <String, String>{
       'Content-Type': 'application/json',
@@ -40,7 +45,50 @@ class ApiService {
     return headers;
   }
 
+  static Future<http.Response> _get(Uri uri, {Map<String, String>? headers}) {
+    return http.get(uri, headers: headers).timeout(
+      timeoutDuration,
+      onTimeout: () => throw ApiException(
+        'Request timed out after 15 seconds. Please check your network connection.',
+        code: 'TIMEOUT',
+        statusCode: 408,
+      ),
+    );
+  }
+
+  static Future<http.Response> _post(Uri uri, {Map<String, String>? headers, Object? body}) {
+    return http.post(uri, headers: headers, body: body).timeout(
+      timeoutDuration,
+      onTimeout: () => throw ApiException(
+        'Request timed out after 15 seconds. Please check your network connection.',
+        code: 'TIMEOUT',
+        statusCode: 408,
+      ),
+    );
+  }
+
+  static Future<http.Response> _delete(Uri uri, {Map<String, String>? headers, Object? body}) {
+    return http.delete(uri, headers: headers, body: body).timeout(
+      timeoutDuration,
+      onTimeout: () => throw ApiException(
+        'Request timed out after 15 seconds. Please check your network connection.',
+        code: 'TIMEOUT',
+        statusCode: 408,
+      ),
+    );
+  }
+
   static dynamic _handleResponse(http.Response response) {
+    // If token is rejected (401 Unauthorized), immediately evict cached session
+    if (response.statusCode == 401) {
+      AuthService.handleUnauthorized();
+      throw ApiException(
+        'Session expired or unauthorized (401). Please log in again.',
+        code: 'UNAUTHORIZED',
+        statusCode: 401,
+      );
+    }
+
     dynamic json;
     try {
       json = jsonDecode(response.body);
@@ -81,7 +129,7 @@ class ApiService {
 
   static Future<Map<String, dynamic>> sendOtp(String mobile) async {
     final clean = mobile.replaceAll(RegExp(r'\D'), '');
-    final response = await http.post(
+    final response = await _post(
       Uri.parse(ApiEndpoints.sendOtp),
       headers: _headers(withAuth: false),
       body: jsonEncode({'mobile': clean}),
@@ -92,7 +140,7 @@ class ApiService {
 
   static Future<Map<String, dynamic>> verifyOtp(String mobile, String otp) async {
     final clean = mobile.replaceAll(RegExp(r'\D'), '');
-    final response = await http.post(
+    final response = await _post(
       Uri.parse(ApiEndpoints.verifyOtp),
       headers: _headers(withAuth: false),
       body: jsonEncode({'mobile': clean, 'otp': otp.trim()}),
@@ -102,7 +150,7 @@ class ApiService {
   }
 
   static Future<FlatsHierarchy> fetchRegistrationFlats({String societyId = 'soc_greengate'}) async {
-    final response = await http.get(
+    final response = await _get(
       Uri.parse('${ApiEndpoints.registrationFlats}?societyId=$societyId'),
       headers: _headers(withAuth: false),
     );
@@ -114,7 +162,7 @@ class ApiService {
   static Future<RegistrationStatusData> checkRegistrationStatus(String mobile) async {
     final clean = mobile.replaceAll(RegExp(r'\D'), '');
     final clean10 = clean.length >= 10 ? clean.substring(clean.length - 10) : clean;
-    final response = await http.get(
+    final response = await _get(
       Uri.parse('${ApiEndpoints.registrationStatus}?mobile=$clean10'),
       headers: _headers(withAuth: false),
     );
@@ -143,7 +191,7 @@ class ApiService {
     if (flatId != null) payload['flatId'] = flatId;
     if (name != null) payload['name'] = name;
 
-    final response = await http.post(
+    final response = await _post(
       Uri.parse(ApiEndpoints.registrationSubmit),
       headers: _headers(withAuth: false),
       body: jsonEncode(payload),
@@ -154,7 +202,7 @@ class ApiService {
 
   static Future<UserModel?> fetchCurrentUser() async {
     try {
-      final response = await http.get(
+      final response = await _get(
         Uri.parse(ApiEndpoints.me),
         headers: _headers(),
       );
@@ -172,7 +220,7 @@ class ApiService {
   // ==========================================================
 
   static Future<List<VisitorModel>> fetchVisitorRequests() async {
-    final response = await http.get(
+    final response = await _get(
       Uri.parse(ApiEndpoints.visitorRequests),
       headers: _headers(),
     );
@@ -183,7 +231,7 @@ class ApiService {
 
   static Future<VisitorModel?> fetchVisitorRequestById(String id) async {
     try {
-      final response = await http.get(
+      final response = await _get(
         Uri.parse(ApiEndpoints.visitorRequestDetail(id)),
         headers: _headers(),
       );
@@ -197,7 +245,7 @@ class ApiService {
   }
 
   static Future<bool> approveVisitorRequest(String id) async {
-    final response = await http.post(
+    final response = await _post(
       Uri.parse(ApiEndpoints.approveVisitor(id)),
       headers: _headers(),
     );
@@ -206,7 +254,7 @@ class ApiService {
   }
 
   static Future<bool> rejectVisitorRequest(String id, {String reason = 'Denied by resident'}) async {
-    final response = await http.post(
+    final response = await _post(
       Uri.parse(ApiEndpoints.rejectVisitor(id)),
       headers: _headers(),
       body: jsonEncode({'reason': reason}),
@@ -234,7 +282,7 @@ class ApiService {
 
   static Future<List<FamilyMemberModel>> fetchFamilyMembers() async {
     try {
-      final response = await http.get(
+      final response = await _get(
         Uri.parse(ApiEndpoints.familyMembers),
         headers: _headers(),
       );
@@ -251,7 +299,7 @@ class ApiService {
     required String relationship,
     String? phone,
   }) async {
-    final response = await http.post(
+    final response = await _post(
       Uri.parse(ApiEndpoints.familyMembers),
       headers: _headers(),
       body: jsonEncode({
@@ -266,7 +314,7 @@ class ApiService {
   }
 
   static Future<bool> deleteFamilyMember(String id) async {
-    final response = await http.delete(
+    final response = await _delete(
       Uri.parse(ApiEndpoints.deleteFamilyMember(id)),
       headers: _headers(),
     );
@@ -276,7 +324,7 @@ class ApiService {
 
   static Future<List<VehicleModel>> fetchVehicles() async {
     try {
-      final response = await http.get(
+      final response = await _get(
         Uri.parse(ApiEndpoints.vehicles),
         headers: _headers(),
       );
@@ -295,7 +343,7 @@ class ApiService {
     String? model,
     String? color,
   }) async {
-    final response = await http.post(
+    final response = await _post(
       Uri.parse(ApiEndpoints.vehicles),
       headers: _headers(),
       body: jsonEncode({
@@ -312,7 +360,7 @@ class ApiService {
   }
 
   static Future<bool> deleteVehicle(String id) async {
-    final response = await http.delete(
+    final response = await _delete(
       Uri.parse(ApiEndpoints.deleteVehicle(id)),
       headers: _headers(),
     );
@@ -326,7 +374,7 @@ class ApiService {
 
   static Future<List<NotificationModel>> fetchNotifications() async {
     try {
-      final response = await http.get(
+      final response = await _get(
         Uri.parse(ApiEndpoints.notifications),
         headers: _headers(),
       );
@@ -343,7 +391,7 @@ class ApiService {
       final token = StorageService.getToken();
       if (token == null || token.isEmpty) return false;
 
-      final response = await http.post(
+      final response = await _post(
         Uri.parse('${ApiEndpoints.baseUrl}/notifications/fcm-token'),
         headers: _headers(),
         body: jsonEncode({
@@ -364,7 +412,7 @@ class ApiService {
   // ==========================================================
 
   static Future<bool> deleteAccount() async {
-    final response = await http.delete(
+    final response = await _delete(
       Uri.parse(ApiEndpoints.deleteAccount),
       headers: _headers(),
     );

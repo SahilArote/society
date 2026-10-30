@@ -19,6 +19,9 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+server.timeout = 15000;
+server.keepAliveTimeout = 15000;
+server.headersTimeout = 16000;
 const PORT = process.env.PORT || 5000;
 
 // Initialize Database
@@ -26,6 +29,29 @@ initDb();
 
 // Middlewares
 app.use(cors({ origin: '*', credentials: true }));
+
+// Production Security Headers & Strict TLS / HSTS (Forbids cleartext HTTP)
+app.use((_req, res, next) => {
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  next();
+});
+
+// Production 15-Second Request Timeout Middleware
+app.use((req, res, next) => {
+  req.setTimeout(15000, () => {
+    if (!res.headersSent) {
+      res.status(408).json({
+        success: false,
+        error: { code: 'REQUEST_TIMEOUT', message: 'Request timed out after 15 seconds' },
+      });
+    }
+  });
+  res.setTimeout(15000);
+  next();
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

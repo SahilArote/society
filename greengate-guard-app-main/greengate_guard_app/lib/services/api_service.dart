@@ -1,13 +1,20 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 class ApiService {
-  // Base URL configuration (AWS Lightsail)
+  // Base URL configuration (AWS Lightsail - Strictly HTTPS)
   static String baseUrl = 'https://dazclothess.com/api';
   static String? _authToken;
 
+  /// Global strict 15-second timeout duration for all HTTP requests
+  static const Duration timeoutDuration = Duration(seconds: 15);
+
+  /// Callback dispatched when the server rejects authentication (401 Unauthorized)
+  static VoidCallback? onUnauthorized;
 
   static void setBaseUrl(String url) {
     String cleanUrl = url.trim();
@@ -26,16 +33,17 @@ class ApiService {
 
   static String get authToken => _authToken ?? '';
 
+  static void _handle401() {
+    print('[ApiService] 401 Unauthorized received. Evicting session and logging out.');
+    _authToken = null;
+    onUnauthorized?.call();
+  }
+
   static Future<String> ensureAuthToken() async {
     if (_authToken != null && _authToken!.isNotEmpty) {
       return _authToken!;
     }
-    // Auto-login with guard credentials to obtain live backend JWT token
-    final result = await loginGuard(guardIdOrPhone: 'guard_ramesh', pin: '1234');
-    if (result == null || _authToken == null || _authToken!.isEmpty) {
-      throw Exception('Authentication failed. Guard login required.');
-    }
-    return _authToken!;
+    throw Exception('Authentication required. Guard login needed.');
   }
 
   // Guard Login with Backend Authentication
@@ -53,7 +61,7 @@ class ApiService {
           'mobile': guardIdOrPhone.trim(),
           'pin': pin.trim(),
         }),
-      );
+      ).timeout(timeoutDuration);
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
@@ -65,8 +73,12 @@ class ApiService {
       } else {
         print('Guard Login Failed [${response.statusCode}]: ${response.body}');
       }
+    } on TimeoutException {
+      print('[ApiService] Login request timed out after 15 seconds.');
+      throw Exception('Connection timed out. Please check your internet connection.');
     } catch (e) {
       print('Exception during guard login: $e');
+      rethrow;
     }
     return null;
   }
@@ -75,19 +87,14 @@ class ApiService {
   static Future<Map<String, dynamic>?> fetchDirectory() async {
     try {
       await ensureAuthToken();
-      var response = await http.get(
+      final response = await http.get(
         Uri.parse('$baseUrl/visitor-requests/directory'),
         headers: {'Authorization': 'Bearer $authToken'},
-      );
+      ).timeout(timeoutDuration);
 
-      // Auto-refresh token if expired (401 / 403) and retry
-      if (response.statusCode == 401 || response.statusCode == 403) {
-        _authToken = null;
-        await ensureAuthToken();
-        response = await http.get(
-          Uri.parse('$baseUrl/visitor-requests/directory'),
-          headers: {'Authorization': 'Bearer $authToken'},
-        );
+      if (response.statusCode == 401) {
+        _handle401();
+        return null;
       }
 
       if (response.statusCode == 200) {
@@ -96,6 +103,8 @@ class ApiService {
       } else {
         print('Error fetching directory [${response.statusCode}]: ${response.body}');
       }
+    } on TimeoutException {
+      print('[ApiService] Fetch directory timed out after 15 seconds.');
     } catch (e) {
       print('Error fetching directory: $e');
     }
@@ -140,7 +149,6 @@ class ApiService {
         request.fields['deliveryCompany'] = deliveryCompany.trim();
       }
 
-      // Attach Photo File if present with explicit MIME type
       if (photoPath != null && photoPath.isNotEmpty) {
         final file = File(photoPath);
         if (await file.exists()) {
@@ -168,8 +176,13 @@ class ApiService {
         }
       }
 
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final streamedResponse = await request.send().timeout(timeoutDuration);
+      final response = await http.Response.fromStream(streamedResponse).timeout(timeoutDuration);
+
+      if (response.statusCode == 401) {
+        _handle401();
+        throw Exception('Session expired (401). Please log in again.');
+      }
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final json = jsonDecode(response.body);
@@ -197,6 +210,9 @@ class ApiService {
         }
         throw Exception('Failed to submit visitor request [HTTP ${response.statusCode}].');
       }
+    } on TimeoutException {
+      print('[ApiService] Submit visitor request timed out after 15 seconds.');
+      throw Exception('Request timed out after 15 seconds. Please try again.');
     } catch (e) {
       print('Network/API exception during visitor submission: $e');
       rethrow;
@@ -210,16 +226,22 @@ class ApiService {
       final response = await http.get(
         Uri.parse('$baseUrl/visitor-requests'),
         headers: {'Authorization': 'Bearer $authToken'},
-      );
+      ).timeout(timeoutDuration);
+
+      if (response.statusCode == 401) {
+        _handle401();
+        return null;
+      }
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         return json['data'];
       }
+    } on TimeoutException {
+      print('[ApiService] Fetch visitor requests timed out after 15 seconds.');
     } catch (e) {
       print('Error fetching requests: $e');
     }
     return null;
   }
 }
-
