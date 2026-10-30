@@ -34,6 +34,28 @@ router.post('/fcm-token', auth_1.authenticateToken, async (req, res) => {
     }
 });
 // =============================================================
+// DELETE /api/notifications/fcm-token
+// Unregister mobile device FCM Token upon logout
+// =============================================================
+router.delete('/fcm-token', auth_1.authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { token } = req.body || {};
+        await (0, pushNotificationService_1.removeFcmToken)(userId, token);
+        return res.json({
+            success: true,
+            message: 'FCM token unregistered successfully',
+        });
+    }
+    catch (err) {
+        console.error('Error removing FCM token:', err);
+        return res.status(500).json({
+            success: false,
+            error: { code: 'SERVER_ERROR', message: 'Failed to unregister FCM token' },
+        });
+    }
+});
+// =============================================================
 // GET /api/notifications
 // Fetch in-app notifications for authenticated user
 // =============================================================

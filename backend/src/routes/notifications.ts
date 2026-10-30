@@ -6,6 +6,7 @@ import {
   savePushSubscription,
   removePushSubscription,
   saveFcmToken,
+  removeFcmToken,
   sendPushToUser,
 } from '../services/pushNotificationService';
 
@@ -38,6 +39,30 @@ router.post('/fcm-token', authenticateToken, async (req: AuthenticatedRequest, r
     return res.status(500).json({
       success: false,
       error: { code: 'SERVER_ERROR', message: 'Failed to save FCM token' },
+    });
+  }
+});
+
+// =============================================================
+// DELETE /api/notifications/fcm-token
+// Unregister mobile device FCM Token upon logout
+// =============================================================
+router.delete('/fcm-token', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { token } = req.body || {};
+
+    await removeFcmToken(userId, token);
+
+    return res.json({
+      success: true,
+      message: 'FCM token unregistered successfully',
+    });
+  } catch (err: any) {
+    console.error('Error removing FCM token:', err);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to unregister FCM token' },
     });
   }
 });

@@ -132,14 +132,24 @@ async function saveFcmToken(userId, token, deviceType = 'android') {
  * Remove an FCM Token (e.g. on logout)
  */
 async function removeFcmToken(userId, token) {
-    const tokens = memoryFcmTokens.get(userId);
-    if (tokens) {
-        tokens.delete(token);
+    if (token) {
+        const tokens = memoryFcmTokens.get(userId);
+        if (tokens) {
+            tokens.delete(token.trim());
+        }
+    }
+    else {
+        memoryFcmTokens.delete(userId);
     }
     try {
         const pool = await (0, mysql_1.getMysqlPool)();
         if (pool) {
-            await pool.query('DELETE FROM fcm_tokens WHERE token = ?', [token.trim()]);
+            if (token && token.trim()) {
+                await pool.query('DELETE FROM fcm_tokens WHERE token = ?', [token.trim()]);
+            }
+            else {
+                await pool.query('DELETE FROM fcm_tokens WHERE user_id = ?', [userId]);
+            }
             console.log(`[FCM] Removed FCM token for user ${userId}`);
         }
     }

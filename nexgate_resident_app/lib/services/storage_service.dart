@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 
 /// Local persistence service for session tokens and user profiles.
+/// Uses FlutterSecureStorage (hardware-backed AES encryption) for auth tokens.
 class StorageService {
   static const String _keyToken = 'nexgate_auth_token';
   static const String _keyUser = 'nexgate_auth_user';
@@ -10,21 +12,48 @@ class StorageService {
   static const String _keyOnboardingDone = 'nexgate_onboarding_completed';
 
   static SharedPreferences? _prefs;
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+  static String? _cachedToken;
 
   static Future<void> init() async {
     _prefs ??= await SharedPreferences.getInstance();
+    try {
+      _cachedToken = await _secureStorage.read(key: _keyToken);
+      // Seamless migration if previously saved in plain SharedPreferences
+      if (_cachedToken == null && _prefs?.containsKey(_keyToken) == true) {
+        final legacyToken = _prefs?.getString(_keyToken);
+        if (legacyToken != null && legacyToken.isNotEmpty) {
+          _cachedToken = legacyToken;
+          await _secureStorage.write(key: _keyToken, value: legacyToken);
+          await _prefs?.remove(_keyToken);
+        }
+      }
+    } catch (_) {
+      _cachedToken = _prefs?.getString(_keyToken);
+    }
   }
 
-  // Token Management
+  // Token Management (Secure hardware-backed storage)
   static Future<void> saveToken(String token) async {
-    await _prefs?.setString(_keyToken, token);
+    _cachedToken = token;
+    try {
+      await _secureStorage.write(key: _keyToken, value: token);
+    } catch (_) {}
+    // Remove any leftover plaintext token in SharedPreferences
+    await _prefs?.remove(_keyToken);
   }
 
   static String? getToken() {
-    return _prefs?.getString(_keyToken);
+    return _cachedToken;
   }
 
   static Future<void> removeToken() async {
+    _cachedToken = null;
+    try {
+      await _secureStorage.delete(key: _keyToken);
+    } catch (_) {}
     await _prefs?.remove(_keyToken);
   }
 

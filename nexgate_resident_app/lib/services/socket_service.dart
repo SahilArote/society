@@ -45,7 +45,6 @@ class SocketService {
           .setTransports(['websocket', 'polling'])
           .setAuth({'token': token})
           .setExtraHeaders({'Authorization': 'Bearer $token'})
-          .setQuery({'token': token})
           .enableAutoConnect()
           .enableReconnection()
           .setReconnectionAttempts(20)

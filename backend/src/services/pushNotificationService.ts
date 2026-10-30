@@ -150,16 +150,24 @@ export async function saveFcmToken(
 /**
  * Remove an FCM Token (e.g. on logout)
  */
-export async function removeFcmToken(userId: string, token: string): Promise<void> {
-  const tokens = memoryFcmTokens.get(userId);
-  if (tokens) {
-    tokens.delete(token);
+export async function removeFcmToken(userId: string, token?: string): Promise<void> {
+  if (token) {
+    const tokens = memoryFcmTokens.get(userId);
+    if (tokens) {
+      tokens.delete(token.trim());
+    }
+  } else {
+    memoryFcmTokens.delete(userId);
   }
 
   try {
     const pool = await getMysqlPool();
     if (pool) {
-      await pool.query('DELETE FROM fcm_tokens WHERE token = ?', [token.trim()]);
+      if (token && token.trim()) {
+        await pool.query('DELETE FROM fcm_tokens WHERE token = ?', [token.trim()]);
+      } else {
+        await pool.query('DELETE FROM fcm_tokens WHERE user_id = ?', [userId]);
+      }
       console.log(`[FCM] Removed FCM token for user ${userId}`);
     }
   } catch (err: any) {

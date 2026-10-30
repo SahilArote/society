@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/guard.dart';
 import '../models/visitor_request.dart';
@@ -12,20 +13,52 @@ class StorageService {
   static const String _keyAuthToken = 'guard_auth_token';
 
   final SharedPreferences _prefs;
+  final FlutterSecureStorage _secureStorage;
+  String? _cachedToken;
 
-  StorageService(this._prefs);
+  StorageService(this._prefs, this._secureStorage, this._cachedToken);
 
   static Future<StorageService> init() async {
     final prefs = await SharedPreferences.getInstance();
-    return StorageService(prefs);
+    const secureStorage = FlutterSecureStorage(
+      aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    );
+    String? token;
+    try {
+      token = await secureStorage.read(key: _keyAuthToken);
+      // Migration from plaintext SharedPreferences
+      if (token == null && prefs.containsKey(_keyAuthToken)) {
+        final legacy = prefs.getString(_keyAuthToken);
+        if (legacy != null && legacy.isNotEmpty) {
+          token = legacy;
+          await secureStorage.write(key: _keyAuthToken, value: legacy);
+          await prefs.remove(_keyAuthToken);
+        }
+      }
+    } catch (_) {
+      token = prefs.getString(_keyAuthToken);
+    }
+    return StorageService(prefs, secureStorage, token);
   }
 
   Future<void> saveToken(String token) async {
-    await _prefs.setString(_keyAuthToken, token);
+    _cachedToken = token;
+    try {
+      await _secureStorage.write(key: _keyAuthToken, value: token);
+    } catch (_) {}
+    await _prefs.remove(_keyAuthToken);
   }
 
   String? getToken() {
-    return _prefs.getString(_keyAuthToken);
+    return _cachedToken;
+  }
+
+  Future<void> removeToken() async {
+    _cachedToken = null;
+    try {
+      await _secureStorage.delete(key: _keyAuthToken);
+    } catch (_) {}
+    await _prefs.remove(_keyAuthToken);
   }
 
   String getServerUrl() {
@@ -43,7 +76,6 @@ class StorageService {
   Future<void> setServerUrl(String url) async {
     await _prefs.setString(_keyServerUrl, url.trim());
   }
-
 
   bool isLoggedIn() {
     return _prefs.getBool(_keyIsLoggedIn) ?? false;
@@ -94,6 +126,9 @@ class StorageService {
   }
 
   Future<void> clearSession() async {
-    await _prefs.setBool(_keyIsLoggedIn, false);
+    await setLoggedIn(false);
+    await removeToken();
+    await _prefs.remove(_keyGuardData);
+    await _prefs.remove(_keyVisitorRequests);
   }
 }
