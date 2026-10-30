@@ -75,10 +75,21 @@ class ApiService {
   static Future<Map<String, dynamic>?> fetchDirectory() async {
     try {
       await ensureAuthToken();
-      final response = await http.get(
+      var response = await http.get(
         Uri.parse('$baseUrl/visitor-requests/directory'),
         headers: {'Authorization': 'Bearer $authToken'},
       );
+
+      // Auto-refresh token if expired (401 / 403) and retry
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        _authToken = null;
+        await ensureAuthToken();
+        response = await http.get(
+          Uri.parse('$baseUrl/visitor-requests/directory'),
+          headers: {'Authorization': 'Bearer $authToken'},
+        );
+      }
+
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         return json['data'];

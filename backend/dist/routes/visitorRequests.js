@@ -20,7 +20,7 @@ const router = (0, express_1.Router)();
 // =============================================================
 router.get('/directory', auth_1.authenticateToken, async (req, res) => {
     try {
-        const societyId = req.user.societyId;
+        const societyId = req.user?.societyId || 'soc_greengate';
         const flats = await (0, db_1.findFlatsBySociety)(societyId);
         // Group flats by wing
         const wingMap = {};
@@ -80,7 +80,7 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
                 error: { code: 'INVALID_INPUT', message: 'Flat number is required' },
             });
         }
-        const societyId = req.user.societyId;
+        const societyId = req.user?.societyId || 'soc_greengate';
         const guardId = req.user.id;
         const gateId = req.user.gateId || 'gate_main';
         console.log(`[VISITOR] Creating request for flat: ${flatNumber} ${buildingWing ? `(${buildingWing})` : ''} in society: ${societyId}`);

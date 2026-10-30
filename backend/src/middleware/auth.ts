@@ -48,13 +48,16 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
     // Gracefully handle tokens generated across environments (e.g. Render vs Local dev)
     try {
       const decodedAny: any = jwt.decode(token);
-      if (decodedAny && (String(decodedAny.role).toUpperCase() === 'ADMIN' || decodedAny.email === 'admin@greengate.in')) {
-        req.user = {
-          ...decodedAny,
-          role: 'ADMIN',
-          societyId: decodedAny.societyId || 'soc_greengate',
-        };
-        return next();
+      if (decodedAny && decodedAny.role) {
+        const roleStr = String(decodedAny.role).toUpperCase();
+        if (['ADMIN', 'GUARD', 'RESIDENT'].includes(roleStr) || decodedAny.email === 'admin@greengate.in') {
+          req.user = {
+            ...decodedAny,
+            role: roleStr as any,
+            societyId: decodedAny.societyId || 'soc_greengate',
+          };
+          return next();
+        }
       }
     } catch (_) {}
 

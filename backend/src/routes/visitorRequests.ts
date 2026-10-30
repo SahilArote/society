@@ -32,7 +32,7 @@ const router = Router();
 // =============================================================
 router.get('/directory', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const societyId = req.user!.societyId;
+    const societyId = req.user?.societyId || 'soc_greengate';
     const flats = await findFlatsBySociety(societyId);
 
     // Group flats by wing
@@ -111,7 +111,7 @@ router.post(
         });
       }
 
-      const societyId = req.user!.societyId;
+      const societyId = req.user?.societyId || 'soc_greengate';
       const guardId = req.user!.id;
       const gateId = req.user!.gateId || 'gate_main';
 
