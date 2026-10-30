@@ -17,6 +17,7 @@ class ApiEndpoints {
   static String get registrationStatus => '$baseUrl/auth/registration/status';
   static String get registrationSubmit => '$baseUrl/auth/registration/submit';
   static String get me => '$baseUrl/auth/me';
+  static String get deleteAccount => '$baseUrl/auth/account';
 
   // Visitor Requests
   static String get visitorRequests => '$baseUrl/visitor-requests';

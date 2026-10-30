@@ -76,6 +76,9 @@ async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Re
     ...getAuthHeaders(),
     ...(options.headers as any),
   };
+  if (options.body instanceof FormData) {
+    delete headers['Content-Type'];
+  }
   let res = await fetch(targetUrl, { ...options, headers });
 
   if (res.status === 401 || res.status === 403) {
@@ -194,6 +197,58 @@ export async function createAdminFlat(data: {
     throw new Error(json.error?.message || json.message || 'Failed to create flat');
   }
   return json.data;
+}
+
+export async function downloadCsvTemplate(): Promise<void> {
+  const token = getAdminToken();
+  const res = await fetch(`${API_BASE_URL}/admin/flats/csv-template`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to download template (HTTP ${res.status})`);
+  }
+
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'greengate_flats_template.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
+
+export interface BulkImportResponse {
+  success: boolean;
+  message: string;
+  data: {
+    totalRows: number;
+    processed: number;
+    created: number;
+    updated: number;
+    failed: number;
+    errors: Array<{ row: number; flat?: string; reason: string }>;
+    importedFlats: any[];
+  };
+}
+
+export async function bulkImportFlats(file: File): Promise<BulkImportResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetchWithAuth(`${API_BASE_URL}/admin/flats/bulk-import`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || json.message || 'Failed to bulk import flats');
+  }
+
+  return json;
 }
 
 export async function deleteAdminFlat(id: string) {

@@ -79,9 +79,10 @@ class ProfileScreen extends StatelessWidget {
         if (!context.mounted) return;
         Navigator.of(context).pop();
 
+        final errorMsg = e.toString().replaceAll('Exception: ', '');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to delete account: ' + e.toString().replaceAll('Exception: ', '')),
+            content: Text('Failed to delete account: $errorMsg'),
             backgroundColor: AppColors.error,
           ),
         );

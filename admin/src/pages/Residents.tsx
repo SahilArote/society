@@ -3,12 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Phone, Mail, Car, Users, Home,
   Building2, AlertCircle, CheckCircle2, X, Download,
-  UserPlus, MessageSquare, CreditCard, ShieldCheck, Plus, UserCheck, Loader2, Trash2
+  UserPlus, MessageSquare, CreditCard, ShieldCheck, Plus, UserCheck, Loader2, Trash2,
+  UploadCloud, FileSpreadsheet, Check, RefreshCw
 } from 'lucide-react';
 import type { Flat, FlatResident as Resident } from '../types';
 import StatCard, { CircularGauge } from '../components/StatCard';
 import { RegistrationRequestsSection } from '../components/RegistrationRequestsSection';
-import { fetchAdminFlats, createAdminFlat, deleteAdminFlat, deleteAdminResident } from '../services/api';
+import { fetchAdminFlats, createAdminFlat, deleteAdminFlat, deleteAdminResident, downloadCsvTemplate, bulkImportFlats, type BulkImportResponse } from '../services/api';
 
 /* ── Badges ──────────────────────────────────────────────── */
 function MaintBadge({ s }: { s: string }) {
@@ -196,6 +197,77 @@ function FlatPanel({
 }
 
 /* ── Main Page ────────────────────────────────────────────── */
+/* ── CSV Import Helper ─────────────────────────────────────── */
+function parseClientCsv(text: string): Array<{
+  flatNumber: string;
+  wing: string;
+  floor: string;
+  residentName: string;
+  mobileNumber: string;
+  flatType: string;
+}> {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (lines.length === 0) return [];
+
+  const tokenize = (line: string) => {
+    const res: string[] = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') {
+        inQuotes = !inQuotes;
+      } else if (c === ',' && !inQuotes) {
+        res.push(cur.trim().replace(/^"|"$/g, ''));
+        cur = '';
+      } else {
+        cur += c;
+      }
+    }
+    res.push(cur.trim().replace(/^"|"$/g, ''));
+    return res;
+  };
+
+  const firstTokens = tokenize(lines[0]);
+  let colFlat = 0, colWing = 1, colFloor = 2, colResident = 3, colMobile = 4, colType = 5;
+  let hasHeader = false;
+
+  firstTokens.forEach((col, idx) => {
+    const n = col.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (['flatnumber', 'flatno', 'flat', 'number', 'unit'].includes(n)) {
+      colFlat = idx;
+      hasHeader = true;
+    } else if (['wing', 'wingname', 'block', 'tower', 'building'].includes(n)) {
+      colWing = idx;
+      hasHeader = true;
+    } else if (['floor', 'floornumber', 'level'].includes(n)) {
+      colFloor = idx;
+    } else if (['residentname', 'resident', 'ownername', 'owner', 'name'].includes(n)) {
+      colResident = idx;
+    } else if (['mobilenumber', 'mobile', 'phone', 'contact', 'phonenumber'].includes(n)) {
+      colMobile = idx;
+    } else if (['flattype', 'type', 'config'].includes(n)) {
+      colType = idx;
+    }
+  });
+
+  const start = hasHeader ? 1 : 0;
+  const result: any[] = [];
+  for (let i = start; i < lines.length; i++) {
+    const t = tokenize(lines[i]);
+    if (!t || t.length === 0 || t.every(x => !x)) continue;
+    result.push({
+      flatNumber: t[colFlat] || '',
+      wing: t[colWing] || '',
+      floor: t[colFloor] || '',
+      residentName: t[colResident] || '',
+      mobileNumber: t[colMobile] || '',
+      flatType: t[colType] || '2BHK',
+    });
+  }
+  return result;
+}
+
 export default function Residents() {
   const [flats, setFlats] = useState<Flat[]>([]);
   const [loading, setLoading] = useState(true);
@@ -212,6 +284,74 @@ export default function Residents() {
   const [flatToDelete, setFlatToDelete] = useState<Flat | null>(null);
   const [residentToDelete, setResidentToDelete] = useState<{ resident: Resident; flat: Flat } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // CSV Bulk Import State
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
+  const [previewRows, setPreviewRows] = useState<Array<{
+    flatNumber: string;
+    wing: string;
+    floor: string;
+    residentName: string;
+    mobileNumber: string;
+    flatType: string;
+  }>>([]);
+  const [importResult, setImportResult] = useState<BulkImportResponse['data'] | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  const handleFileSelect = (file: File) => {
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setImportError('Please select a valid .CSV spreadsheet file');
+      return;
+    }
+    setImportError(null);
+    setImportFile(file);
+    setImportResult(null);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      if (text) {
+        const rows = parseClientCsv(text);
+        setPreviewRows(rows);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleExecuteImport = async () => {
+    if (!importFile) return;
+    setIsImporting(true);
+    setImportError(null);
+    try {
+      const response = await bulkImportFlats(importFile);
+      setImportResult(response.data);
+      showToast(response.message || 'Flats imported successfully!');
+      await loadFlats();
+    } catch (err: any) {
+      console.error('Import error:', err);
+      setImportError(err.message || 'Bulk import failed. Please check your CSV format.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      setIsDownloadingTemplate(true);
+      await downloadCsvTemplate();
+      showToast('Sample CSV template downloaded');
+    } catch (err: any) {
+      console.error('Failed to download template:', err);
+      showToast('Failed to download CSV template');
+    } finally {
+      setIsDownloadingTemplate(false);
+    }
+  };
+
 
   const handleDeleteFlat = async () => {
     if (!flatToDelete) return;
@@ -534,13 +674,34 @@ export default function Residents() {
             <span className="badge badge-muted">{filtered.length} of {flats.length} flats</span>
           </div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
               onClick={exportDirectory}
               className="btn-secondary"
               style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
             >
               <Download size={13} /> Export Directory (.CSV)
+            </button>
+            <button
+              onClick={() => {
+                setShowBulkImport(true);
+                setImportFile(null);
+                setPreviewRows([]);
+                setImportResult(null);
+                setImportError(null);
+              }}
+              className="btn-secondary"
+              style={{
+                fontSize: 12,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                cursor: 'pointer',
+                borderColor: 'var(--accent)',
+                color: 'var(--accent-light)',
+              }}
+            >
+              <UploadCloud size={13} /> Import CSV
             </button>
             <button
               onClick={() => setShowAddFlat(true)}
@@ -698,6 +859,358 @@ export default function Residents() {
       </AnimatePresence>
         </>
       )}
+
+      {/* CSV Bulk Import Modal */}
+      <AnimatePresence>
+        {showBulkImport && (
+          <motion.div
+            className="modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={e => e.target === e.currentTarget && !isImporting && setShowBulkImport(false)}
+            style={{ zIndex: 1200 }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              style={{
+                width: '100%',
+                maxWidth: 620,
+                maxHeight: '90vh',
+                background: 'var(--bg-card)',
+                borderRadius: 'var(--r-xl)',
+                border: '1px solid var(--border-accent)',
+                boxShadow: 'var(--shadow-xl)',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Header */}
+              <div className="modal-header" style={{ borderBottom: '1px solid var(--border)', padding: '16px 20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 8,
+                    background: 'var(--accent-glow)', color: 'var(--accent-light)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    <FileSpreadsheet size={18} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                      Bulk Onboard Flats & Residents
+                    </h3>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
+                      Mass import society units, wings, and resident contact directories
+                    </p>
+                  </div>
+                </div>
+                <button
+                  className="btn-icon"
+                  disabled={isImporting}
+                  onClick={() => setShowBulkImport(false)}
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* Template Download / Help Strip */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  background: 'var(--bg-card-subtle, rgba(255,255,255,0.03))',
+                  borderRadius: 'var(--r-md)',
+                  border: '1px solid var(--border)',
+                  fontSize: 12,
+                }}>
+                  <div style={{ color: 'var(--text-secondary)' }}>
+                    Need the formatted format? Download our ready-to-use CSV template.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDownloadTemplate}
+                    disabled={isDownloadingTemplate}
+                    className="btn-secondary"
+                    style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px' }}
+                  >
+                    {isDownloadingTemplate ? <Loader2 size={12} className="anim-spin" /> : <Download size={12} />}
+                    Download Template
+                  </button>
+                </div>
+
+                {/* Import Result Screen */}
+                {importResult ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <div style={{
+                      padding: 16,
+                      borderRadius: 'var(--r-lg)',
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      textAlign: 'center',
+                    }}>
+                      <div style={{
+                        width: 44, height: 44, borderRadius: '50%',
+                        background: 'rgba(16, 185, 129, 0.2)', color: '#10b981',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        margin: '0 auto 10px auto'
+                      }}>
+                        <Check size={22} />
+                      </div>
+                      <h4 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>
+                        Bulk Import Completed
+                      </h4>
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>
+                        Society flat directory and user access permissions have been updated.
+                      </p>
+                    </div>
+
+                    {/* Stats summary */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+                      <div style={{ padding: 12, background: 'var(--bg-card-subtle, rgba(255,255,255,0.02))', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', textAlign: 'center' }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Total Rows</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>{importResult.totalRows}</div>
+                      </div>
+                      <div style={{ padding: 12, background: 'rgba(16, 185, 129, 0.06)', borderRadius: 'var(--r-md)', border: '1px solid rgba(16, 185, 129, 0.2)', textAlign: 'center' }}>
+                        <div style={{ fontSize: 11, color: '#10b981' }}>Created</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: '#10b981', marginTop: 2 }}>{importResult.created}</div>
+                      </div>
+                      <div style={{ padding: 12, background: 'rgba(59, 130, 246, 0.06)', borderRadius: 'var(--r-md)', border: '1px solid rgba(59, 130, 246, 0.2)', textAlign: 'center' }}>
+                        <div style={{ fontSize: 11, color: '#3b82f6' }}>Updated</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: '#3b82f6', marginTop: 2 }}>{importResult.updated}</div>
+                      </div>
+                      <div style={{ padding: 12, background: importResult.failed > 0 ? 'rgba(239, 68, 68, 0.06)' : 'var(--bg-card-subtle, rgba(255,255,255,0.02))', borderRadius: 'var(--r-md)', border: `1px solid ${importResult.failed > 0 ? 'rgba(239, 68, 68, 0.2)' : 'var(--border)'}`, textAlign: 'center' }}>
+                        <div style={{ fontSize: 11, color: importResult.failed > 0 ? '#ef4444' : 'var(--text-muted)' }}>Errors / Skipped</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: importResult.failed > 0 ? '#ef4444' : 'var(--text-primary)', marginTop: 2 }}>{importResult.failed}</div>
+                      </div>
+                    </div>
+
+                    {/* Error breakdown if any */}
+                    {importResult.errors && importResult.errors.length > 0 && (
+                      <div style={{
+                        borderRadius: 'var(--r-md)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        background: 'rgba(239, 68, 68, 0.04)',
+                        padding: 12,
+                        maxHeight: 140,
+                        overflowY: 'auto'
+                      }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#ef4444', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <AlertCircle size={13} />
+                          Skipped Rows ({importResult.errors.length}):
+                        </div>
+                        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 11, color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {importResult.errors.map((err, i) => (
+                            <li key={i}>
+                              <strong>Row {err.row}{err.flat ? ` (Flat ${err.flat})` : ''}:</strong> {err.reason}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {/* Drag and Drop Zone */}
+                    <div
+                      onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+                      onDragLeave={() => setIsDragging(false)}
+                      onDrop={e => {
+                        e.preventDefault();
+                        setIsDragging(false);
+                        const files = e.dataTransfer.files;
+                        if (files && files[0]) handleFileSelect(files[0]);
+                      }}
+                      style={{
+                        border: `2px dashed ${isDragging ? 'var(--accent)' : 'var(--border)'}`,
+                        borderRadius: 'var(--r-lg)',
+                        background: isDragging ? 'var(--accent-glow)' : 'var(--bg-card-subtle, rgba(255,255,255,0.01))',
+                        padding: '24px 16px',
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                      onClick={() => {
+                        const input = document.getElementById('csv-file-input') as HTMLInputElement;
+                        if (input) input.click();
+                      }}
+                    >
+                      <input
+                        id="csv-file-input"
+                        type="file"
+                        accept=".csv"
+                        style={{ display: 'none' }}
+                        onChange={e => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleFileSelect(e.target.files[0]);
+                          }
+                        }}
+                      />
+                      <div style={{
+                        width: 48, height: 48, borderRadius: '50%',
+                        background: 'var(--accent-glow)', color: 'var(--accent-light)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        margin: '0 auto 12px auto'
+                      }}>
+                        <UploadCloud size={24} />
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                        {importFile ? importFile.name : 'Choose CSV File or Drag & Drop'}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        {importFile
+                          ? `${(importFile.size / 1024).toFixed(1)} KB · ${previewRows.length} rows parsed`
+                          : 'Supports standard CSV exports from Excel, Google Sheets, or Society ERPs'}
+                      </div>
+                    </div>
+
+                    {/* Error display */}
+                    {importError && (
+                      <div style={{
+                        padding: '10px 14px',
+                        borderRadius: 'var(--r-md)',
+                        background: 'var(--red-bg)',
+                        color: 'var(--red)',
+                        border: '1px solid rgba(239,68,68,0.2)',
+                        fontSize: 12,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}>
+                        <AlertCircle size={14} />
+                        {importError}
+                      </div>
+                    )}
+
+                    {/* Preview Table */}
+                    {previewRows.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                            File Preview (showing first {Math.min(5, previewRows.length)} of {previewRows.length} units)
+                          </span>
+                          <span className="badge badge-muted" style={{ fontSize: 10 }}>
+                            {previewRows.length} units detected
+                          </span>
+                        </div>
+
+                        <div style={{
+                          border: '1px solid var(--border)',
+                          borderRadius: 'var(--r-md)',
+                          overflow: 'hidden',
+                          maxHeight: 180,
+                          overflowY: 'auto'
+                        }}>
+                          <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse', textAlign: 'left' }}>
+                            <thead>
+                              <tr style={{ background: 'var(--bg-card-subtle, rgba(255,255,255,0.03))', borderBottom: '1px solid var(--border)' }}>
+                                <th style={{ padding: '6px 10px', color: 'var(--text-muted)', fontWeight: 600 }}>Flat</th>
+                                <th style={{ padding: '6px 10px', color: 'var(--text-muted)', fontWeight: 600 }}>Wing</th>
+                                <th style={{ padding: '6px 10px', color: 'var(--text-muted)', fontWeight: 600 }}>Floor</th>
+                                <th style={{ padding: '6px 10px', color: 'var(--text-muted)', fontWeight: 600 }}>Resident</th>
+                                <th style={{ padding: '6px 10px', color: 'var(--text-muted)', fontWeight: 600 }}>Mobile</th>
+                                <th style={{ padding: '6px 10px', color: 'var(--text-muted)', fontWeight: 600 }}>Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {previewRows.slice(0, 5).map((row, idx) => (
+                                <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
+                                  <td style={{ padding: '6px 10px', fontWeight: 600, color: 'var(--text-primary)' }}>{row.flatNumber}</td>
+                                  <td style={{ padding: '6px 10px', color: 'var(--text-secondary)' }}>{row.wing}</td>
+                                  <td style={{ padding: '6px 10px', color: 'var(--text-muted)' }}>{row.floor || 'Auto'}</td>
+                                  <td style={{ padding: '6px 10px', color: 'var(--text-secondary)' }}>{row.residentName || '—'}</td>
+                                  <td style={{ padding: '6px 10px', color: 'var(--text-muted)' }}>{row.mobileNumber || '—'}</td>
+                                  <td style={{ padding: '6px 10px' }}>
+                                    <span className={row.mobileNumber ? 'badge badge-success' : 'badge badge-muted'} style={{ fontSize: 9 }}>
+                                      {row.mobileNumber ? 'Occupied' : 'Vacant'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div style={{
+                padding: '14px 20px',
+                borderTop: '1px solid var(--border)',
+                display: 'flex',
+                gap: 10,
+                justifyContent: 'flex-end',
+                background: 'var(--bg-card)',
+              }}>
+                {importResult ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => {
+                        setImportResult(null);
+                        setImportFile(null);
+                        setPreviewRows([]);
+                        setImportError(null);
+                      }}
+                      style={{ fontSize: 12, padding: '7px 16px' }}
+                    >
+                      Import Another File
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => setShowBulkImport(false)}
+                      style={{ fontSize: 12, padding: '7px 18px' }}
+                    >
+                      Done & View Directory
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      disabled={isImporting}
+                      className="btn-secondary"
+                      onClick={() => setShowBulkImport(false)}
+                      style={{ fontSize: 12, padding: '7px 16px' }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!importFile || isImporting || previewRows.length === 0}
+                      className="btn-primary"
+                      onClick={handleExecuteImport}
+                      style={{ fontSize: 12, padding: '7px 20px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    >
+                      {isImporting ? (
+                        <>
+                          <Loader2 size={13} className="anim-spin" />
+                          Importing {previewRows.length} Flats...
+                        </>
+                      ) : (
+                        <>
+                          <UploadCloud size={13} />
+                          Import {previewRows.length > 0 ? `${previewRows.length} Flats` : 'File'}
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Add Flat Modal */}
       <AnimatePresence>

@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import multer from 'multer';
 import {
   findVisitorRequestsJoined,
   findResidentRegistrations,
@@ -386,6 +387,388 @@ router.post('/flats', authenticateToken, authorizeRoles('ADMIN'), async (req: Au
     });
   }
 });
+
+// Multer memory storage for bulk CSV upload
+const uploadCsv = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB max
+});
+
+// Helper: Robust RFC 4180 CSV parser
+function parseCsvContent(csvText: string): string[][] {
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentField = '';
+  let inQuotes = false;
+
+  const normalized = csvText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  for (let i = 0; i < normalized.length; i++) {
+    const char = normalized[i];
+    const nextChar = normalized[i + 1];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (nextChar === '"') {
+          currentField += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        currentField += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ',') {
+        currentRow.push(currentField.trim());
+        currentField = '';
+      } else if (char === '\n') {
+        currentRow.push(currentField.trim());
+        if (currentRow.some((col) => col.length > 0)) {
+          rows.push(currentRow);
+        }
+        currentRow = [];
+        currentField = '';
+      } else {
+        currentField += char;
+      }
+    }
+  }
+
+  if (currentField.length > 0 || currentRow.length > 0) {
+    currentRow.push(currentField.trim());
+    if (currentRow.some((col) => col.length > 0)) {
+      rows.push(currentRow);
+    }
+  }
+
+  return rows;
+}
+
+// GET /api/admin/flats/csv-template
+// Download sample CSV template for bulk flats & residents onboarding
+router.get('/flats/csv-template', (_req: any, res: Response) => {
+  const sampleCsv = [
+    'FlatNumber,Wing,Floor,ResidentName,MobileNumber,FlatType',
+    '101,A,1,Aarav Sharma,9876543210,2BHK',
+    '102,A,1,Priya Mehta,9876543211,2BHK',
+    '201,B,2,Vikram Malhotra,9876543212,3BHK',
+    '202,B,2,,,3BHK',
+    '301,C,3,Neha Verma,9876543214,1BHK',
+    '401,D,4,Rohan Desai,9876543215,4BHK',
+  ].join('\r\n');
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="greengate_flats_template.csv"');
+  return res.status(200).send(sampleCsv);
+});
+
+// POST /api/admin/flats/bulk-import
+// Bulk import flats and resident accounts via CSV file upload or JSON payload
+router.post(
+  '/flats/bulk-import',
+  authenticateToken,
+  authorizeRoles('ADMIN'),
+  uploadCsv.single('file'),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const societyId = req.user!.societyId || 'soc_greengate';
+      const pool = await getMysqlPool();
+
+      if (!pool) {
+        return res.status(500).json({
+          success: false,
+          error: { code: 'DATABASE_ERROR', message: 'Database connection pool unavailable' },
+        });
+      }
+
+      let recordsToProcess: Array<{
+        flatNumber: string;
+        wing: string;
+        floor?: number | string;
+        residentName?: string;
+        mobileNumber?: string;
+        flatType?: string;
+        sourceRow: number;
+      }> = [];
+
+      // Case 1: CSV file uploaded via multipart/form-data
+      if (req.file && req.file.buffer) {
+        const csvString = req.file.buffer.toString('utf-8');
+        const parsedRows = parseCsvContent(csvString);
+
+        if (parsedRows.length === 0) {
+          return res.status(400).json({
+            success: false,
+            error: { code: 'EMPTY_FILE', message: 'The uploaded CSV file is empty' },
+          });
+        }
+
+        // Determine header indices
+        let colFlat = 0;
+        let colWing = 1;
+        let colFloor = 2;
+        let colResident = 3;
+        let colMobile = 4;
+        let colType = 5;
+        let hasHeader = false;
+
+        const firstRow = parsedRows[0];
+        firstRow.forEach((col, idx) => {
+          const norm = col.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (['flatnumber', 'flatno', 'flat', 'number', 'unit'].includes(norm)) {
+            colFlat = idx;
+            hasHeader = true;
+          } else if (['wing', 'wingname', 'block', 'tower', 'building'].includes(norm)) {
+            colWing = idx;
+            hasHeader = true;
+          } else if (['floor', 'floornumber', 'level'].includes(norm)) {
+            colFloor = idx;
+          } else if (['residentname', 'resident', 'ownername', 'owner', 'name'].includes(norm)) {
+            colResident = idx;
+          } else if (['mobilenumber', 'mobile', 'phone', 'contact', 'phonenumber'].includes(norm)) {
+            colMobile = idx;
+          } else if (['flattype', 'type', 'config', 'configuration'].includes(norm)) {
+            colType = idx;
+          }
+        });
+
+        const startIdx = hasHeader ? 1 : 0;
+        for (let r = startIdx; r < parsedRows.length; r++) {
+          const row = parsedRows[r];
+          if (!row || row.length === 0 || row.every((c) => !c)) continue;
+          recordsToProcess.push({
+            flatNumber: row[colFlat] || '',
+            wing: row[colWing] || '',
+            floor: row[colFloor] || '',
+            residentName: row[colResident] || '',
+            mobileNumber: row[colMobile] || '',
+            flatType: row[colType] || '',
+            sourceRow: r + 1,
+          });
+        }
+      }
+      // Case 2: Raw CSV text in JSON body
+      else if (req.body && typeof req.body.csvText === 'string' && req.body.csvText.trim()) {
+        const parsedRows = parseCsvContent(req.body.csvText);
+        let colFlat = 0;
+        let colWing = 1;
+        let colFloor = 2;
+        let colResident = 3;
+        let colMobile = 4;
+        let colType = 5;
+        let hasHeader = false;
+
+        if (parsedRows.length > 0) {
+          parsedRows[0].forEach((col, idx) => {
+            const norm = col.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (['flatnumber', 'flatno', 'flat', 'number', 'unit'].includes(norm)) {
+              colFlat = idx;
+              hasHeader = true;
+            } else if (['wing', 'wingname', 'block', 'tower', 'building'].includes(norm)) {
+              colWing = idx;
+              hasHeader = true;
+            } else if (['floor', 'floornumber', 'level'].includes(norm)) {
+              colFloor = idx;
+            } else if (['residentname', 'resident', 'ownername', 'owner', 'name'].includes(norm)) {
+              colResident = idx;
+            } else if (['mobilenumber', 'mobile', 'phone', 'contact', 'phonenumber'].includes(norm)) {
+              colMobile = idx;
+            } else if (['flattype', 'type', 'config', 'configuration'].includes(norm)) {
+              colType = idx;
+            }
+          });
+
+          const startIdx = hasHeader ? 1 : 0;
+          for (let r = startIdx; r < parsedRows.length; r++) {
+            const row = parsedRows[r];
+            if (!row || row.length === 0 || row.every((c) => !c)) continue;
+            recordsToProcess.push({
+              flatNumber: row[colFlat] || '',
+              wing: row[colWing] || '',
+              floor: row[colFloor] || '',
+              residentName: row[colResident] || '',
+              mobileNumber: row[colMobile] || '',
+              flatType: row[colType] || '',
+              sourceRow: r + 1,
+            });
+          }
+        }
+      }
+      // Case 3: JSON array of records
+      else if (req.body && Array.isArray(req.body.records)) {
+        recordsToProcess = req.body.records.map((rec: any, idx: number) => ({
+          flatNumber: String(rec.flatNumber || rec.number || '').trim(),
+          wing: String(rec.wing || '').trim(),
+          floor: rec.floor,
+          residentName: String(rec.residentName || rec.ownerName || rec.name || '').trim(),
+          mobileNumber: String(rec.mobileNumber || rec.mobile || rec.phone || '').trim(),
+          flatType: String(rec.flatType || rec.type || '').trim(),
+          sourceRow: idx + 1,
+        }));
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_INPUT',
+            message: 'Please provide a valid CSV file (multipart/form-data) or a JSON body with records array',
+          },
+        });
+      }
+
+      if (recordsToProcess.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'NO_RECORDS', message: 'No valid records found in the import data' },
+        });
+      }
+
+      let createdCount = 0;
+      let updatedCount = 0;
+      let failedCount = 0;
+      const errors: Array<{ row: number; flat?: string; reason: string }> = [];
+      const importedFlats: any[] = [];
+
+      for (const item of recordsToProcess) {
+        const rowNum = item.sourceRow;
+        const rawFlatNumber = item.flatNumber.trim();
+        const rawWing = item.wing.trim();
+
+        if (!rawFlatNumber) {
+          errors.push({ row: rowNum, reason: 'Flat number is required' });
+          failedCount++;
+          continue;
+        }
+
+        if (!rawWing) {
+          errors.push({ row: rowNum, flat: rawFlatNumber, reason: 'Wing identifier is required' });
+          failedCount++;
+          continue;
+        }
+
+        const cleanWing = rawWing.toLowerCase().startsWith('wing')
+          ? rawWing
+          : `Wing ${rawWing.toUpperCase()}`;
+        const cleanFlatNumber = rawFlatNumber.toUpperCase();
+
+        // Calculate floor
+        let floor = parseInt(String(item.floor || ''), 10);
+        if (isNaN(floor) || floor <= 0) {
+          const digits = cleanFlatNumber.replace(/\D/g, '');
+          if (digits.length >= 3) {
+            floor = parseInt(digits.slice(0, -2), 10) || 1;
+          } else {
+            floor = 1;
+          }
+        }
+
+        // Validate mobile if provided
+        let cleanMobile: string | null = null;
+        if (item.mobileNumber && item.mobileNumber.trim()) {
+          const digits = item.mobileNumber.replace(/\D/g, '');
+          const tenDigits = digits.slice(-10);
+          if (tenDigits.length !== 10) {
+            errors.push({
+              row: rowNum,
+              flat: cleanFlatNumber,
+              reason: `Invalid mobile number '${item.mobileNumber}'. Must contain a valid 10-digit number.`,
+            });
+            failedCount++;
+            continue;
+          }
+          cleanMobile = tenDigits;
+        }
+
+        let cleanResidentName = item.residentName?.trim() || '';
+        if (cleanMobile && !cleanResidentName) {
+          cleanResidentName = `Resident ${cleanFlatNumber}`;
+        }
+
+        try {
+          // Check if flat already exists
+          const [existingFlats]: any = await pool.query(
+            `SELECT id, resident_id FROM flats WHERE society_id = ? AND wing = ? AND flat_number = ? LIMIT 1`,
+            [societyId, cleanWing, cleanFlatNumber]
+          );
+          const existing = existingFlats && existingFlats.length > 0 ? existingFlats[0] : null;
+
+          let residentId: string | null = null;
+          if (cleanMobile) {
+            residentId = `res_${cleanMobile}`;
+            await pool.query(
+              `INSERT INTO users (id, name, mobile, role, society_id, status)
+               VALUES (?, ?, ?, 'RESIDENT', ?, 'ACTIVE')
+               ON DUPLICATE KEY UPDATE name = VALUES(name), society_id = VALUES(society_id), status = 'ACTIVE'`,
+              [residentId, cleanResidentName, cleanMobile, societyId]
+            );
+          }
+
+          let flatId: string;
+          if (existing) {
+            flatId = existing.id;
+            const finalResidentId = residentId !== null ? residentId : existing.resident_id;
+            await pool.query(
+              `UPDATE flats 
+               SET floor = ?, resident_id = ?
+               WHERE id = ?`,
+              [floor, finalResidentId, flatId]
+            );
+            updatedCount++;
+          } else {
+            flatId = `flat_${cleanFlatNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+            await pool.query(
+              `INSERT INTO flats (id, society_id, flat_number, wing, floor, resident_id)
+               VALUES (?, ?, ?, ?, ?, ?)`,
+              [flatId, societyId, cleanFlatNumber, cleanWing, floor, residentId || null]
+            );
+            createdCount++;
+          }
+
+          importedFlats.push({
+            id: flatId,
+            flatNumber: cleanFlatNumber,
+            wing: cleanWing,
+            floor,
+            status: residentId || (existing && existing.resident_id) ? 'occupied' : 'vacant',
+            residentName: cleanResidentName || undefined,
+            mobile: cleanMobile || undefined,
+            isUpdate: Boolean(existing),
+          });
+        } catch (dbErr: any) {
+          console.error(`Error processing bulk row ${rowNum} (${cleanFlatNumber}):`, dbErr);
+          errors.push({
+            row: rowNum,
+            flat: cleanFlatNumber,
+            reason: dbErr.message || 'Database insert error',
+          });
+          failedCount++;
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Bulk import completed: ${createdCount} created, ${updatedCount} updated${errors.length > 0 ? `, ${errors.length} skipped with errors` : ''}`,
+        data: {
+          totalRows: recordsToProcess.length,
+          processed: createdCount + updatedCount,
+          created: createdCount,
+          updated: updatedCount,
+          failed: failedCount,
+          errors,
+          importedFlats,
+        },
+      });
+    } catch (err: any) {
+      console.error('Fatal error during flats bulk import:', err);
+      return res.status(500).json({
+        success: false,
+        error: { code: 'SERVER_ERROR', message: err.message || 'Failed to process bulk import' },
+      });
+    }
+  }
+);
 
 // DELETE /api/admin/flats/:id
 router.delete('/flats/:id', authenticateToken, authorizeRoles('ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
