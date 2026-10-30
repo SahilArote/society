@@ -24,12 +24,18 @@ if (flutterVersionName == null) {
     flutterVersionName = '1.0.0'
 }
 
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
 android {
-    namespace "com.greengate.guard.greengate_guard_app"
+    namespace "com.nexbuild.nexguard"
     compileSdkVersion 33
     ndkVersion flutter.ndkVersion
 
@@ -47,7 +53,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.greengate.guard.greengate_guard_app"
+        applicationId "com.nexbuild.nexguard"
         minSdkVersion 21
         targetSdkVersion 33
         versionCode flutterVersionCode.toInteger()
@@ -59,9 +65,34 @@ android {
         abortOnError false
     }
 
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                def keystorePath = keystoreProperties['storeFile']
+                if (keystorePath != null) {
+                    def kf = file(keystorePath)
+                    if (!kf.exists()) {
+                        kf = rootProject.file(keystorePath)
+                    }
+                    if (!kf.exists()) {
+                        kf = file("upload-keystore.jks")
+                    }
+                    storeFile kf
+                }
+                storePassword keystoreProperties['storePassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
         }
     }
 }
