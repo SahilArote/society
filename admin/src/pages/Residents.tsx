@@ -9,7 +9,7 @@ import {
 import type { Flat, FlatResident as Resident } from '../types';
 import StatCard, { CircularGauge } from '../components/StatCard';
 import { RegistrationRequestsSection } from '../components/RegistrationRequestsSection';
-import { fetchAdminFlats, createAdminFlat, deleteAdminFlat, deleteAdminResident, downloadCsvTemplate, bulkImportFlats, type BulkImportResponse } from '../services/api';
+import { fetchAdminFlats, createAdminFlat, deleteAdminFlat, deleteAdminResident, downloadCsvTemplate, bulkImportFlats, mergeDuplicateFlats, type BulkImportResponse } from '../services/api';
 
 /* ── Badges ──────────────────────────────────────────────── */
 function MaintBadge({ s }: { s: string }) {
@@ -336,6 +336,22 @@ export default function Residents() {
       setImportError(err.message || 'Bulk import failed. Please check your CSV format.');
     } finally {
       setIsImporting(false);
+    }
+  };
+
+    const [isMerging, setIsMerging] = useState(false);
+
+  const handleMergeDuplicates = async () => {
+    setIsMerging(true);
+    try {
+      const res = await mergeDuplicateFlats();
+      showToast(res.message || 'Duplicate flats merged successfully');
+      await loadFlats();
+    } catch (err: any) {
+      console.error('Merge error:', err);
+      showToast(err.message || 'Failed to merge duplicate flats');
+    } finally {
+      setIsMerging(false);
     }
   };
 
@@ -702,6 +718,22 @@ export default function Residents() {
               }}
             >
               <UploadCloud size={13} /> Import CSV
+            </button>
+            <button
+              onClick={handleMergeDuplicates}
+              disabled={isMerging}
+              className="btn-secondary"
+              title="Automatically merge duplicate units into canonical flats (e.g. 102 into A-102)"
+              style={{
+                fontSize: 12,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                cursor: 'pointer',
+              }}
+            >
+              <RefreshCw size={13} className={isMerging ? 'anim-spin' : ''} />
+              Merge Duplicates
             </button>
             <button
               onClick={() => setShowAddFlat(true)}

@@ -447,26 +447,163 @@ function parseCsvContent(csvText: string): string[][] {
   return rows;
 }
 
-// GET /api/admin/flats/csv-template
-// Download sample CSV template for bulk flats & residents onboarding
-router.get('/flats/csv-template', (_req: any, res: Response) => {
-  const sampleCsv = [
-    'FlatNumber,Wing,Floor,ResidentName,MobileNumber,FlatType',
-    '101,A,1,Aarav Sharma,9876543210,2BHK',
-    '102,A,1,Priya Mehta,9876543211,2BHK',
-    '201,B,2,Vikram Malhotra,9876543212,3BHK',
-    '202,B,2,,,3BHK',
-    '301,C,3,Neha Verma,9876543214,1BHK',
-    '401,D,4,Rohan Desai,9876543215,4BHK',
-  ].join('\r\n');
+// Normalization Helpers for robust flat & wing matching
+function normalizeWing(w: string): string {
+  if (!w) return '';
+  return w
+    .toLowerCase()
+    .replace(/\b(wing|tower|block|bldg|building|phase)\b/gi, '')
+    .replace(/[^a-z0-9]/gi, '')
+    .toUpperCase();
+}
 
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="greengate_flats_template.csv"');
-  return res.status(200).send(sampleCsv);
+function normalizeFlatNum(num: string, wingNorm: string): string {
+  if (!num) return '';
+  let clean = num.trim().toUpperCase().replace(/[^A-Z0-9]/gi, '');
+  if (wingNorm && clean.startsWith(wingNorm) && clean.length > wingNorm.length) {
+    clean = clean.substring(wingNorm.length);
+  }
+  return clean;
+}
+
+// GET /api/admin/flats/csv-template
+// Download sample CSV template matching society's actual naming convention
+router.get('/flats/csv-template', async (req: any, res: Response) => {
+  try {
+    const pool = await getMysqlPool();
+    let sampleRows: string[] = [];
+
+    if (pool) {
+      const societyId = req.user?.societyId || 'soc_greengate';
+      const [dbFlats]: any = await pool.query(
+        `SELECT flat_number, wing, floor FROM flats WHERE society_id = ? LIMIT 6`,
+        [societyId]
+      );
+      if (dbFlats && dbFlats.length > 0) {
+        sampleRows.push('FlatNumber,Wing,Floor,ResidentName,MobileNumber,FlatType');
+        const sampleResidents = [
+          { name: 'Aarav Sharma', phone: '9876543210' },
+          { name: 'Priya Mehta', phone: '9876543211' },
+          { name: 'Vikram Malhotra', phone: '9876543212' },
+          { name: '', phone: '' }, // sample vacant
+          { name: 'Neha Verma', phone: '9876543214' },
+          { name: 'Rohan Desai', phone: '9876543215' },
+        ];
+        dbFlats.forEach((f: any, i: number) => {
+          const sample = sampleResidents[i] || { name: '', phone: '' };
+          sampleRows.push(
+            `${f.flat_number},${f.wing},${f.floor || 1},${sample.name},${sample.phone},2BHK`
+          );
+        });
+      }
+    }
+
+    if (sampleRows.length === 0) {
+      sampleRows = [
+        'FlatNumber,Wing,Floor,ResidentName,MobileNumber,FlatType',
+        'A-101,Wing Tower A,1,Aarav Sharma,9876543210,2BHK',
+        'A-102,Wing Tower A,1,Priya Mehta,9876543211,2BHK',
+        'B-101,Wing Tower B,1,Vikram Malhotra,9876543212,3BHK',
+        'B-102,Wing Tower B,1,,,2BHK',
+        'C-101,Wing Tower C,1,Neha Verma,9876543214,1BHK',
+      ];
+    }
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="greengate_flats_template.csv"');
+    return res.status(200).send(sampleRows.join('\r\n'));
+  } catch (err: any) {
+    const fallback = [
+      'FlatNumber,Wing,Floor,ResidentName,MobileNumber,FlatType',
+      'A-101,Wing Tower A,1,Aarav Sharma,9876543210,2BHK',
+      'A-102,Wing Tower A,1,Priya Mehta,9876543211,2BHK',
+      'B-101,Wing Tower B,1,,,2BHK',
+    ].join('\r\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="greengate_flats_template.csv"');
+    return res.status(200).send(fallback);
+  }
 });
 
+// POST /api/admin/flats/merge-duplicates
+// Intelligently merges format-mismatched duplicate flats (e.g. 102 into A-102)
+router.post(
+  '/flats/merge-duplicates',
+  authenticateToken,
+  authorizeRoles('ADMIN'),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const societyId = req.user!.societyId || 'soc_greengate';
+      const pool = await getMysqlPool();
+      if (!pool) {
+        return res.status(500).json({ success: false, error: { code: 'DATABASE_ERROR', message: 'DB unavailable' } });
+      }
+
+      const [flats]: any = await pool.query(
+        `SELECT id, flat_number, wing, floor, resident_id FROM flats WHERE society_id = ?`,
+        [societyId]
+      );
+
+      const groups: { [key: string]: any[] } = {};
+      for (const f of (flats || [])) {
+        const wNorm = normalizeWing(f.wing);
+        const digits = f.flat_number.replace(/\D/g, '');
+        const key = `${wNorm}_${digits}`;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(f);
+      }
+
+      let mergedCount = 0;
+      const details: string[] = [];
+
+      for (const key of Object.keys(groups)) {
+        const list = groups[key];
+        if (list.length > 1) {
+          // Sort to prioritize canonical naming (e.g. "A-102" over "102", "Wing Tower A" over "Wing A")
+          list.sort((a, b) => {
+            const aScore = (a.flat_number.includes('-') ? 2 : 0) + (a.wing.toLowerCase().includes('tower') ? 2 : 0);
+            const bScore = (b.flat_number.includes('-') ? 2 : 0) + (b.wing.toLowerCase().includes('tower') ? 2 : 0);
+            return bScore - aScore;
+          });
+
+          const canonical = list[0];
+          const duplicates = list.slice(1);
+
+          for (const dup of duplicates) {
+            // Transfer resident if duplicate has one and canonical is vacant
+            if (dup.resident_id && !canonical.resident_id) {
+              await pool.query(`UPDATE flats SET resident_id = ? WHERE id = ?`, [dup.resident_id, canonical.id]);
+              canonical.resident_id = dup.resident_id;
+            }
+
+            // Repoint visitor requests
+            await pool.query(`UPDATE visitor_requests SET flat_id = ? WHERE flat_id = ?`, [canonical.id, dup.id]);
+
+            // Remove duplicate flat
+            await pool.query(`DELETE FROM flats WHERE id = ?`, [dup.id]);
+            mergedCount++;
+            details.push(`Merged duplicate Flat ${dup.flat_number} (${dup.wing}) into ${canonical.flat_number} (${canonical.wing})`);
+          }
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Successfully merged ${mergedCount} duplicate flat(s).`,
+        data: { mergedCount, details },
+      });
+    } catch (err: any) {
+      console.error('Error merging duplicate flats:', err);
+      return res.status(500).json({
+        success: false,
+        error: { code: 'SERVER_ERROR', message: err.message || 'Failed to merge duplicate flats' },
+      });
+    }
+  }
+);
+
 // POST /api/admin/flats/bulk-import
-// Bulk import flats and resident accounts via CSV file upload or JSON payload
+// Bulk import flats and resident accounts with Smart Normalization matching
 router.post(
   '/flats/bulk-import',
   authenticateToken,
@@ -483,6 +620,19 @@ router.post(
           error: { code: 'DATABASE_ERROR', message: 'Database connection pool unavailable' },
         });
       }
+
+      // Pre-load all existing flats for this society to perform smart fuzzy matching
+      const [existingDbFlats]: any = await pool.query(
+        `SELECT id, flat_number, wing, floor, resident_id FROM flats WHERE society_id = ?`,
+        [societyId]
+      );
+      const societyFlats: Array<{
+        id: string;
+        flat_number: string;
+        wing: string;
+        floor: number;
+        resident_id: string | null;
+      }> = existingDbFlats || [];
 
       let recordsToProcess: Array<{
         flatNumber: string;
@@ -506,7 +656,6 @@ router.post(
           });
         }
 
-        // Determine header indices
         let colFlat = 0;
         let colWing = 1;
         let colFloor = 2;
@@ -687,12 +836,37 @@ router.post(
         }
 
         try {
-          // Check if flat already exists
-          const [existingFlats]: any = await pool.query(
-            `SELECT id, resident_id FROM flats WHERE society_id = ? AND wing = ? AND flat_number = ? LIMIT 1`,
-            [societyId, cleanWing, cleanFlatNumber]
-          );
-          const existing = existingFlats && existingFlats.length > 0 ? existingFlats[0] : null;
+          // Smart Normalization Matching:
+          // Match by exact string OR normalized wing + normalized digits
+          const inputWingNorm = normalizeWing(rawWing);
+          const inputFlatNorm = normalizeFlatNum(rawFlatNumber, inputWingNorm);
+          const inputDigits = rawFlatNumber.replace(/\D/g, '');
+
+          let matchedFlat = societyFlats.find((f) => {
+            // 1. Direct exact match
+            if (
+              f.flat_number.toUpperCase() === cleanFlatNumber &&
+              (f.wing.toUpperCase() === cleanWing.toUpperCase() || f.wing.toUpperCase() === rawWing.toUpperCase())
+            ) {
+              return true;
+            }
+
+            const dbWingNorm = normalizeWing(f.wing);
+            const dbFlatNorm = normalizeFlatNum(f.flat_number, dbWingNorm);
+            const dbDigits = f.flat_number.replace(/\D/g, '');
+
+            // 2. Both belong to the same wing tower/block
+            if (dbWingNorm === inputWingNorm && inputWingNorm) {
+              // Normalized numbers match (e.g. '102' vs 'A-102')
+              if (dbFlatNorm === inputFlatNorm && inputFlatNorm) return true;
+              // Pure digits match (e.g. '102' vs '102')
+              if (inputDigits && inputDigits === dbDigits) return true;
+            }
+
+            return false;
+          });
+
+          const existing = matchedFlat;
 
           let residentId: string | null = null;
           if (cleanMobile) {
@@ -706,15 +880,25 @@ router.post(
           }
 
           let flatId: string;
+          let finalWing = cleanWing;
+          let finalFlatNumber = cleanFlatNumber;
+
           if (existing) {
             flatId = existing.id;
+            finalWing = existing.wing; // Preserve society canonical wing (e.g. "Wing Tower A")
+            finalFlatNumber = existing.flat_number; // Preserve society canonical number (e.g. "A-102")
             const finalResidentId = residentId !== null ? residentId : existing.resident_id;
+
             await pool.query(
               `UPDATE flats 
                SET floor = ?, resident_id = ?
                WHERE id = ?`,
               [floor, finalResidentId, flatId]
             );
+
+            // Update in-memory cache
+            existing.resident_id = finalResidentId;
+            existing.floor = floor;
             updatedCount++;
           } else {
             flatId = `flat_${cleanFlatNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
@@ -723,13 +907,22 @@ router.post(
                VALUES (?, ?, ?, ?, ?, ?)`,
               [flatId, societyId, cleanFlatNumber, cleanWing, floor, residentId || null]
             );
+
+            // Add to in-memory list so duplicate rows in the same file also match
+            societyFlats.push({
+              id: flatId,
+              flat_number: cleanFlatNumber,
+              wing: cleanWing,
+              floor,
+              resident_id: residentId || null,
+            });
             createdCount++;
           }
 
           importedFlats.push({
             id: flatId,
-            flatNumber: cleanFlatNumber,
-            wing: cleanWing,
+            flatNumber: finalFlatNumber,
+            wing: finalWing,
             floor,
             status: residentId || (existing && existing.resident_id) ? 'occupied' : 'vacant',
             residentName: cleanResidentName || undefined,
@@ -770,7 +963,6 @@ router.post(
   }
 );
 
-// DELETE /api/admin/flats/:id
 router.delete('/flats/:id', authenticateToken, authorizeRoles('ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const societyId = req.user!.societyId;

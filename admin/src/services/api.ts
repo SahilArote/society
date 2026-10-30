@@ -251,6 +251,17 @@ export async function bulkImportFlats(file: File): Promise<BulkImportResponse> {
   return json;
 }
 
+export async function mergeDuplicateFlats() {
+  const res = await fetchWithAuth(`${API_BASE_URL}/admin/flats/merge-duplicates`, {
+    method: 'POST',
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || json.message || 'Failed to merge duplicate flats');
+  }
+  return json;
+}
+
 export async function deleteAdminFlat(id: string) {
   const res = await fetchWithAuth(`${API_BASE_URL}/admin/flats/${id}`, {
     method: 'DELETE',
