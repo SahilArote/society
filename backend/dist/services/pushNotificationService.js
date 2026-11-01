@@ -285,7 +285,6 @@ async function sendPushToUser(userId, payload) {
                     title: payload.title,
                     body: payload.body,
                     tag: payload.tag || 'visitor_alert',
-                    click_action: 'FLUTTER_NOTIFICATION_CLICK',
                 };
                 if (payload.data) {
                     for (const [k, v] of Object.entries(payload.data)) {
@@ -309,7 +308,6 @@ async function sendPushToUser(userId, payload) {
                             defaultSound: true,
                             defaultVibrateTimings: true,
                             visibility: 'public',
-                            clickAction: 'FLUTTER_NOTIFICATION_CLICK',
                         },
                     },
                 });

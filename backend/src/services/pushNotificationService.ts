@@ -333,7 +333,6 @@ export async function sendPushToUser(
           title: payload.title,
           body: payload.body,
           tag: payload.tag || 'visitor_alert',
-          click_action: 'FLUTTER_NOTIFICATION_CLICK',
         };
 
         if (payload.data) {
@@ -359,7 +358,6 @@ export async function sendPushToUser(
               defaultSound: true,
               defaultVibrateTimings: true,
               visibility: 'public',
-              clickAction: 'FLUTTER_NOTIFICATION_CLICK',
             },
           },
         });
