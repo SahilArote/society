@@ -150,7 +150,7 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
         const { visitor: visitorRecord, request: requestRecord } = await (0, db_1.createVisitorWithRequestTransaction)({
             id: visitorId,
             name: name.trim(),
-            mobile: mobile ? mobile.trim() : undefined,
+            mobile: (mobile || req.body.phone || req.body.phoneNumber) ? (mobile || req.body.phone || req.body.phoneNumber).toString().trim() : undefined,
             purpose: (purpose || 'personal').toLowerCase(),
             visitorType: (visitorType || 'guest').toLowerCase(),
             photoKey: photoStorageResult.photoKey,
@@ -251,7 +251,7 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
                     visitor: {
                         id: visitorRecord.id,
                         name: visitorRecord.name,
-                        mobile: visitorRecord.mobile,
+                        mobile: visitorRecord.mobile || mobile || req.body.phone || req.body.phoneNumber || undefined,
                         purpose: visitorRecord.purpose,
                         visitorType: visitorRecord.visitorType,
                         photoUrl: `/api/visitor-requests/${requestId}/photo`,
@@ -287,6 +287,7 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
                         visitorRequestId: requestId,
                         url: '/home',
                         visitorName: name,
+                        visitorPhone: visitorRecord.mobile || mobile || req.body.phone || req.body.phoneNumber || '',
                         flatNumber: flat.flatNumber,
                         gateName,
                     },

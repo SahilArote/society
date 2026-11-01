@@ -192,7 +192,7 @@ router.post(
         {
           id: visitorId,
           name: name.trim(),
-          mobile: mobile ? mobile.trim() : undefined,
+          mobile: (mobile || req.body.phone || req.body.phoneNumber) ? (mobile || req.body.phone || req.body.phoneNumber).toString().trim() : undefined,
           purpose: (purpose || 'personal').toLowerCase(),
           visitorType: (visitorType || 'guest').toLowerCase(),
           photoKey: photoStorageResult.photoKey,
@@ -299,7 +299,7 @@ router.post(
             visitor: {
               id: visitorRecord.id,
               name: visitorRecord.name,
-              mobile: visitorRecord.mobile,
+              mobile: visitorRecord.mobile || mobile || req.body.phone || req.body.phoneNumber || undefined,
               purpose: visitorRecord.purpose,
               visitorType: visitorRecord.visitorType,
               photoUrl: `/api/visitor-requests/${requestId}/photo`,
@@ -335,6 +335,7 @@ router.post(
               visitorRequestId: requestId,
               url: '/home',
               visitorName: name,
+              visitorPhone: visitorRecord.mobile || mobile || req.body.phone || req.body.phoneNumber || '',
               flatNumber: flat.flatNumber,
               gateName,
             },

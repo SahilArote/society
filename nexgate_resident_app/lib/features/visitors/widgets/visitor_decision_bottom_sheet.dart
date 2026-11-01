@@ -1,256 +1,576 @@
-import 'package:flutter/material.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_dimensions.dart';
-import '../../../core/constants/app_typography.dart';
-import '../../../core/utils/date_formatter.dart';
-import '../../../core/widgets/primary_button.dart';
-import '../../../core/widgets/secondary_button.dart';
-import '../../../models/visitor_model.dart';
-import '../../../services/api_service.dart';
-
-/// Instant Decision Bottom Sheet displayed when a visitor arrives at the gate.
-class VisitorDecisionBottomSheet extends StatefulWidget {
-  final VisitorModel visitor;
-  final VoidCallback onAllow;
-  final Function(String reason) onDeny;
-
-  const VisitorDecisionBottomSheet({
-    super.key,
-    required this.visitor,
-    required this.onAllow,
-    required this.onDeny,
-  });
-
-  static Future<void> show(
-    BuildContext context, {
-    required VisitorModel visitor,
-    required VoidCallback onAllow,
-    required Function(String reason) onDeny,
-  }) {
-    return showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => VisitorDecisionBottomSheet(
-        visitor: visitor,
-        onAllow: onAllow,
-        onDeny: onDeny,
-      ),
-    );
-  }
-
-  @override
-  State<VisitorDecisionBottomSheet> createState() =>
-      _VisitorDecisionBottomSheetState();
-}
-
-class _VisitorDecisionBottomSheetState extends State<VisitorDecisionBottomSheet> {
-  bool _isProcessing = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final photoUrl = ApiService.getSecurePhotoUrl(widget.visitor.photoUrl);
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Top Gate Tag
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.warningBackground,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.warningBorder),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.doorbell_rounded, size: 14, color: AppColors.warning),
-                  const SizedBox(width: 6),
-                  Text(
-                    'ARRIVED AT ${widget.visitor.gate.toUpperCase()}',
-                    style: AppTypography.caption.copyWith(
-                      color: AppColors.warning,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Large Visitor Photo Preview
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: AppColors.lightBlue,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.border, width: 2),
-                boxShadow: AppDimensions.cardShadow,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(22),
-                child: photoUrl.isNotEmpty
-                    ? Image.network(
-                        photoUrl,
-                        headers: ApiService.getAuthHeaders(),
-                        fit: BoxFit.cover,
-                        errorBuilder: (ctx, err, stack) => const Icon(
-                          Icons.person_rounded,
-                          size: 48,
-                          color: AppColors.primaryBlue,
-                        ),
-                      )
-                    : const Icon(
-                        Icons.person_rounded,
-                        size: 48,
-                        color: AppColors.primaryBlue,
-                      ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Name & Purpose
-            Text(
-              widget.visitor.name,
-              style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.w800),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.lightPurple,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    widget.visitor.purpose.toUpperCase(),
-                    style: AppTypography.caption.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.deepPurple,
-                    ),
-                  ),
-                ),
-                if (widget.visitor.deliveryCompany != null &&
-                    widget.visitor.deliveryCompany!.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Text(
-                    widget.visitor.deliveryCompany!,
-                    style: AppTypography.bodySmall.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.secondaryText,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // Flat & Timestamp Info Strip
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.mainBackground,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  Column(
-                    children: [
-                      Text('Unit', style: AppTypography.caption),
-                      const SizedBox(height: 2),
-                      Text(
-                        widget.visitor.flatNumber.isNotEmpty
-                            ? widget.visitor.flatNumber
-                            : 'Flat',
-                        style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
-                  Container(width: 1, height: 24, color: AppColors.border),
-                  Column(
-                    children: [
-                      Text('Time', style: AppTypography.caption),
-                      const SizedBox(height: 2),
-                      Text(
-                        DateFormatter.formatTime(widget.visitor.requestedAt),
-                        style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
-                  if (widget.visitor.vehicleNumber != null &&
-                      widget.visitor.vehicleNumber!.isNotEmpty) ...[
-                    Container(width: 1, height: 24, color: AppColors.border),
-                    Column(
-                      children: [
-                        Text('Vehicle', style: AppTypography.caption),
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.visitor.vehicleNumber!,
-                          style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 28),
-
-            // Decision Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: SecondaryButton(
-                    label: 'Deny Entry',
-                    isLoading: _isProcessing,
-                    borderColor: AppColors.errorBorder,
-                    textColor: AppColors.error,
-                    backgroundColor: AppColors.errorBackground,
-                    onPressed: () {
-                      setState(() => _isProcessing = true);
-                      Navigator.of(context).pop();
-                      widget.onDeny('Denied by resident');
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: PrimaryButton(
-                    label: 'Allow Entry',
-                    isLoading: _isProcessing,
-                    backgroundColor: AppColors.success,
-                    icon: Icons.check_circle_rounded,
-                    onPressed: () {
-                      setState(() => _isProcessing = true);
-                      Navigator.of(context).pop();
-                      widget.onAllow();
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import '../../../models/visitor_model.dart';
+import '../../../services/api_service.dart';
+import '../../../services/dialer_service.dart';
+
+/// Premium & Classy Doorbell Decision Modal matching top-tier gate security standards.
+/// Displays an immersive, warm coral-rose ambient backdrop, a floating hero card with
+/// visitor credentials, dynamic arrival headline, and iconic circular Deny / Allow action buttons.
+class VisitorDecisionBottomSheet extends StatefulWidget {
+  final VisitorModel visitor;
+  final VoidCallback onAllow;
+  final Function(String reason) onDeny;
+
+  const VisitorDecisionBottomSheet({
+    super.key,
+    required this.visitor,
+    required this.onAllow,
+    required this.onDeny,
+  });
+
+  /// Presents the classy modal dialog with smooth spring scale-fade transition.
+  static Future<void> show(
+    BuildContext context, {
+    required VisitorModel visitor,
+    required VoidCallback onAllow,
+    required Function(String reason) onDeny,
+  }) {
+    return showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Visitor Alert',
+      barrierColor: Colors.black.withOpacity(0.45),
+      transitionDuration: const Duration(milliseconds: 320),
+      transitionBuilder: (context, anim1, anim2, child) {
+        final curve = CurvedAnimation(parent: anim1, curve: Curves.easeOutBack);
+        return ScaleTransition(
+          scale: Tween<double>(begin: 0.88, end: 1.0).animate(curve),
+          child: FadeTransition(opacity: anim1, child: child),
+        );
+      },
+      pageBuilder: (ctx, anim1, anim2) => VisitorDecisionBottomSheet(
+        visitor: visitor,
+        onAllow: onAllow,
+        onDeny: onDeny,
+      ),
+    );
+  }
+
+  @override
+  State<VisitorDecisionBottomSheet> createState() =>
+      _VisitorDecisionBottomSheetState();
+}
+
+class _VisitorDecisionBottomSheetState extends State<VisitorDecisionBottomSheet> {
+  bool _isProcessing = false;
+  bool _isAllowing = false;
+  bool _isDenying = false;
+
+  /// Generate contextual, natural language arrival headline
+  String get _headlineText {
+    final gate = widget.visitor.gate.trim();
+    final gateDisplay = gate.isNotEmpty ? gate.toLowerCase() : 'main gate';
+    final purpose = widget.visitor.purpose.toLowerCase();
+
+    if (purpose.contains('deliver') ||
+        (widget.visitor.deliveryCompany != null &&
+            widget.visitor.deliveryCompany!.isNotEmpty)) {
+      return "You've got a Delivery at\nthe $gateDisplay";
+    } else if (purpose.contains('cab') ||
+        purpose.contains('taxi') ||
+        purpose.contains('uber') ||
+        purpose.contains('ola')) {
+      return "You've got a Cab at\nthe $gateDisplay";
+    } else {
+      return "You've got a Guest at\nthe $gateDisplay";
+    }
+  }
+
+  /// Contextual subtext for visitor (e.g. Swiggy, Flat A-202, or Guest)
+  String get _subtext {
+    if (widget.visitor.deliveryCompany != null &&
+        widget.visitor.deliveryCompany!.isNotEmpty) {
+      return widget.visitor.deliveryCompany!;
+    }
+    if (widget.visitor.flatNumber.isNotEmpty) {
+      return 'Flat ${widget.visitor.flatNumber}';
+    }
+    return widget.visitor.purpose.toUpperCase();
+  }
+
+  void _handleCall() {
+    final phone = widget.visitor.phone;
+    if (phone != null && phone.trim().isNotEmpty) {
+      DialerService.openDialer(phone, context: context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Visitor contact number was not provided by gate guard'),
+          backgroundColor: Color(0xFFEF4444),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _handleAllow() {
+    if (_isProcessing) return;
+    setState(() {
+      _isProcessing = true;
+      _isAllowing = true;
+    });
+    Navigator.of(context).pop();
+    widget.onAllow();
+  }
+
+  void _handleDeny() {
+    if (_isProcessing) return;
+    setState(() {
+      _isProcessing = true;
+      _isDenying = true;
+    });
+    Navigator.of(context).pop();
+    widget.onDeny('Denied by resident');
+  }
+
+  Widget _buildAvatarFallback() {
+    return Container(
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF60A5FA), Color(0xFF2563EB)],
+        ),
+      ),
+      child: const Icon(
+        Icons.person_rounded,
+        size: 32,
+        color: Colors.white,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final photoUrl = ApiService.getSecurePhotoUrl(widget.visitor.photoUrl);
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          // 1. Ambient Warm Coral/Rose Blurred Backdrop
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xF0FF5E64),
+                      Color(0xF0FF7A78),
+                      Color(0xF0FD5A64),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // 2. Safe Area Interactive Content
+          SafeArea(
+            child: Stack(
+              children: [
+                // Top Dismiss '✕' Button
+                Positioned(
+                  top: 12,
+                  right: 16,
+                  child: GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.24),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Center Decision Modal Card & Circular Buttons
+                Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // The Pristine White Hero Card with Overlapping Top Badge
+                        Stack(
+                          clipBehavior: Clip.none,
+                          alignment: Alignment.topCenter,
+                          children: [
+                            // White Card Body
+                            Container(
+                              width: double.infinity,
+                              constraints: const BoxConstraints(maxWidth: 360),
+                              margin: const EdgeInsets.only(top: 42),
+                              padding: const EdgeInsets.fromLTRB(24, 52, 24, 28),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(28),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.12),
+                                    blurRadius: 28,
+                                    offset: const Offset(0, 14),
+                                  ),
+                                  BoxShadow(
+                                    color: const Color(0xFFFF5252).withOpacity(0.14),
+                                    blurRadius: 36,
+                                    offset: const Offset(0, 18),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // Headline: "You've got a Guest at the main gate"
+                                  Text(
+                                    _headlineText,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF222B45),
+                                      height: 1.35,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 24),
+
+                                  // Visitor Info Card / Strip
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: const Color(0xFFE2E8F0),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        // Circular Visitor Photo
+                                        Container(
+                                          width: 58,
+                                          height: 58,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: Colors.white,
+                                              width: 2.5,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.08),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 3),
+                                              ),
+                                            ],
+                                          ),
+                                          child: ClipOval(
+                                            child: photoUrl.isNotEmpty
+                                                ? Image.network(
+                                                    photoUrl,
+                                                    headers: ApiService.getAuthHeaders(),
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder: (ctx, err, stack) =>
+                                                        _buildAvatarFallback(),
+                                                  )
+                                                : _buildAvatarFallback(),
+                                          ),
+                                        ),
+
+                                        const SizedBox(width: 14),
+
+                                        // Visitor Name & Context Tag
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                widget.visitor.name,
+                                                style: const TextStyle(
+                                                  fontSize: 17,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFF1E293B),
+                                                  letterSpacing: -0.2,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 3),
+                                              Text(
+                                                _subtext,
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: Colors.grey.shade600,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+
+                                        // Phone Call Button with Star Emblem (Opens Native Dialer)
+                                        GestureDetector(
+                                          onTap: _handleCall,
+                                          child: Stack(
+                                            clipBehavior: Clip.none,
+                                            children: [
+                                              Container(
+                                                width: 44,
+                                                height: 44,
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFE8F8EC),
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: const Color(0xFFB7EB8F)
+                                                        .withOpacity(0.8),
+                                                  ),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: const Color(0xFF52C41A).withOpacity(0.20),
+                                                      blurRadius: 8,
+                                                      offset: const Offset(0, 2),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: const Icon(
+                                                  Icons.phone_rounded,
+                                                  color: Color(0xFF389E0D),
+                                                  size: 22,
+                                                ),
+                                              ),
+                                              Positioned(
+                                                top: -2,
+                                                right: -2,
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(2),
+                                                  decoration: const BoxDecoration(
+                                                    color: Color(0xFF52C41A),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.star_rounded,
+                                                    size: 8,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      // Bottom Right Sparkle
+                                      Positioned(
+                                        bottom: 18,
+                                        right: 14,
+                                        child: Icon(
+                                          Icons.star_rounded,
+                                          size: 9,
+                                          color: Colors.white.withOpacity(0.85),
+                                        ),
+                                      ),
+                                      // Person Icon
+                                      const Icon(
+                                        Icons.person_rounded,
+                                        size: 40,
+                                        color: Colors.white,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 36),
+
+                        // Bottom Decision Buttons (DENY ENTRY & ALLOW ENTRY)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            // DENY ENTRY Button
+                            GestureDetector(
+                              onTap: _isProcessing ? null : _handleDeny,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 74,
+                                    height: 74,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: const Color(0xFFFF4D4F).withOpacity(0.35),
+                                        width: 2,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.12),
+                                          blurRadius: 18,
+                                          offset: const Offset(0, 8),
+                                        ),
+                                        BoxShadow(
+                                          color: const Color(0xFFFF4D4F).withOpacity(0.20),
+                                          blurRadius: 14,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Center(
+                                      child: _isDenying
+                                          ? const SizedBox(
+                                              width: 26,
+                                              height: 26,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.5,
+                                                valueColor: AlwaysStoppedAnimation(
+                                                  Color(0xFFFF4D4F),
+                                                ),
+                                              ),
+                                            )
+                                          : const Icon(
+                                              Icons.close_rounded,
+                                              size: 38,
+                                              color: Color(0xFFFF4D4F),
+                                            ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  const Text(
+                                    'DENY\nENTRY',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.2,
+                                      height: 1.25,
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.black38,
+                                          blurRadius: 8,
+                                          offset: Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // ALLOW ENTRY Button
+                            GestureDetector(
+                              onTap: _isProcessing ? null : _handleAllow,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 74,
+                                    height: 74,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Color(0xFF52C41A),
+                                          Color(0xFF389E0D),
+                                        ],
+                                      ),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.35),
+                                        width: 2,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFF52C41A).withOpacity(0.45),
+                                          blurRadius: 20,
+                                          offset: const Offset(0, 8),
+                                        ),
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.12),
+                                          blurRadius: 16,
+                                          offset: const Offset(0, 6),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Center(
+                                      child: _isAllowing
+                                          ? const SizedBox(
+                                              width: 26,
+                                              height: 26,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.5,
+                                                valueColor: AlwaysStoppedAnimation(
+                                                  Colors.white,
+                                                ),
+                                              ),
+                                            )
+                                          : const Icon(
+                                              Icons.check_rounded,
+                                              size: 42,
+                                              color: Colors.white,
+                                            ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  const Text(
+                                    'ALLOW\nENTRY',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.2,
+                                      height: 1.25,
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.black38,
+                                          blurRadius: 8,
+                                          offset: Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
