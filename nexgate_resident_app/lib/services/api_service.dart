@@ -531,7 +531,7 @@ class ApiService {
   static Map<String, String> getAuthHeaders() {
     final token = StorageService.getToken();
     if (token != null && token.isNotEmpty) {
-      return {'Authorization': 'Bearer '};
+      return {'Authorization': 'Bearer $token'};
     }
     return {};
   }
@@ -541,9 +541,9 @@ class ApiService {
     if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) {
       return rawPath;
     }
-    final clean = rawPath.startsWith('/') ? rawPath : '/';
-    final base = ApiEndpoints.baseUrl.replaceAll(RegExp(r'/api\$'), '');
-    return '\';
+    final clean = rawPath.startsWith('/') ? rawPath : '/$rawPath';
+    final base = ApiEndpoints.baseUrl.replaceAll(RegExp(r'/api$'), '');
+    return base + clean;
   }
 
 
@@ -806,6 +806,26 @@ class ApiService {
 
     }
 
+  }
+
+  static Future<bool> unregisterFcmToken(String fcmToken) async {
+    try {
+      final token = StorageService.getToken();
+      if (token == null || token.isEmpty) return false;
+
+      final response = await _delete(
+        Uri.parse('${ApiEndpoints.baseUrl}/notifications/fcm-token'),
+        headers: _headers(),
+        body: jsonEncode({
+          'token': fcmToken.trim(),
+        }),
+      );
+      final json = jsonDecode(response.body);
+      return json['success'] == true;
+    } catch (e) {
+      debugPrint('[ApiService] Error unregistering FCM token: $e');
+      return false;
+    }
   }
 
 

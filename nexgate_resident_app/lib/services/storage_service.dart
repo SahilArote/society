@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,7 +14,7 @@ class StorageService {
 
   static SharedPreferences? _prefs;
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions(resetOnError: true),
   );
   static String? _cachedToken;
 
@@ -40,13 +41,15 @@ class StorageService {
     _cachedToken = token;
     try {
       await _secureStorage.write(key: _keyToken, value: token);
-    } catch (_) {}
-    // Remove any leftover plaintext token in SharedPreferences
-    await _prefs?.remove(_keyToken);
+      await _prefs?.remove(_keyToken);
+    } catch (e) {
+      debugPrint('[StorageService] Secure storage write notice: ');
+      await _prefs?.setString(_keyToken, token);
+    }
   }
 
   static String? getToken() {
-    return _cachedToken;
+    return _cachedToken ?? _prefs?.getString(_keyToken);
   }
 
   static Future<void> removeToken() async {

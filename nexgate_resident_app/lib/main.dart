@@ -30,11 +30,19 @@ void main() async {
     ),
   );
 
-  // Initialize local persistent storage
-  await StorageService.init();
+  // Initialize local persistent storage safely
+  try {
+    await StorageService.init();
+  } catch (e, stack) {
+    debugPrint('[Main] StorageService init exception: $e\n$stack');
+  }
 
-  // Initialize push & local notification channels
-  await NotificationService.initialize();
+  // Initialize push & local notification channels safely
+  try {
+    await NotificationService.initialize();
+  } catch (e, stack) {
+    debugPrint('[Main] NotificationService init exception: $e\n$stack');
+  }
 
   // Route user to login and clear navigation stack whenever 401 occurs
   AuthService.onUnauthorized = () {
