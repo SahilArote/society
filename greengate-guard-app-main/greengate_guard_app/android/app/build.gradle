@@ -1,6 +1,5 @@
 plugins {
     id "com.android.application"
-    id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
 }
 
@@ -30,7 +29,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace "com.nexbuild.nexguard"
-    compileSdkVersion 33
+    compileSdkVersion flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -48,8 +47,8 @@ android {
 
     defaultConfig {
         applicationId "com.greengate.guard.greengate_guard_app"
-        minSdkVersion 21
-        targetSdkVersion 33
+        minSdkVersion flutter.minSdkVersion
+        targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }

@@ -1306,12 +1306,58 @@ async function findFamilyMembersByResident(residentId, societyId) {
     const pool = await (0, mysql_1.getMysqlPool)();
     if (!pool)
         return [];
-    const [rows] = await pool.query(`SELECT id, society_id as societyId, resident_id as residentId, flat_id as flatId,
-            name, relationship, phone, status, created_at as createdAt
-     FROM family_members
-     WHERE resident_id = ? AND society_id = ?
-     ORDER BY created_at DESC`, [residentId, societyId]);
-    return rows || [];
+    try {
+        // 1. Resolve flat and primary owner for the calling resident
+        // (Resident can be the primary owner OR an active family member)
+        const flat = await findFlatByResidentId(residentId);
+        const flatId = flat?.id || null;
+        let primaryOwnerId = flat?.residentId || null;
+        if (!primaryOwnerId) {
+            const [ownerRows] = await pool.query(`SELECT fm.resident_id FROM family_members fm
+         LEFT JOIN users u ON u.mobile = fm.phone
+         WHERE u.id = ? OR fm.id = REPLACE(?, 'usr_fam_', '')
+         LIMIT 1`, [residentId, residentId]);
+            if (ownerRows && ownerRows.length > 0) {
+                primaryOwnerId = ownerRows[0].resident_id;
+            }
+        }
+        // 2. Fetch all family members belonging to this flat or primary resident
+        const [rows] = await pool.query(`SELECT id, society_id as societyId, resident_id as residentId, flat_id as flatId,
+              name, relationship, phone, status, created_at as createdAt
+       FROM family_members
+       WHERE society_id = ?
+         AND status = 'ACTIVE'
+         AND (
+           (? IS NOT NULL AND flat_id = ?)
+           OR resident_id = ?
+           OR (? IS NOT NULL AND resident_id = ?)
+         )
+       ORDER BY created_at DESC`, [societyId, flatId, flatId, residentId, primaryOwnerId, primaryOwnerId]);
+        const members = rows || [];
+        // 3. If calling user is a family member (and not primary owner),
+        // include the primary flat owner at the top of the household members list!
+        if (primaryOwnerId && primaryOwnerId !== residentId) {
+            const primaryUser = await findUserById(primaryOwnerId);
+            if (primaryUser) {
+                members.unshift({
+                    id: primaryUser.id,
+                    societyId,
+                    residentId: primaryUser.id,
+                    flatId: flatId || undefined,
+                    name: `${primaryUser.name} (Primary)`,
+                    relationship: 'owner',
+                    phone: primaryUser.mobile,
+                    status: 'ACTIVE',
+                    createdAt: primaryUser.createdAt || new Date().toISOString(),
+                });
+            }
+        }
+        return members;
+    }
+    catch (err) {
+        console.error('[DB] Error finding family members:', err.message);
+        return [];
+    }
 }
 async function createFamilyMember(data) {
     const pool = await (0, mysql_1.getMysqlPool)();
@@ -1336,7 +1382,12 @@ async function deleteFamilyMember(id, residentId) {
     const pool = await (0, mysql_1.getMysqlPool)();
     if (!pool)
         return false;
-    const [res] = await pool.query(`DELETE FROM family_members WHERE id = ? AND resident_id = ?`, [id, residentId]);
+    // Allow deletion if residentId is the primary owner OR if caller belongs to the same flat
+    const flat = await findFlatByResidentId(residentId);
+    const flatId = flat?.id || null;
+    const [res] = await pool.query(`DELETE FROM family_members 
+     WHERE id = ? 
+       AND (resident_id = ? OR (? IS NOT NULL AND flat_id = ?))`, [id, residentId, flatId, flatId]);
     return res.affectedRows > 0;
 }
 async function findVehiclesByResident(residentId, societyId) {

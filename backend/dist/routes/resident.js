@@ -3,16 +3,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_1 = require("../middleware/auth");
 const db_1 = require("../database/db");
-const mysql_1 = require("../database/mysql");
 const router = (0, express_1.Router)();
 // Helper to find resident's flat_id
 async function getResidentFlatId(residentId, societyId) {
-    const pool = await (0, mysql_1.getMysqlPool)();
-    if (!pool)
-        return null;
     try {
-        const [rows] = await pool.query('SELECT id FROM flats WHERE resident_id = ? AND society_id = ? LIMIT 1', [residentId, societyId]);
-        return rows && rows.length > 0 ? rows[0].id : null;
+        const flat = await (0, db_1.findFlatByResidentId)(residentId);
+        return flat ? flat.id : null;
     }
     catch (err) {
         return null;

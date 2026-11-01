@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { authenticateToken, AuthenticatedRequest, authorizeRoles } from '../middleware/auth';
 import {
   findFamilyMembersByResident,
+  findFlatByResidentId,
   createFamilyMember,
   deleteFamilyMember,
   findVehiclesByResident,
@@ -15,14 +16,9 @@ const router = Router();
 
 // Helper to find resident's flat_id
 async function getResidentFlatId(residentId: string, societyId: string): Promise<string | null> {
-  const pool = await getMysqlPool();
-  if (!pool) return null;
   try {
-    const [rows]: any = await pool.query(
-      'SELECT id FROM flats WHERE resident_id = ? AND society_id = ? LIMIT 1',
-      [residentId, societyId]
-    );
-    return rows && rows.length > 0 ? rows[0].id : null;
+    const flat = await findFlatByResidentId(residentId);
+    return flat ? flat.id : null;
   } catch (err) {
     return null;
   }
