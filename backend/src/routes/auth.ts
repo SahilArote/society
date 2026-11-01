@@ -17,6 +17,8 @@ import {
   findFlatById,
   findSocietyById,
   deleteResidentByAdmin,
+  findActiveFamilyMemberByPhone,
+  getOrCreateUserForFamilyMember,
 } from '../database/db';
 import { generateToken, AuthenticatedRequest, authenticateToken } from '../middleware/auth';
 import { emitRegistrationCreated } from '../services/socketService';
@@ -45,7 +47,18 @@ router.post('/resident/send-otp', async (req: Request, res: Response) => {
     }
 
     const cleanMobile = String(mobile).replace(/\D/g, '');
-    const user = await findUserByMobile(cleanMobile);
+    let user = await findUserByMobile(cleanMobile);
+
+    if (!user || user.role !== 'RESIDENT') {
+      const famRecord = await findActiveFamilyMemberByPhone(cleanMobile);
+      if (famRecord) {
+        user = await getOrCreateUserForFamilyMember(
+          famRecord.member,
+          cleanMobile,
+          famRecord.member.societyId || famRecord.primaryOwner?.societyId || 'soc_greengate'
+        );
+      }
+    }
 
     if (!user || user.role !== 'RESIDENT') {
       const reg = await findLatestRegistrationByMobile(cleanMobile);
@@ -135,7 +148,18 @@ router.post('/resident/verify-otp', async (req: Request, res: Response) => {
     }
 
     const cleanMobile = String(mobile).replace(/\D/g, '');
-    const user = await findUserByMobile(cleanMobile);
+    let user = await findUserByMobile(cleanMobile);
+
+    if (!user || user.role !== 'RESIDENT') {
+      const famRecord = await findActiveFamilyMemberByPhone(cleanMobile);
+      if (famRecord) {
+        user = await getOrCreateUserForFamilyMember(
+          famRecord.member,
+          cleanMobile,
+          famRecord.member.societyId || famRecord.primaryOwner?.societyId || 'soc_greengate'
+        );
+      }
+    }
 
     if (!user || user.role !== 'RESIDENT') {
       return res.status(404).json({
@@ -205,7 +229,18 @@ router.post('/resident/login', async (req: Request, res: Response) => {
     }
 
     const cleanMobile = String(mobile).replace(/\D/g, '');
-    const user = await findUserByMobile(cleanMobile);
+    let user = await findUserByMobile(cleanMobile);
+
+    if (!user || user.role !== 'RESIDENT') {
+      const famRecord = await findActiveFamilyMemberByPhone(cleanMobile);
+      if (famRecord) {
+        user = await getOrCreateUserForFamilyMember(
+          famRecord.member,
+          cleanMobile,
+          famRecord.member.societyId || famRecord.primaryOwner?.societyId || 'soc_greengate'
+        );
+      }
+    }
 
     if (!user || user.role !== 'RESIDENT') {
       const reg = await findLatestRegistrationByMobile(cleanMobile);

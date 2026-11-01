@@ -23,6 +23,7 @@ import { uploadVisitorPhoto, isValidImageBuffer } from '../middleware/upload';
 import { uploadVisitorPhoto as uploadToStorageVault } from '../services/photoStorageService';
 import { emitVisitorCreated, emitVisitorDecision } from '../services/socketService';
 import { sendPushToUser } from '../services/pushNotificationService';
+import { getMysqlPool } from '../database/mysql';
 
 const router = Router();
 
@@ -212,25 +213,59 @@ router.post(
         }
       );
 
-      console.log(`[VISITOR] Request created: ${requestId}`);
-      console.log(`[SOCKET] Target resident: ${resident.id}`);
+            // 6. Resolve Target Resident IDs for this Flat (Primary resident + Co-residents)
+      const targetResidentIds = new Set<string>();
+      if (resident && resident.id) targetResidentIds.add(resident.id);
 
-      // 6. Create Resident Notification in MySQL
+      try {
+        const pool = await getMysqlPool();
+        if (pool) {
+          const [coResidents]: any = await pool.query(
+            `SELECT DISTINCT u.id 
+             FROM users u
+             LEFT JOIN family_members fm ON (u.mobile = fm.phone AND fm.status = 'ACTIVE')
+             WHERE u.society_id = ? 
+               AND u.role = 'RESIDENT' 
+               AND u.status = 'ACTIVE' 
+               AND (
+                 u.id = ? 
+                 OR fm.flat_id = ? 
+                 OR fm.resident_id = ?
+               )`,
+            [societyId, resident.id, flat.id, resident.id]
+          );
+          if (Array.isArray(coResidents)) {
+            for (const r of coResidents) {
+              if (r.id) targetResidentIds.add(r.id);
+            }
+          }
+        }
+      } catch (err: any) {
+        console.warn('[Backend] Notice querying co-residents:', err.message);
+      }
+
+      console.log(`[VISITOR] Request created: ${requestId}`);
+      console.log(`[TARGETS] Target resident IDs: ${Array.from(targetResidentIds).join(', ')}`);
+
       let gateName = 'Main Gate';
       let guardName = req.user!.name || 'Gate Security';
       try {
         const gate = await findGateById(gateId);
         if (gate) gateName = gate.name;
-        await createNotification({
+      } catch (_) {}
+
+      // Create notifications in MySQL for all target residents
+      for (const targetUid of targetResidentIds) {
+        createNotification({
           id: `notif_${uuidv4().slice(0, 8)}`,
-          recipientId: resident.id,
+          recipientId: targetUid,
           type: 'visitor',
           title: 'Visitor Approval Required',
           message: `${name} is waiting at ${gateName} for Flat ${flat.flatNumber}`,
           relatedEntityId: requestId,
+        }).catch((notifErr) => {
+          console.warn('[Backend Warning] Could not create resident notification row:', notifErr);
         });
-      } catch (notifErr) {
-        console.warn('[Backend Warning] Could not create resident notification row:', notifErr);
       }
 
       // 7. Create Audit Log in MySQL
@@ -258,53 +293,57 @@ router.post(
 
       // 8. Real-time Push via Authenticated Socket.IO
       try {
-        emitVisitorCreated({
-          requestId,
-          visitor: {
-            id: visitorRecord.id,
-            name: visitorRecord.name,
-            mobile: visitorRecord.mobile,
-            purpose: visitorRecord.purpose,
-            visitorType: visitorRecord.visitorType,
-            photoUrl: `/api/visitor-requests/${requestId}/photo`,
-            vehicleNumber: visitorRecord.vehicleNumber,
-            deliveryCompany: visitorRecord.deliveryCompany,
-          },
-          flatNumber: flat.flatNumber,
-          gateName,
-          guardName,
-          residentId: resident.id,
-          societyId,
-          requestedAt: requestRecord.requestedAt,
-        });
+        for (const targetUid of targetResidentIds) {
+          emitVisitorCreated({
+            requestId,
+            visitor: {
+              id: visitorRecord.id,
+              name: visitorRecord.name,
+              mobile: visitorRecord.mobile,
+              purpose: visitorRecord.purpose,
+              visitorType: visitorRecord.visitorType,
+              photoUrl: `/api/visitor-requests/${requestId}/photo`,
+              vehicleNumber: visitorRecord.vehicleNumber,
+              deliveryCompany: visitorRecord.deliveryCompany,
+            },
+            flatNumber: flat.flatNumber,
+            gateName,
+            guardName,
+            residentId: targetUid,
+            societyId,
+            requestedAt: requestRecord.requestedAt,
+          });
+        }
       } catch (socketErr) {
         console.warn('[Backend Warning] Socket emit error:', socketErr);
       }
 
-      // 9. Dispatch Native Push to Resident's Registered Mobile Devices (FCM) & Web
-      try {
-        console.log(`[FCM] Sending VISITOR_REQUEST notification for requestId: ${requestId} to resident: ${resident.id}`);
-        sendPushToUser(resident.id, {
-          title: ` New Visitor Request`,
-          body: `${name} is waiting at ${gateName} for Flat ${flat.flatNumber}. Tap to view and respond.`,
-          icon: '/icons/icon-192.png',
-          badge: '/icons/favicon-32.png',
-          image: `/api/visitor-requests/${requestId}/photo`,
-          tag: `visitor-${requestId}`,
-          data: {
-            type: 'VISITOR_REQUEST',
-            requestId,
-            visitorRequestId: requestId,
-            url: '/home',
-            visitorName: name,
-            flatNumber: flat.flatNumber,
-            gateName,
-          },
-        }).catch((err) => {
-          console.warn('[FCM] Push dispatch warning:', err.message);
-        });
-      } catch (pushErr) {
-        console.warn('[FCM] Push dispatch error:', pushErr);
+      // 9. Dispatch Native Push to All Resident Mobile Devices (FCM) & Web
+      for (const targetUid of targetResidentIds) {
+        try {
+          console.log(`[FCM] Sending VISITOR_REQUEST notification for requestId: ${requestId} to resident: ${targetUid}`);
+          sendPushToUser(targetUid, {
+            title: `🚨 New Visitor Request`,
+            body: `${name} is waiting at ${gateName} for Flat ${flat.flatNumber}. Tap to view and respond.`,
+            icon: '/icons/icon-192.png',
+            badge: '/icons/favicon-32.png',
+            image: `/api/visitor-requests/${requestId}/photo`,
+            tag: `visitor-${requestId}`,
+            data: {
+              type: 'VISITOR_REQUEST',
+              requestId,
+              visitorRequestId: requestId,
+              url: '/home',
+              visitorName: name,
+              flatNumber: flat.flatNumber,
+              gateName,
+            },
+          }).catch((err) => {
+            console.warn(`[FCM] Push dispatch warning for user ${targetUid}:`, err.message);
+          });
+        } catch (pushErr) {
+          console.warn(`[FCM] Push dispatch error for user ${targetUid}:`, pushErr);
+        }
       }
 
       return res.status(201).json({
@@ -471,8 +510,12 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Respon
     const filters: any = { societyId: user.societyId };
 
     if (user.role === 'RESIDENT') {
-      // Residents ONLY see their own visitor requests
-      filters.residentId = user.id;
+      // Residents see all visitor requests for their flat (owner + family members)
+      if (user.flatId) {
+        filters.flatId = user.flatId;
+      } else {
+        filters.residentId = user.id;
+      }
     }
 
     const rows = await findVisitorRequestsJoined(filters);
@@ -540,8 +583,10 @@ router.post('/:id/approve', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN
       });
     }
 
-    // Resident Ownership: Only the resident of the flat can approve
-    if (user.role === 'RESIDENT' && request.residentId !== user.id) {
+    // Resident Ownership: Either the primary resident OR a resident of the same flat
+    const isApproveOwner = request.residentId === user.id;
+    const isApproveSameFlat = Boolean(user.flatId && request.flatId === user.flatId);
+    if (user.role === 'RESIDENT' && !isApproveOwner && !isApproveSameFlat) {
       return res.status(403).json({
         success: false,
         error: { code: 'FORBIDDEN', message: 'You can only approve visitor requests for your own flat' },
@@ -636,8 +681,10 @@ router.post('/:id/reject', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN'
       });
     }
 
-    // Resident Ownership
-    if (user.role === 'RESIDENT' && request.residentId !== user.id) {
+    // Resident Ownership: Either the primary resident OR a resident of the same flat
+    const isRejectOwner = request.residentId === user.id;
+    const isRejectSameFlat = Boolean(user.flatId && request.flatId === user.flatId);
+    if (user.role === 'RESIDENT' && !isRejectOwner && !isRejectSameFlat) {
       return res.status(403).json({
         success: false,
         error: { code: 'FORBIDDEN', message: 'You can only reject visitor requests for your own flat' },

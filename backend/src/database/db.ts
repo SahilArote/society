@@ -362,17 +362,47 @@ export async function findFlatByNumberAndWing(societyId: string, flatNumber: str
 export async function findFlatByResidentId(residentId: string): Promise<FlatRow | null> {
   const pool = await getMysqlPool();
   if (!pool) return null;
+
+  // 1. Direct owner match
   const [rows]: any = await pool.query('SELECT * FROM flats WHERE resident_id = ? LIMIT 1', [residentId]);
-  if (!rows[0]) return null;
-  const r = rows[0];
-  return {
-    id: r.id,
-    societyId: r.society_id,
-    flatNumber: r.flat_number,
-    wing: r.wing,
-    floor: r.floor,
-    residentId: r.resident_id,
-  };
+  if (rows && rows.length > 0) {
+    const r = rows[0];
+    return {
+      id: r.id,
+      societyId: r.society_id,
+      flatNumber: r.flat_number,
+      wing: r.wing,
+      floor: r.floor,
+      residentId: r.resident_id,
+    };
+  }
+
+  // 2. Check if user is a family member registered for a flat
+  try {
+    const [famRows]: any = await pool.query(
+      `SELECT f.* FROM flats f
+       INNER JOIN family_members fm ON (fm.flat_id = f.id OR f.resident_id = fm.resident_id)
+       INNER JOIN users u ON (u.mobile = fm.phone OR fm.id = REPLACE(?, 'usr_fam_', ''))
+       WHERE u.id = ? OR fm.id = ?
+       LIMIT 1`,
+      [residentId, residentId, residentId]
+    );
+    if (famRows && famRows.length > 0) {
+      const r = famRows[0];
+      return {
+        id: r.id,
+        societyId: r.society_id,
+        flatNumber: r.flat_number,
+        wing: r.wing,
+        floor: r.floor,
+        residentId: r.resident_id,
+      };
+    }
+  } catch (err: any) {
+    console.warn('[DB] Notice resolving family flat:', err.message);
+  }
+
+  return null;
 }
 
 export async function findFlatById(flatId: string): Promise<FlatRow | null> {
@@ -670,6 +700,7 @@ export async function findVisitorRequestJoinedById(id: string): Promise<any | nu
 export async function findVisitorRequestsJoined(filters: {
   societyId: string;
   residentId?: string;
+  flatId?: string;
   guardId?: string;
   status?: string;
   limit?: number;
@@ -714,7 +745,10 @@ export async function findVisitorRequestsJoined(filters: {
 
   const params: any[] = [filters.societyId];
 
-  if (filters.residentId) {
+  if (filters.flatId) {
+    query += ' AND vr.flat_id = ?';
+    params.push(filters.flatId);
+  } else if (filters.residentId) {
     query += ' AND vr.resident_id = ?';
     params.push(filters.residentId);
   }
@@ -1901,3 +1935,119 @@ export async function deleteResidentByAdmin(societyId: string, residentId: strin
 
 
 
+
+
+// =============================================================
+// FAMILY MEMBER AUTH & PROVISIONING HELPERS
+// =============================================================
+
+export async function findActiveFamilyMemberByPhone(cleanPhone: string): Promise<{
+  member: FamilyMemberRow;
+  flat: FlatRow | null;
+  primaryOwner: UserRow | null;
+} | null> {
+  const pool = await getMysqlPool();
+  if (!pool) return null;
+
+  const digitsOnly = cleanPhone.replace(/\D/g, '');
+  const last10 = digitsOnly.length >= 10 ? digitsOnly.slice(-10) : digitsOnly;
+
+  try {
+    const [rows]: any = await pool.query(
+      `SELECT fm.id, fm.society_id as societyId, fm.resident_id as residentId, fm.flat_id as flatId,
+              fm.name, fm.relationship, fm.phone, fm.status, fm.created_at as createdAt,
+              f.id as f_id, f.society_id as f_society_id, f.flat_number as f_flat_number, f.wing as f_wing, f.floor as f_floor,
+              u.id as u_id, u.name as u_name, u.mobile as u_mobile, u.society_id as u_society_id
+       FROM family_members fm
+       LEFT JOIN flats f ON (fm.flat_id = f.id OR f.resident_id = fm.resident_id)
+       LEFT JOIN users u ON fm.resident_id = u.id
+       WHERE (REPLACE(REPLACE(fm.phone, '+', ''), ' ', '') LIKE ? OR fm.phone = ?)
+         AND fm.status = 'ACTIVE'
+       ORDER BY fm.created_at DESC
+       LIMIT 1`,
+      [`%${last10}`, cleanPhone]
+    );
+
+    if (!rows || rows.length === 0) return null;
+    const r = rows[0];
+    return {
+      member: {
+        id: r.id,
+        societyId: r.societyId,
+        residentId: r.residentId,
+        flatId: r.flatId || r.f_id,
+        name: r.name,
+        relationship: r.relationship,
+        phone: r.phone,
+        status: r.status,
+        createdAt: r.createdAt,
+      },
+      flat: r.f_id ? {
+        id: r.f_id,
+        societyId: r.f_society_id,
+        flatNumber: r.f_flat_number,
+        wing: r.f_wing,
+        floor: r.f_floor,
+        residentId: r.residentId,
+      } : null,
+      primaryOwner: r.u_id ? {
+        id: r.u_id,
+        name: r.u_name,
+        mobile: r.u_mobile,
+        role: 'RESIDENT',
+        societyId: r.u_society_id,
+        status: 'ACTIVE',
+        createdAt: '',
+        updatedAt: '',
+      } : null,
+    };
+  } catch (err: any) {
+    console.error('[DB] Error finding family member by phone:', err.message);
+    return null;
+  }
+}
+
+export async function getOrCreateUserForFamilyMember(
+  member: FamilyMemberRow,
+  cleanMobile: string,
+  societyId: string
+): Promise<UserRow> {
+  const pool = await getMysqlPool();
+  if (!pool) throw new Error('Database unavailable');
+
+  // Check if user already exists with this mobile
+  const [existing]: any = await pool.query('SELECT * FROM users WHERE mobile = ? LIMIT 1', [cleanMobile]);
+  if (existing && existing.length > 0) {
+    const u = existing[0];
+    return {
+      id: u.id,
+      name: u.name,
+      mobile: u.mobile,
+      role: u.role,
+      societyId: u.society_id,
+      status: u.status,
+      createdAt: u.created_at,
+      updatedAt: u.updated_at || '',
+    };
+  }
+
+  // Provision new user row for the family member so auth & FCM work seamlessly
+  const newUserId = `usr_fam_${member.id}`;
+  await pool.query(
+    `INSERT INTO users (id, name, mobile, role, society_id, status)
+     VALUES (?, ?, ?, 'RESIDENT', ?, 'ACTIVE')
+     ON DUPLICATE KEY UPDATE name = VALUES(name), status = 'ACTIVE'`,
+    [newUserId, member.name, cleanMobile, societyId]
+  );
+
+  return {
+    id: newUserId,
+    name: member.name,
+    mobile: cleanMobile,
+    role: 'RESIDENT',
+    societyId,
+    status: 'ACTIVE',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}

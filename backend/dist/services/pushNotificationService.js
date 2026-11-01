@@ -269,7 +269,7 @@ async function sendPushToUser(userId, payload) {
                     android: {
                         priority: 'high',
                         notification: {
-                            channelId: 'nexgate_general_alerts',
+                            channelId: payload.data?.type === 'VISITOR_REQUEST' ? 'nexgate_visitor_alerts' : 'nexgate_general_alerts',
                             priority: 'max',
                             defaultSound: true,
                             defaultVibrateTimings: true,
