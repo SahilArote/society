@@ -564,85 +564,43 @@ class NotificationService {
 
 
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-
-
-
         debugPrint('[FCM] Notification clicked from background: ${message.data}');
-
-
-
-        final requestId = message.data['requestId'];
-
-
-
-        if (onNotificationTapped != null && requestId != null) {
-
-
-
+        final requestId = message.data['requestId'] ?? message.data['visitorRequestId'];
+        if (onNotificationTapped != null) {
           onNotificationTapped!(requestId);
-
-
-
+        } else {
+          _pendingInitialRequestId = requestId;
         }
-
-
-
       });
 
-
-
-
-
-
-
       // 6. Check if app was opened from terminated state by a notification
-
-
-
       final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
-
-
-
       if (initialMessage != null) {
-
-
-
         debugPrint('[FCM] App launched from terminated state via notification: ${initialMessage.data}');
-
-
-
-        final requestId = initialMessage.data['requestId'];
-
-
-
-        if (requestId != null) {
-
-
-
-          if (onNotificationTapped != null) {
-
-
-
-            onNotificationTapped!(requestId);
-
-
-
-          } else {
-
-
-
-            _pendingInitialRequestId = requestId;
-
-
-
-          }
-
-
-
+        final requestId = initialMessage.data['requestId'] ?? initialMessage.data['visitorRequestId'];
+        if (onNotificationTapped != null) {
+          onNotificationTapped!(requestId);
+        } else {
+          _pendingInitialRequestId = requestId;
         }
+      }
 
-
-
+      // 7. Check if local notification launched app from terminated state
+      try {
+        final launchDetails = await _notificationsPlugin.getNotificationAppLaunchDetails();
+        if (launchDetails != null && launchDetails.didNotificationLaunchApp) {
+          final payload = launchDetails.notificationResponse?.payload;
+          debugPrint('[NotificationService] App launched via local notification tap: $payload');
+          if (payload != null && payload.isNotEmpty) {
+            if (onNotificationTapped != null) {
+              onNotificationTapped!(payload);
+            } else {
+              _pendingInitialRequestId = payload;
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('[NotificationService] Notice on local notification launch check: $e');
       }
 
 

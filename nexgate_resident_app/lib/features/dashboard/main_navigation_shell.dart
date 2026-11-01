@@ -38,9 +38,9 @@ class _MainNavigationShellState extends State<MainNavigationShell> with WidgetsB
 
     // Setup notification tap handler
     NotificationService.onNotificationTapped = (requestId) {
-      if (requestId != null && requestId.isNotEmpty && mounted) {
+      if (mounted) {
         debugPrint('[NOTIFICATION] Notification clicked with requestId: $requestId');
-        _handleNotificationTap(requestId);
+        _handleNotificationTap(requestId ?? '');
       }
     };
 
@@ -77,6 +77,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> with WidgetsB
   Future<void> _handleNotificationTap(String requestId) async {
     try {
       final all = await ApiService.fetchVisitorRequests();
+      if (all.isEmpty) return;
       final target = all.firstWhere(
         (v) => v.id == requestId,
         orElse: () => all.firstWhere((v) => v.isPending, orElse: () => all.first),
