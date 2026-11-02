@@ -32,6 +32,10 @@ class ApiEndpoints {
   static String get vehicles => '$baseUrl/resident/vehicles';
   static String deleteVehicle(String id) => '$baseUrl/resident/vehicles/$id';
 
+  // Pre-Approved Visitor Passes
+  static String get invites => '$baseUrl/invites/resident';
+  static String cancelInvite(String id) => '$baseUrl/invites/resident/$id';
+
   // Notifications
   static String get notifications => '$baseUrl/notifications';
   static String get health => '$baseUrl/health';

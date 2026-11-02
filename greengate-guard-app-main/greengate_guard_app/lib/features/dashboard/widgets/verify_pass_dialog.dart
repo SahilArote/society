@@ -55,7 +55,7 @@ class _VerifyPassDialogState extends State<VerifyPassDialog> {
         _verifiedData = res['data']?['invite'];
       });
       // Refresh guard activity log
-      widget.visitorRepo.fetchRecentRequests();
+      widget.visitorRepo.refreshStatus();
     } catch (e) {
       if (!mounted) return;
       setState(() {

@@ -81,6 +81,10 @@ class VisitorRepository extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshStatus() async {
+    await _pollBackendStatus();
+  }
+
   @override
   void dispose() {
     _pollingTimer?.cancel();
