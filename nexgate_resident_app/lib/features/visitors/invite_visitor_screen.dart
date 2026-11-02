@@ -8,6 +8,7 @@ import '../../core/widgets/custom_app_bar.dart';
 import '../../core/widgets/custom_text_field.dart';
 import '../../core/widgets/primary_button.dart';
 import 'digital_pass_screen.dart';
+import '../../services/api_service.dart';
 
 /// Screen to create a pre-approved visitor entry invitation.
 class InviteVisitorScreen extends StatefulWidget {
@@ -25,6 +26,7 @@ class _InviteVisitorScreenState extends State<InviteVisitorScreen> {
   String _selectedPurpose = 'guest';
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
+  bool _isSubmitting = false;
 
   final List<String> _purposes = const ['guest', 'delivery', 'service', 'cab'];
 
@@ -70,7 +72,7 @@ class _InviteVisitorScreenState extends State<InviteVisitorScreen> {
     }
   }
 
-  void _handleCreatePass() {
+  Future<void> _handleCreatePass() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -79,22 +81,55 @@ class _InviteVisitorScreenState extends State<InviteVisitorScreen> {
       return;
     }
 
-    final code = '${100000 + Random().nextInt(900000)}';
-    final dateStr = DateFormatter.formatDate(_selectedDate);
-    final timeStr = _selectedTime.format(context);
+    setState(() => _isSubmitting = true);
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => DigitalPassScreen(
-          passId: code,
-          visitorName: name,
-          purpose: _selectedPurpose,
-          date: dateStr,
-          time: timeStr,
-          notes: _notesController.text.trim(),
+    try {
+      final dateStr =
+          "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
+      final timeStr =
+          "${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}";
+
+      final invite = await ApiService.createInvite(
+        visitorName: name,
+        visitorPhone: _phoneController.text.trim().isNotEmpty
+            ? _phoneController.text.trim()
+            : null,
+        purpose: _selectedPurpose,
+        validDate: dateStr,
+        validTime: timeStr,
+        notes: _notesController.text.trim().isNotEmpty
+            ? _notesController.text.trim()
+            : null,
+      );
+
+      if (!mounted) return;
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => DigitalPassScreen(
+            passId: invite.passCode,
+            visitorName: invite.visitorName,
+            purpose: invite.purpose,
+            date: DateFormatter.formatDate(invite.validFrom),
+            time: _selectedTime.format(context),
+            notes: invite.notes,
+            invite: invite,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to generate pass: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 
   @override
@@ -306,7 +341,8 @@ class _InviteVisitorScreenState extends State<InviteVisitorScreen> {
               PrimaryButton(
                 label: 'Generate Digital Entry Pass',
                 icon: Icons.qr_code_2_rounded,
-                onPressed: _handleCreatePass,
+                isLoading: _isSubmitting,
+                onPressed: _isSubmitting ? null : _handleCreatePass,
               ),
 
               const SizedBox(height: 20),

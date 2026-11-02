@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from 'uuid';
 import { getMysqlPool, runMysqlMigrations } from './mysql';
 
 export interface SocietyRow {
@@ -2046,3 +2047,274 @@ export async function getOrCreateUserForFamilyMember(
     updatedAt: new Date().toISOString(),
   };
 }
+
+// =============================================================
+// PRE-APPROVED VISITOR INVITATIONS (PASSES)
+// =============================================================
+
+export interface VisitorInviteRow {
+  id: string;
+  societyId: string;
+  flatId: string;
+  residentId: string;
+  visitorName: string;
+  visitorPhone?: string | null;
+  purpose: string;
+  passCode: string;
+  validFrom: string;
+  validUntil: string;
+  notes?: string | null;
+  status: 'ACTIVE' | 'USED' | 'EXPIRED' | 'CANCELLED';
+  usedAt?: string | null;
+  createdAt: string;
+  flatNumber?: string;
+  wing?: string;
+  residentName?: string;
+  residentPhone?: string;
+}
+
+export async function ensureVisitorInvitesTable(): Promise<void> {
+  const pool = await getMysqlPool();
+  if (!pool) return;
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS \`visitor_invites\` (
+        \`id\` VARCHAR(64) NOT NULL PRIMARY KEY,
+        \`society_id\` VARCHAR(64) NOT NULL,
+        \`flat_id\` VARCHAR(64) NOT NULL,
+        \`resident_id\` VARCHAR(64) NOT NULL,
+        \`visitor_name\` VARCHAR(128) NOT NULL,
+        \`visitor_phone\` VARCHAR(32) DEFAULT NULL,
+        \`purpose\` VARCHAR(64) NOT NULL DEFAULT 'guest',
+        \`pass_code\` VARCHAR(16) NOT NULL,
+        \`valid_from\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        \`valid_until\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        \`notes\` TEXT DEFAULT NULL,
+        \`status\` VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+        \`used_at\` TIMESTAMP NULL DEFAULT NULL,
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (\`society_id\`) REFERENCES \`societies\`(\`id\`) ON DELETE CASCADE,
+        FOREIGN KEY (\`resident_id\`) REFERENCES \`users\`(\`id\`) ON DELETE CASCADE,
+        FOREIGN KEY (\`flat_id\`) REFERENCES \`flats\`(\`id\`) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+  } catch (err: any) {
+    // Table may already exist
+  }
+}
+
+export async function generateUniquePassCode(societyId: string): Promise<string> {
+  const pool = await getMysqlPool();
+  if (!pool) throw new Error('Database unavailable');
+  await ensureVisitorInvitesTable();
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const [rows]: any = await pool.query(
+      `SELECT id FROM visitor_invites WHERE society_id = ? AND pass_code = ? AND status = 'ACTIVE' LIMIT 1`,
+      [societyId, code]
+    );
+    if (!rows || rows.length === 0) {
+      return code;
+    }
+  }
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+export async function createVisitorInvite(data: {
+  societyId: string;
+  flatId: string;
+  residentId: string;
+  visitorName: string;
+  visitorPhone?: string;
+  purpose?: string;
+  validFrom: Date;
+  validUntil: Date;
+  notes?: string;
+}): Promise<VisitorInviteRow> {
+  const pool = await getMysqlPool();
+  if (!pool) throw new Error('Database unavailable');
+  await ensureVisitorInvitesTable();
+
+  const id = `inv_${uuidv4().replace(/-/g, '').slice(0, 16)}`;
+  const passCode = await generateUniquePassCode(data.societyId);
+  const purpose = data.purpose || 'guest';
+  const cleanPhone = data.visitorPhone ? data.visitorPhone.replace(/\D/g, '') : null;
+
+  await pool.query(
+    `INSERT INTO visitor_invites 
+     (id, society_id, flat_id, resident_id, visitor_name, visitor_phone, purpose, pass_code, valid_from, valid_until, notes, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE')`,
+    [
+      id,
+      data.societyId,
+      data.flatId,
+      data.residentId,
+      data.visitorName.trim(),
+      cleanPhone,
+      purpose,
+      passCode,
+      data.validFrom,
+      data.validUntil,
+      data.notes ? data.notes.trim() : null,
+    ]
+  );
+
+  const [created]: any = await pool.query(
+    `SELECT vi.*, f.flat_number as flatNumber, f.wing, u.name as residentName, u.mobile as residentPhone
+     FROM visitor_invites vi
+     LEFT JOIN flats f ON vi.flat_id = f.id
+     LEFT JOIN users u ON vi.resident_id = u.id
+     WHERE vi.id = ?`,
+    [id]
+  );
+
+  const row = created[0];
+  return {
+    id: row.id,
+    societyId: row.society_id,
+    flatId: row.flat_id,
+    residentId: row.resident_id,
+    visitorName: row.visitor_name,
+    visitorPhone: row.visitor_phone,
+    purpose: row.purpose,
+    passCode: row.pass_code,
+    validFrom: row.valid_from,
+    validUntil: row.valid_until,
+    notes: row.notes,
+    status: row.status,
+    usedAt: row.used_at,
+    createdAt: row.created_at,
+    flatNumber: row.flatNumber || '',
+    wing: row.wing || '',
+    residentName: row.residentName || '',
+    residentPhone: row.residentPhone || '',
+  };
+}
+
+export async function findInvitesByResident(residentId: string, societyId: string): Promise<VisitorInviteRow[]> {
+  const pool = await getMysqlPool();
+  if (!pool) return [];
+  await ensureVisitorInvitesTable();
+
+  // Auto-expire past active invites
+  try {
+    await pool.query(
+      `UPDATE visitor_invites 
+       SET status = 'EXPIRED' 
+       WHERE society_id = ? AND status = 'ACTIVE' AND valid_until < NOW()`,
+      [societyId]
+    );
+  } catch (_) {}
+
+  const [rows]: any = await pool.query(
+    `SELECT vi.*, f.flat_number as flatNumber, f.wing, u.name as residentName, u.mobile as residentPhone
+     FROM visitor_invites vi
+     LEFT JOIN flats f ON vi.flat_id = f.id
+     LEFT JOIN users u ON vi.resident_id = u.id
+     WHERE vi.resident_id = ? AND vi.society_id = ?
+     ORDER BY vi.created_at DESC`,
+    [residentId, societyId]
+  );
+
+  return rows.map((r: any) => ({
+    id: r.id,
+    societyId: r.society_id,
+    flatId: r.flat_id,
+    residentId: r.resident_id,
+    visitorName: r.visitor_name,
+    visitorPhone: r.visitor_phone,
+    purpose: r.purpose,
+    passCode: r.pass_code,
+    validFrom: r.valid_from,
+    validUntil: r.valid_until,
+    notes: r.notes,
+    status: r.status,
+    usedAt: r.used_at,
+    createdAt: r.created_at,
+    flatNumber: r.flatNumber || '',
+    wing: r.wing || '',
+    residentName: r.residentName || '',
+    residentPhone: r.residentPhone || '',
+  }));
+}
+
+export async function findInviteByCode(societyId: string, passCode: string): Promise<VisitorInviteRow | null> {
+  const pool = await getMysqlPool();
+  if (!pool) return null;
+  await ensureVisitorInvitesTable();
+
+  // Auto-expire past active invites
+  try {
+    await pool.query(
+      `UPDATE visitor_invites 
+       SET status = 'EXPIRED' 
+       WHERE society_id = ? AND status = 'ACTIVE' AND valid_until < NOW()`,
+      [societyId]
+    );
+  } catch (_) {}
+
+  const cleanCode = String(passCode).trim();
+  const [rows]: any = await pool.query(
+    `SELECT vi.*, f.flat_number as flatNumber, f.wing, u.name as residentName, u.mobile as residentPhone
+     FROM visitor_invites vi
+     LEFT JOIN flats f ON vi.flat_id = f.id
+     LEFT JOIN users u ON vi.resident_id = u.id
+     WHERE vi.society_id = ? AND vi.pass_code = ?
+     ORDER BY vi.created_at DESC
+     LIMIT 1`,
+    [societyId, cleanCode]
+  );
+
+  if (!rows || rows.length === 0) return null;
+  const r = rows[0];
+  return {
+    id: r.id,
+    societyId: r.society_id,
+    flatId: r.flat_id,
+    residentId: r.resident_id,
+    visitorName: r.visitor_name,
+    visitorPhone: r.visitor_phone,
+    purpose: r.purpose,
+    passCode: r.pass_code,
+    validFrom: r.valid_from,
+    validUntil: r.valid_until,
+    notes: r.notes,
+    status: r.status,
+    usedAt: r.used_at,
+    createdAt: r.created_at,
+    flatNumber: r.flatNumber || '',
+    wing: r.wing || '',
+    residentName: r.residentName || '',
+    residentPhone: r.residentPhone || '',
+  };
+}
+
+export async function markInviteAsUsed(inviteId: string): Promise<boolean> {
+  const pool = await getMysqlPool();
+  if (!pool) return false;
+  await ensureVisitorInvitesTable();
+
+  const [result]: any = await pool.query(
+    `UPDATE visitor_invites 
+     SET status = 'USED', used_at = CURRENT_TIMESTAMP 
+     WHERE id = ? AND status = 'ACTIVE'`,
+    [inviteId]
+  );
+  return result.affectedRows > 0;
+}
+
+export async function cancelVisitorInvite(inviteId: string, residentId: string): Promise<boolean> {
+  const pool = await getMysqlPool();
+  if (!pool) return false;
+  await ensureVisitorInvitesTable();
+
+  const [result]: any = await pool.query(
+    `UPDATE visitor_invites 
+     SET status = 'CANCELLED' 
+     WHERE id = ? AND resident_id = ? AND status = 'ACTIVE'`,
+    [inviteId, residentId]
+  );
+  return result.affectedRows > 0;
+}
+

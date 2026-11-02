@@ -218,4 +218,28 @@ CREATE INDEX idx_resident_reg_status ON resident_registrations(status);
 CREATE INDEX idx_family_resident ON family_members(resident_id);
 CREATE INDEX idx_vehicles_resident ON vehicles(resident_id);
 
+-- PRE-APPROVED VISITOR INVITATIONS (PASSES)
+CREATE TABLE IF NOT EXISTS `visitor_invites` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `society_id` VARCHAR(64) NOT NULL,
+  `flat_id` VARCHAR(64) NOT NULL,
+  `resident_id` VARCHAR(64) NOT NULL,
+  `visitor_name` VARCHAR(128) NOT NULL,
+  `visitor_phone` VARCHAR(32) DEFAULT NULL,
+  `purpose` VARCHAR(64) NOT NULL DEFAULT 'guest',
+  `pass_code` VARCHAR(16) NOT NULL,
+  `valid_from` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `valid_until` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `notes` TEXT DEFAULT NULL,
+  `status` VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  `used_at` TIMESTAMP NULL DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`society_id`) REFERENCES `societies`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`resident_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`flat_id`) REFERENCES `flats`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX idx_invite_code ON visitor_invites(society_id, pass_code, status);
+CREATE INDEX idx_invite_resident ON visitor_invites(resident_id, status);
+CREATE INDEX idx_invite_flat ON visitor_invites(flat_id);
 

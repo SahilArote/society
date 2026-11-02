@@ -4,19 +4,23 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_typography.dart';
+import '../../core/widgets/confirmation_dialog.dart';
 import '../../core/widgets/custom_app_bar.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/secondary_button.dart';
+import '../../models/invite_model.dart';
+import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 
 /// Shareable Digital Visitor Entry Pass with QR code.
-class DigitalPassScreen extends StatelessWidget {
+class DigitalPassScreen extends StatefulWidget {
   final String passId;
   final String visitorName;
   final String purpose;
   final String date;
   final String time;
   final String? notes;
+  final InviteModel? invite;
 
   const DigitalPassScreen({
     super.key,
@@ -26,40 +30,115 @@ class DigitalPassScreen extends StatelessWidget {
     required this.date,
     required this.time,
     this.notes,
+    this.invite,
   });
 
-  void _handleShare(BuildContext context) {
+  @override
+  State<DigitalPassScreen> createState() => _DigitalPassScreenState();
+}
+
+class _DigitalPassScreenState extends State<DigitalPassScreen> {
+  bool _isCancelling = false;
+  late String _status;
+
+  @override
+  void initState() {
+    super.initState();
+    _status = widget.invite?.status ?? 'ACTIVE';
+  }
+
+  void _handleShare() {
     final user = AuthService.currentUser.value;
-    final flat = user?.flatNumber ?? 'Unit';
+    final flat = widget.invite?.flatNumber.isNotEmpty == true
+        ? widget.invite!.flatNumber
+        : (user?.flatNumber ?? 'Unit');
     final society = user?.societyName ?? 'Green Gate Residency';
 
     final text = '''
 🎫 NexGate Visitor Entry Pass
 --------------------------------
-Pass Code: $passId
-Visitor: $visitorName
+Pass Code: ${widget.passId}
+Visitor: ${widget.visitorName}
 Destination: Flat $flat, $society
-Valid On: $date at $time
-Purpose: ${purpose.toUpperCase()}
-${notes != null && notes!.isNotEmpty ? 'Notes: $notes\n' : ''}
+Valid On: ${widget.date} at ${widget.time}
+Purpose: ${widget.purpose.toUpperCase()}
+${widget.notes != null && widget.notes!.isNotEmpty ? 'Notes: ${widget.notes}\n' : ''}
 Please present this pass or show the QR code at the security gate for instant entry.
 ''';
     SharePlus.instance.share(
       ShareParams(
         text: text,
-        subject: 'NexGate Entry Pass for $visitorName',
+        subject: 'NexGate Entry Pass for ${widget.visitorName}',
       ),
     );
+  }
+
+  Future<void> _handleCancel() async {
+    if (widget.invite == null) return;
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Cancel Pass',
+      message: 'Are you sure you want to cancel the entry pass for ${widget.visitorName}? This code will no longer be valid at the gate.',
+      confirmLabel: 'Cancel Pass',
+      isDestructive: true,
+      icon: Icons.cancel_outlined,
+    );
+
+    if (confirmed == true) {
+      setState(() => _isCancelling = true);
+      try {
+        final success = await ApiService.cancelInvite(widget.invite!.id);
+        if (!mounted) return;
+        if (success) {
+          setState(() => _status = 'CANCELLED');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Visitor pass cancelled successfully'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to cancel pass: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      } finally {
+        if (mounted) {
+          setState(() => _isCancelling = false);
+        }
+      }
+    }
+  }
+
+  Color _getStatusColor() {
+    switch (_status.toUpperCase()) {
+      case 'ACTIVE':
+        return AppColors.success;
+      case 'USED':
+        return AppColors.primaryBlue;
+      case 'CANCELLED':
+        return AppColors.error;
+      case 'EXPIRED':
+      default:
+        return AppColors.secondaryText;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final user = AuthService.currentUser.value;
+    final flatDisplay = widget.invite?.flatNumber.isNotEmpty == true
+        ? widget.invite!.flatNumber
+        : (user?.flatNumber ?? 'Resident');
 
     return Scaffold(
       backgroundColor: AppColors.mainBackground,
       appBar: const CustomAppBar(
-        title: 'Visitor Pass Ready',
+        title: 'Visitor Pass',
         showBack: true,
       ),
       body: SafeArea(
@@ -94,7 +173,7 @@ Please present this pass or show the QR code at the security gate for instant en
                               Text(
                                 'NEXGATE PASS',
                                 style: AppTypography.caption.copyWith(
-                                  color: Colors.white.withValues(alpha: 0.8),
+                                  color: Colors.white.withOpacity(0.8),
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: 1.0,
                                 ),
@@ -112,11 +191,11 @@ Please present this pass or show the QR code at the security gate for instant en
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
+                              color: Colors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              user != null ? 'Flat ${user.flatNumber}' : 'Resident',
+                              'Flat $flatDisplay',
                               style: AppTypography.caption.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w700,
@@ -127,9 +206,31 @@ Please present this pass or show the QR code at the security gate for instant en
                       ),
                     ),
 
+                    // Status Badge Strip
+                    Padding(
+                      padding: const EdgeInsets.only(top: 14.0),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor().withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: _getStatusColor().withOpacity(0.4)),
+                        ),
+                        child: Text(
+                          _status.toUpperCase(),
+                          style: TextStyle(
+                            color: _getStatusColor(),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                      ),
+                    ),
+
                     // QR Code Area
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24.0),
+                      padding: const EdgeInsets.symmetric(vertical: 18.0),
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -139,7 +240,7 @@ Please present this pass or show the QR code at the security gate for instant en
                           boxShadow: AppDimensions.subtleShadow,
                         ),
                         child: QrImageView(
-                          data: 'NEXGATE-PASS:$passId:$visitorName:${user?.flatNumber}:$date',
+                          data: 'NEXGATE-PASS:${widget.passId}:${widget.visitorName}:$flatDisplay:${widget.date}',
                           version: QrVersions.auto,
                           size: 160.0,
                           eyeStyle: const QrEyeStyle(
@@ -165,7 +266,7 @@ Please present this pass or show the QR code at the security gate for instant en
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      passId,
+                      widget.passId,
                       style: AppTypography.displayMedium.copyWith(
                         color: AppColors.primaryBlue,
                         letterSpacing: 3.0,
@@ -173,7 +274,7 @@ Please present this pass or show the QR code at the security gate for instant en
                       ),
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 18),
 
                     // Dashed Divider simulation
                     Container(
@@ -187,16 +288,16 @@ Please present this pass or show the QR code at the security gate for instant en
                       padding: const EdgeInsets.all(20.0),
                       child: Column(
                         children: [
-                          _buildPassRow('Guest Name', visitorName),
+                          _buildPassRow('Guest Name', widget.visitorName),
                           const SizedBox(height: 12),
-                          _buildPassRow('Purpose', purpose.toUpperCase()),
+                          _buildPassRow('Purpose', widget.purpose.toUpperCase()),
                           const SizedBox(height: 12),
-                          _buildPassRow('Valid Date', date),
+                          _buildPassRow('Valid Date', widget.date),
                           const SizedBox(height: 12),
-                          _buildPassRow('Expected Time', time),
-                          if (notes != null && notes!.isNotEmpty) ...[
+                          _buildPassRow('Expected Time', widget.time),
+                          if (widget.notes != null && widget.notes!.isNotEmpty) ...[
                             const SizedBox(height: 12),
-                            _buildPassRow('Instructions', notes!),
+                            _buildPassRow('Instructions', widget.notes!),
                           ],
                         ],
                       ),
@@ -205,14 +306,26 @@ Please present this pass or show the QR code at the security gate for instant en
                 ),
               ),
 
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
 
               // Action Buttons
               PrimaryButton(
                 label: 'Share Pass via WhatsApp',
                 icon: Icons.share_rounded,
-                onPressed: () => _handleShare(context),
+                onPressed: _handleShare,
               ),
+
+              if (widget.invite != null && _status == 'ACTIVE') ...[
+                const SizedBox(height: 12),
+                SecondaryButton(
+                  label: 'Cancel Pass',
+                  isLoading: _isCancelling,
+                  textColor: AppColors.error,
+                  borderColor: AppColors.errorBorder,
+                  backgroundColor: AppColors.errorBackground,
+                  onPressed: _isCancelling ? null : _handleCancel,
+                ),
+              ],
 
               const SizedBox(height: 12),
 

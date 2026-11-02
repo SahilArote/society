@@ -19,6 +19,7 @@ import '../models/user_model.dart';
 import '../models/vehicle_model.dart';
 
 import '../models/visitor_model.dart';
+import '../models/invite_model.dart';
 
 import 'auth_service.dart';
 
@@ -854,5 +855,56 @@ class ApiService {
 
   }
 
+
+  // ==========================================================
+  // PRE-APPROVED VISITOR PASSES (INVITES)
+  // ==========================================================
+
+  static Future<InviteModel> createInvite({
+    required String visitorName,
+    String? visitorPhone,
+    String purpose = 'guest',
+    String? validDate,
+    String? validTime,
+    String? notes,
+  }) async {
+    final response = await _post(
+      Uri.parse(ApiEndpoints.invites),
+      headers: _headers(),
+      body: jsonEncode({
+        'visitorName': visitorName.trim(),
+        'visitorPhone': visitorPhone?.trim(),
+        'purpose': purpose.trim().toLowerCase(),
+        'validDate': validDate,
+        'validTime': validTime,
+        'notes': notes?.trim(),
+      }),
+    );
+
+    final json = _handleResponse(response);
+    final data = json['data'] as Map<String, dynamic>;
+    return InviteModel.fromJson(data);
+  }
+
+  static Future<List<InviteModel>> fetchInvites() async {
+    final response = await _get(
+      Uri.parse(ApiEndpoints.invites),
+      headers: _headers(),
+    );
+
+    final json = _handleResponse(response);
+    final list = json['data'] as List<dynamic>? ?? [];
+    return list.map((item) => InviteModel.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
+  static Future<bool> cancelInvite(String id) async {
+    final response = await _delete(
+      Uri.parse(ApiEndpoints.cancelInvite(id)),
+      headers: _headers(),
+    );
+
+    final json = _handleResponse(response);
+    return json['success'] == true;
+  }
 }
 

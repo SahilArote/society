@@ -244,4 +244,31 @@ class ApiService {
     }
     return null;
   }
+
+  // Verify Pre-Approved Visitor Pass (Invite Code)
+  static Future<Map<String, dynamic>> verifyPassCode(String passCode) async {
+    final token = await ensureAuthToken();
+    final url = Uri.parse('$baseUrl/invites/guard/verify');
+
+    final response = await http
+        .post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'passCode': passCode.trim(),
+          }),
+        )
+        .timeout(timeoutDuration);
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300 && data['success'] == true) {
+      return data;
+    } else {
+      final msg = data['error']?['message'] ?? data['message'] ?? 'Failed to verify pass';
+      throw Exception(msg);
+    }
+  }
 }

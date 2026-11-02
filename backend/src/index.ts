@@ -14,6 +14,7 @@ import visitorRequestRoutes from './routes/visitorRequests';
 import adminRoutes from './routes/admin';
 import notificationRoutes from './routes/notifications';
 import residentRoutes from './routes/resident';
+import invitesRoutes from './routes/invites';
 
 dotenv.config();
 
@@ -70,6 +71,7 @@ app.use('/api/visitor-requests', visitorRequestRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/resident', residentRoutes);
+app.use('/api/invites', invitesRoutes);
 
 // Serve Static Files (Landing Page, Assets, Privacy Policy)
 const getPublicDir = (): string | null => {

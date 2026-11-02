@@ -12,6 +12,7 @@ import '../visitor_entry/camera_capture_screen.dart';
 import '../visitor_entry/waiting_approval_screen.dart';
 import '../visitor_entry/entry_approved_screen.dart';
 import '../visitor_entry/entry_rejected_screen.dart';
+import 'widgets/verify_pass_dialog.dart';
 
 class DashboardScreen extends StatelessWidget {
   final GuardRepository guardRepo;
@@ -174,38 +175,82 @@ class DashboardScreen extends StatelessWidget {
 
                   const SizedBox(height: 16),
 
-                  // 2. Large Prominent "NEW VISITOR" Button (Immediately visible, 70px height)
-                  SizedBox(
-                    width: double.infinity,
-                    height: 70,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 4,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: AppDimensions.roundedXl,
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                      ),
-                      onPressed: () => _startNewVisitor(context),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.camera_alt, size: 30, color: Colors.white),
-                          SizedBox(width: 14),
-                          Text(
-                            'NEW VISITOR',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.5,
-                              color: Colors.white,
+                  // 2. Gate Action Buttons (NEW VISITOR + VERIFY PASS)
+                  Row(
+                    children: [
+                      // Large "NEW VISITOR" Button
+                      Expanded(
+                        flex: 6,
+                        child: SizedBox(
+                          height: 70,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              elevation: 4,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: AppDimensions.roundedXl,
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                            ),
+                            onPressed: () => _startNewVisitor(context),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.camera_alt, size: 26, color: Colors.white),
+                                SizedBox(width: 8),
+                                Text(
+                                  'NEW VISITOR',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.5,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 10),
+                      // "VERIFY PASS" Button
+                      Expanded(
+                        flex: 4,
+                        child: SizedBox(
+                          height: 70,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.surface,
+                              foregroundColor: AppColors.primary,
+                              elevation: 2,
+                              side: const BorderSide(color: AppColors.primary, width: 2),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: AppDimensions.roundedXl,
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                            ),
+                            onPressed: () => VerifyPassDialog.show(context, visitorRepo: visitorRepo),
+                            child: const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.qr_code_scanner_rounded, size: 26, color: AppColors.primary),
+                                SizedBox(height: 4),
+                                Text(
+                                  'VERIFY PASS',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.5,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 18),

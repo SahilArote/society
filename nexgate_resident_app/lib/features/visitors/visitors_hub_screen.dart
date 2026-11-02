@@ -8,9 +8,12 @@ import '../../core/widgets/loading_skeleton.dart';
 import '../../models/visitor_model.dart';
 import '../../services/api_service.dart';
 import 'invite_visitor_screen.dart';
+import 'digital_pass_screen.dart';
+import '../../models/invite_model.dart';
+import '../../core/utils/date_formatter.dart';
 import 'widgets/visitor_card.dart';
 
-enum VisitorTab { upcoming, recent, all }
+enum VisitorTab { upcoming, recent, passes, all }
 
 /// Main Visitors Hub screen with search, filters, and list.
 class VisitorsHubScreen extends StatefulWidget {
@@ -23,6 +26,7 @@ class VisitorsHubScreen extends StatefulWidget {
 class _VisitorsHubScreenState extends State<VisitorsHubScreen> {
   VisitorTab _selectedTab = VisitorTab.upcoming;
   List<VisitorModel> _allVisitors = [];
+  List<InviteModel> _allInvites = [];
   bool _isLoading = true;
   String _searchQuery = '';
   bool _isSearchOpen = false;
@@ -32,6 +36,19 @@ class _VisitorsHubScreenState extends State<VisitorsHubScreen> {
   void initState() {
     super.initState();
     _loadVisitors();
+    _loadInvites();
+  }
+
+  Future<void> _loadInvites() async {
+    try {
+      final list = await ApiService.fetchInvites();
+      if (!mounted) return;
+      setState(() {
+        _allInvites = list;
+      });
+    } catch (e) {
+      debugPrint('[VisitorsHub] Error loading invites: ' + e.toString());
+    }
   }
 
   Future<void> _loadVisitors() async {
@@ -149,7 +166,8 @@ class _VisitorsHubScreenState extends State<VisitorsHubScreen> {
                 child: Row(
                   children: [
                     _buildTabItem(VisitorTab.upcoming, 'Upcoming'),
-                    _buildTabItem(VisitorTab.recent, 'Recent / Past'),
+                    _buildTabItem(VisitorTab.recent, 'Recent'),
+                    _buildTabItem(VisitorTab.passes, 'My Passes'),
                     _buildTabItem(VisitorTab.all, 'All Passes'),
                   ],
                 ),
@@ -159,7 +177,9 @@ class _VisitorsHubScreenState extends State<VisitorsHubScreen> {
             // Visitors List
             Expanded(
               child: RefreshIndicator(
-                onRefresh: _loadVisitors,
+                onRefresh: () async {
+                  await Future.wait([_loadVisitors(), _loadInvites()]);
+                },
                 color: AppColors.primaryBlue,
                 child: _isLoading
                     ? ListView.separated(
