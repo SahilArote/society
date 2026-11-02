@@ -213,39 +213,11 @@ router.post(
         }
       );
 
-            // 6. Resolve Target Resident IDs for this Flat (Primary resident + Co-residents)
-      const targetResidentIds = new Set<string>();
-      if (resident && resident.id) targetResidentIds.add(resident.id);
-
-      try {
-        const pool = await getMysqlPool();
-        if (pool) {
-          const [coResidents]: any = await pool.query(
-            `SELECT DISTINCT u.id 
-             FROM users u
-             LEFT JOIN family_members fm ON (u.mobile = fm.phone AND fm.status = 'ACTIVE')
-             WHERE u.society_id = ? 
-               AND u.role = 'RESIDENT' 
-               AND u.status = 'ACTIVE' 
-               AND (
-                 u.id = ? 
-                 OR fm.flat_id = ? 
-                 OR fm.resident_id = ?
-               )`,
-            [societyId, resident.id, flat.id, resident.id]
-          );
-          if (Array.isArray(coResidents)) {
-            for (const r of coResidents) {
-              if (r.id) targetResidentIds.add(r.id);
-            }
-          }
-        }
-      } catch (err: any) {
-        console.warn('[Backend] Notice querying co-residents:', err.message);
-      }
+            // 6. Target Resident ID for this Flat (Primary flat resident ONLY - Family members do not receive notifications)
+      const targetResidentIds = [resident.id];
 
       console.log(`[VISITOR] Request created: ${requestId}`);
-      console.log(`[TARGETS] Target resident IDs: ${Array.from(targetResidentIds).join(', ')}`);
+      console.log(`[TARGETS] Target resident ID: ${resident.id} (Primary resident)`);
 
       let gateName = 'Main Gate';
       let guardName = req.user!.name || 'Gate Security';

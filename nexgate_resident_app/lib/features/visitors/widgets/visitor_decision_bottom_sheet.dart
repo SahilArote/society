@@ -381,6 +381,55 @@ class _VisitorDecisionBottomSheetState extends State<VisitorDecisionBottomSheet>
                                             ],
                                           ),
                                         ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Floating Top Badge with Sparkles
+                            Positioned(
+                              top: 0,
+                              child: Container(
+                                width: 84,
+                                height: 84,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.08),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                padding: const EdgeInsets.all(5),
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Color(0xFFFF7E79),
+                                        Color(0xFFFF5252),
+                                      ],
+                                    ),
+                                  ),
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      // Top Left Sparkle
+                                      Positioned(
+                                        top: 14,
+                                        left: 14,
+                                        child: Icon(
+                                          Icons.star_rounded,
+                                          size: 8,
+                                          color: Colors.white.withOpacity(0.85),
+                                        ),
                                       ),
                                       // Bottom Right Sparkle
                                       Positioned(

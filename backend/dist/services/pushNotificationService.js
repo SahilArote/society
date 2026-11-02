@@ -117,6 +117,10 @@ async function ensureTables() {
         INDEX idx_push_user (user_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
+        // Purge any legacy family member user accounts so only primary residents exist
+        await pool.query("DELETE FROM users WHERE id LIKE 'usr_fam_%'").catch(() => { });
+        await pool.query("DELETE FROM fcm_tokens WHERE user_id LIKE 'usr_fam_%'").catch(() => { });
+        await pool.query("DELETE FROM push_subscriptions WHERE user_id LIKE 'usr_fam_%'").catch(() => { });
         // FCM Device Tokens Table (MySQL 5.5/5.6 compatible: single TIMESTAMP, prefix index on token)
         await pool.query(`
       CREATE TABLE IF NOT EXISTS fcm_tokens (

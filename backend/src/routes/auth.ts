@@ -18,7 +18,6 @@ import {
   findSocietyById,
   deleteResidentByAdmin,
   findActiveFamilyMemberByPhone,
-  getOrCreateUserForFamilyMember,
 } from '../database/db';
 import { generateToken, AuthenticatedRequest, authenticateToken } from '../middleware/auth';
 import { emitRegistrationCreated } from '../services/socketService';
@@ -49,15 +48,16 @@ router.post('/resident/send-otp', async (req: Request, res: Response) => {
     const cleanMobile = String(mobile).replace(/\D/g, '');
     let user = await findUserByMobile(cleanMobile);
 
-    if (!user || user.role !== 'RESIDENT') {
-      const famRecord = await findActiveFamilyMemberByPhone(cleanMobile);
-      if (famRecord) {
-        user = await getOrCreateUserForFamilyMember(
-          famRecord.member,
-          cleanMobile,
-          famRecord.member.societyId || famRecord.primaryOwner?.societyId || 'soc_greengate'
-        );
-      }
+    // Explicitly restrict family members from logging in (Only primary flat residents can login)
+    const isFamilyMember = await findActiveFamilyMemberByPhone(cleanMobile);
+    if (isFamilyMember) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FAMILY_MEMBER_LOGIN_RESTRICTED',
+          message: 'Family members cannot login. Only the primary flat resident can access the app.',
+        },
+      });
     }
 
     if (!user || user.role !== 'RESIDENT') {
@@ -150,15 +150,16 @@ router.post('/resident/verify-otp', async (req: Request, res: Response) => {
     const cleanMobile = String(mobile).replace(/\D/g, '');
     let user = await findUserByMobile(cleanMobile);
 
-    if (!user || user.role !== 'RESIDENT') {
-      const famRecord = await findActiveFamilyMemberByPhone(cleanMobile);
-      if (famRecord) {
-        user = await getOrCreateUserForFamilyMember(
-          famRecord.member,
-          cleanMobile,
-          famRecord.member.societyId || famRecord.primaryOwner?.societyId || 'soc_greengate'
-        );
-      }
+    // Explicitly restrict family members from logging in (Only primary flat residents can login)
+    const isFamilyMember = await findActiveFamilyMemberByPhone(cleanMobile);
+    if (isFamilyMember) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FAMILY_MEMBER_LOGIN_RESTRICTED',
+          message: 'Family members cannot login. Only the primary flat resident can access the app.',
+        },
+      });
     }
 
     if (!user || user.role !== 'RESIDENT') {
@@ -231,15 +232,16 @@ router.post('/resident/login', async (req: Request, res: Response) => {
     const cleanMobile = String(mobile).replace(/\D/g, '');
     let user = await findUserByMobile(cleanMobile);
 
-    if (!user || user.role !== 'RESIDENT') {
-      const famRecord = await findActiveFamilyMemberByPhone(cleanMobile);
-      if (famRecord) {
-        user = await getOrCreateUserForFamilyMember(
-          famRecord.member,
-          cleanMobile,
-          famRecord.member.societyId || famRecord.primaryOwner?.societyId || 'soc_greengate'
-        );
-      }
+    // Explicitly restrict family members from logging in (Only primary flat residents can login)
+    const isFamilyMember = await findActiveFamilyMemberByPhone(cleanMobile);
+    if (isFamilyMember) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FAMILY_MEMBER_LOGIN_RESTRICTED',
+          message: 'Family members cannot login. Only the primary flat resident can access the app.',
+        },
+      });
     }
 
     if (!user || user.role !== 'RESIDENT') {
