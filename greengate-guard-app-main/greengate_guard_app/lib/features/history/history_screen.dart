@@ -28,8 +28,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _handleRefresh() async { await widget.visitorRepo.fetchRecentRequests(); }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

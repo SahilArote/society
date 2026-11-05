@@ -108,9 +108,10 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
                     borderRadius: AppDimensions.roundedXl,
                     border: Border.all(color: AppColors.warning, width: 2.0),
                   ),
-                  child: const Column(children: [
+                  child: const Column(
+                    children: [
                       // Simple loading indicator
-                      const SizedBox(
+                      SizedBox(
                         width: 52,
                         height: 52,
                         child: CircularProgressIndicator(
@@ -119,8 +120,8 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
                               AlwaysStoppedAnimation<Color>(AppColors.warning),
                         ),
                       ),
-                      const SizedBox(height: 18),
-                      const Text(
+                      SizedBox(height: 18),
+                      Text(
                         'WAITING FOR APPROVAL',
                         style: TextStyle(
                           fontSize: 22,
@@ -130,8 +131,8 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
+                      SizedBox(height: 6),
+                      Text(
                         'Request sent to resident',
                         style: TextStyle(
                           fontSize: 16,
@@ -156,7 +157,7 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
                     border: Border.all(color: AppColors.border, width: 1.5),
                     boxShadow: AppDimensions.cardShadow,
                   ),
-                  child: const Column(children: [
+                  child: Column(children: [
                       // Visitor Photo
                       ClipRRect(
                         borderRadius: BorderRadius.circular(16),
