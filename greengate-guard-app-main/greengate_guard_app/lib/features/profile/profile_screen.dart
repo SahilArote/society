@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_dimensions.dart';
 import '../../repositories/guard_repository.dart';
 import '../auth/login_screen.dart';
 
@@ -267,7 +265,7 @@ class ProfileScreen extends StatelessWidget {
     final guard = guardRepo.currentGuard;
     final guardName = guard?.name ?? 'Ramesh Singh';
     final guardId = guard?.badgeNumber ?? 'NX-SEC-01';
-    final society = guard?.societyName ?? 'NexGate Residency';
+    final society = guard?.societyName ?? 'Eco Residency Co-operative Housing Society Ltd';
     final gate = guard?.assignedGate ?? 'Main Gate';
     final shift = guard?.shift ?? 'Morning Shift (07:00 AM - 07:00 PM)';
     final serverUrl = guardRepo.storage.getServerUrl();
@@ -430,7 +428,7 @@ class ProfileScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF4F46E5).withOpacity(0.35),
+                  color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),

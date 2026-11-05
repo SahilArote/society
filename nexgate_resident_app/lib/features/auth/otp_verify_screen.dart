@@ -81,11 +81,11 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
         name: userJson['name']?.toString() ?? 'Resident',
         mobile: userJson['mobile']?.toString() ?? widget.mobile,
         role: userJson['role']?.toString() ?? 'RESIDENT',
-        societyId: userJson['societyId']?.toString() ?? societyJson?['id']?.toString() ?? 'soc_greengate',
+        societyId: userJson['societyId']?.toString() ?? societyJson?['id']?.toString() ?? '',
         flatId: userJson['flatId']?.toString() ?? flatJson?['id']?.toString() ?? '',
         flatNumber: userJson['flatNumber']?.toString() ?? flatJson?['flatNumber']?.toString() ?? 'Unit',
         wing: userJson['wing']?.toString() ?? flatJson?['buildingWing']?.toString() ?? '',
-        societyName: societyJson?['name']?.toString() ?? 'Green Gate Residency',
+        societyName: societyJson?['name']?.toString() ?? 'Eco Residency Co-operative Housing Society Ltd',
       );
 
       await AuthService.login(token, user);

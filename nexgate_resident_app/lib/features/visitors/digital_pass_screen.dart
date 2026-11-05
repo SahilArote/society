@@ -52,7 +52,7 @@ class _DigitalPassScreenState extends State<DigitalPassScreen> {
     final flat = widget.invite?.flatNumber.isNotEmpty == true
         ? widget.invite!.flatNumber
         : (user?.flatNumber ?? 'Unit');
-    final society = user?.societyName ?? 'Green Gate Residency';
+    final society = user?.societyName ?? 'Eco Residency Co-operative Housing Society Ltd';
 
     final text = '''
 🎫 NexGate Visitor Entry Pass
@@ -173,14 +173,14 @@ Please present this pass or show the QR code at the security gate for instant en
                               Text(
                                 'NEXGATE PASS',
                                 style: AppTypography.caption.copyWith(
-                                  color: Colors.white.withOpacity(0.8),
+                                  color: Colors.white.withValues(alpha: 0.8),
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: 1.0,
                                 ),
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                user?.societyName ?? 'Green Gate Residency',
+                                user?.societyName ?? 'Eco Residency Co-operative Housing Society Ltd',
                                 style: AppTypography.titleSmall.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w800,
@@ -191,7 +191,7 @@ Please present this pass or show the QR code at the security gate for instant en
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -212,9 +212,9 @@ Please present this pass or show the QR code at the security gate for instant en
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: _getStatusColor().withOpacity(0.12),
+                          color: _getStatusColor().withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: _getStatusColor().withOpacity(0.4)),
+                          border: Border.all(color: _getStatusColor().withValues(alpha: 0.4)),
                         ),
                         child: Text(
                           _status.toUpperCase(),

@@ -1,12 +1,10 @@
 import '../../core/widgets/visitor_photo_avatar.dart';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/widgets/custom_button.dart';
 import '../../models/visitor_request.dart';
 import '../../repositories/visitor_repository.dart';
-import '../../services/api_service.dart';
 import '../../repositories/guard_repository.dart';
 import '../dashboard/main_navigation.dart';
 
@@ -165,7 +163,7 @@ class EntryRejectedScreen extends StatelessWidget {
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: AppColors.errorLight,
                         borderRadius: AppDimensions.roundedMd,
                       ),

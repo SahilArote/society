@@ -1,14 +1,10 @@
 import '../../core/widgets/visitor_photo_avatar.dart';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_dimensions.dart';
 import '../../models/visitor.dart';
 import '../../models/visitor_request.dart';
 import '../../repositories/visitor_repository.dart';
 import '../../repositories/guard_repository.dart';
-import '../../services/api_service.dart';
 import '../visitor_entry/waiting_approval_screen.dart';
 import '../visitor_entry/entry_approved_screen.dart';
 import '../visitor_entry/entry_rejected_screen.dart';
@@ -473,10 +469,10 @@ class _VisitorsScreenState extends State<VisitorsScreen>
                     width: 72,
                     height: 72,
                     decoration: BoxDecoration(
-                      color: accentColor.withOpacity(0.1),
+                      color: accentColor.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                       border: Border.all(
-                          color: accentColor.withOpacity(0.25), width: 1.5),
+                          color: accentColor.withValues(alpha: 0.25), width: 1.5),
                     ),
                     child: Icon(emptyIcon, size: 34, color: accentColor),
                   ),

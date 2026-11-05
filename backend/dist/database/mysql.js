@@ -134,6 +134,11 @@ async function runMysqlMigrations() {
             await pool.query('ALTER TABLE visitors MODIFY COLUMN purpose VARCHAR(255) NOT NULL');
         }
         catch (_) { }
+        // Auto-update society name to official real name
+        try {
+            await pool.query("UPDATE societies SET name = 'Eco Residency Co-operative Housing Society Ltd' WHERE name = 'Green Gate Residency' OR name = 'NexGate Residency' OR id = 'soc_greengate'");
+        }
+        catch (_) { }
         console.log('[MySQL] Schema migrations execution cycle complete.');
         // Run Initial Seed Data if society table empty
         await seedMysqlData(pool);
@@ -153,7 +158,7 @@ async function seedMysqlData(pool) {
         const adminPasswordHash = bcryptjs_1.default.hashSync('admin123', 10);
         const guardPinHash = bcryptjs_1.default.hashSync('1234', 10);
         // 1. Society
-        await pool.query(`INSERT INTO societies (id, name, address, status) VALUES (?, ?, ?, ?)`, ['soc_greengate', 'Green Gate Residency', 'Plot 42, Main Road', 'ACTIVE']);
+        await pool.query(`INSERT INTO societies (id, name, address, status) VALUES (?, ?, ?, ?)`, ['soc_greengate', 'Eco Residency Co-operative Housing Society Ltd', 'Plot 42, Main Road', 'ACTIVE']);
         // 2. Gates
         await pool.query(`INSERT INTO gates (id, society_id, name, location, status) VALUES 
        ('gate_main', 'soc_greengate', 'Main Gate', 'Main Entrance', 'OPERATIONAL')`);

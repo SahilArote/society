@@ -1,5 +1,4 @@
 import '../../core/widgets/visitor_photo_avatar.dart';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
@@ -7,7 +6,6 @@ import '../../core/constants/app_dimensions.dart';
 import '../../core/widgets/custom_button.dart';
 import '../../models/visitor_request.dart';
 import '../../repositories/visitor_repository.dart';
-import '../../services/api_service.dart';
 import '../../repositories/guard_repository.dart';
 import 'entry_approved_screen.dart';
 import 'entry_rejected_screen.dart';
@@ -84,11 +82,7 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
     final reqTimeFormatted =
         DateFormat('hh:mm a').format(widget.request.requestTime);
 
-    return WillPopScope(
-      onWillPop: () async {
-        _navigateBackToDashboard();
-        return false;
-      },
+    return PopScope(canPop: false, onPopInvokedWithResult: (didPop, result) { if (!didPop) { _navigateBackToDashboard(); } },
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(
@@ -114,8 +108,7 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
                     borderRadius: AppDimensions.roundedXl,
                     border: Border.all(color: AppColors.warning, width: 2.0),
                   ),
-                  child: Column(
-                    children: [
+                  child: const Column(children: [
                       // Simple loading indicator
                       const SizedBox(
                         width: 52,
@@ -163,8 +156,7 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
                     border: Border.all(color: AppColors.border, width: 1.5),
                     boxShadow: AppDimensions.cardShadow,
                   ),
-                  child: Column(
-                    children: [
+                  child: const Column(children: [
                       // Visitor Photo
                       ClipRRect(
                         borderRadius: BorderRadius.circular(16),
@@ -306,8 +298,7 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
                     borderRadius: AppDimensions.roundedLg,
                     border: Border.all(color: AppColors.border, width: 1.0),
                   ),
-                  child: Row(
-                    children: const [
+                  child: const Row(children: [
                       Icon(Icons.info_outline,
                           size: 20, color: AppColors.textSecondary),
                       SizedBox(width: 10),

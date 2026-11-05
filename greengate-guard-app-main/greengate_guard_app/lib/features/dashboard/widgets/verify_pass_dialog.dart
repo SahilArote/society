@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_dimensions.dart';
 import '../../../repositories/visitor_repository.dart';
 import '../../../services/api_service.dart';
-import 'pass_scanner_screen.dart';
+
 
 /// Modal dialog allowing security guards to verify visitor passes at the gate
 /// either by scanning QR code with camera or entering the 6-digit pass code.
@@ -71,19 +70,12 @@ class _VerifyPassDialogState extends State<VerifyPassDialog> {
     }
   }
 
-  Future<void> _openCameraScanner() async {
-    final scannedCode = await PassScannerScreen.open(context);
-    if (!mounted || scannedCode == null || scannedCode.trim().isEmpty) return;
-
-    final code = scannedCode.trim();
-    _codeController.text = code;
-    _handleVerify(code);
-  }
+  void _openCameraScanner() { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter the 6-character Pass Code from the visitor pass below.'), duration: Duration(seconds: 2))); }
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: AppDimensions.roundedXl),
+      shape: const RoundedRectangleBorder(borderRadius: AppDimensions.roundedXl),
       backgroundColor: Colors.white,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: Container(
@@ -166,7 +158,7 @@ class _VerifyPassDialogState extends State<VerifyPassDialog> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF4F46E5).withOpacity(0.32),
+                    color: const Color(0xFF4F46E5).withValues(alpha: 0.32),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -178,7 +170,7 @@ class _VerifyPassDialogState extends State<VerifyPassDialog> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.18),
+                      color: Colors.white.withValues(alpha: 0.18),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
@@ -300,7 +292,7 @@ class _VerifyPassDialogState extends State<VerifyPassDialog> {
               color: const Color(0xFFFFF1F2),
               borderRadius: BorderRadius.circular(10),
               border:
-                  Border.all(color: const Color(0xFFF43F5E).withOpacity(0.3)),
+                  Border.all(color: const Color(0xFFF43F5E).withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [

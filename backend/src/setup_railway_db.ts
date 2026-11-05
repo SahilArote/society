@@ -1,4 +1,4 @@
-﻿import mysql from 'mysql2/promise';
+import mysql from 'mysql2/promise';
 import bcrypt from 'bcryptjs';
 
 const RAILWAY_URL = 'mysql://root:hHHEiocXSzUnyzbBtYgchBXXeMoMmNhP@crossover.proxy.rlwy.net:10407/railway';
@@ -174,7 +174,7 @@ async function migrateAndSeedClean() {
   // Society
   await pool.query(
     'INSERT INTO societies (id, name, address, status) VALUES (?, ?, ?, ?)',
-    ['soc_greengate', 'Green Gate Residency', 'Plot 42, Main Road', 'ACTIVE']
+    ['soc_greengate', 'Eco Residency Co-operative Housing Society Ltd', 'Plot 42, Main Road', 'ACTIVE']
   );
 
   // Main Gate

@@ -19,7 +19,7 @@ class UserModel {
     required this.flatId,
     required this.flatNumber,
     required this.wing,
-    this.societyName = 'Green Gate Residency',
+    this.societyName = 'Eco Residency Co-operative Housing Society Ltd',
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -28,11 +28,11 @@ class UserModel {
       name: json['name']?.toString() ?? 'Resident',
       mobile: json['mobile']?.toString() ?? '',
       role: json['role']?.toString() ?? 'RESIDENT',
-      societyId: json['societyId']?.toString() ?? 'soc_greengate',
+      societyId: json['societyId']?.toString() ?? '',
       flatId: json['flatId']?.toString() ?? '',
       flatNumber: json['flatNumber']?.toString() ?? 'Unit',
       wing: json['wing']?.toString() ?? json['buildingWing']?.toString() ?? '',
-      societyName: json['societyName']?.toString() ?? 'Green Gate Residency',
+      societyName: json['societyName']?.toString() ?? 'Eco Residency Co-operative Housing Society Ltd',
     );
   }
 

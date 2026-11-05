@@ -7,6 +7,7 @@ exports.findUserById = findUserById;
 exports.findGuardByUserId = findGuardByUserId;
 exports.findGateById = findGateById;
 exports.findSocietyById = findSocietyById;
+exports.getDefaultSociety = getDefaultSociety;
 exports.updateSociety = updateSociety;
 exports.findFlatByNumberAndWing = findFlatByNumberAndWing;
 exports.findFlatByResidentId = findFlatByResidentId;
@@ -195,6 +196,22 @@ async function findSocietyById(societyId) {
     if (!pool)
         return null;
     const [rows] = await pool.query('SELECT * FROM societies WHERE id = ? LIMIT 1', [societyId]);
+    if (!rows[0])
+        return null;
+    const r = rows[0];
+    return {
+        id: r.id,
+        name: r.name,
+        address: r.address,
+        status: r.status,
+        createdAt: r.created_at,
+    };
+}
+async function getDefaultSociety() {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return null;
+    const [rows] = await pool.query('SELECT * FROM societies ORDER BY created_at ASC LIMIT 1');
     if (!rows[0])
         return null;
     const r = rows[0];
@@ -525,6 +542,8 @@ async function findVisitorRequestJoinedById(id) {
       f.wing as buildingWing,
       u_res.id as residentId,
       u_res.name as residentName,
+      u_res.mobile as residentMobile,
+      u_res.mobile as residentPhone,
       u_grd.name as guardName,
       g.name as gateName
     FROM visitor_requests vr

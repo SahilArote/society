@@ -16,6 +16,7 @@ import {
   findFlatByNumberAndWing,
   findFlatById,
   findSocietyById,
+  getDefaultSociety,
   deleteResidentByAdmin,
 } from '../database/db';
 import { generateToken, AuthenticatedRequest, authenticateToken } from '../middleware/auth';
@@ -166,6 +167,9 @@ router.post('/resident/verify-otp', async (req: Request, res: Response) => {
 
     const token = generateToken(tokenUser);
 
+    const socRecord = await findSocietyById(tokenUser.societyId);
+    const societyName = socRecord?.name || 'Eco Residency Co-operative Housing Society Ltd';
+
     return res.json({
       success: true,
       token,
@@ -181,7 +185,7 @@ router.post('/resident/verify-otp', async (req: Request, res: Response) => {
       },
       society: {
         id: tokenUser.societyId,
-        name: 'Green Gate Residency',
+        name: societyName,
       },
     });
   } catch (error: any) {
@@ -276,13 +280,16 @@ router.post('/resident/login', async (req: Request, res: Response) => {
 
     const token = generateToken(tokenUser);
 
+    const socRecord = await findSocietyById(tokenUser.societyId);
+    const societyName = socRecord?.name || 'Eco Residency Co-operative Housing Society Ltd';
+
     return res.json({
       success: true,
       token,
       data: { token, user: tokenUser },
       user: tokenUser,
       flat: { id: tokenUser.flatId, flatNumber: tokenUser.flatNumber, buildingWing: tokenUser.wing },
-      society: { id: tokenUser.societyId, name: 'Green Gate Residency' },
+      society: { id: tokenUser.societyId, name: societyName },
     });
   } catch (error: any) {
     console.error('Error in resident login:', error);
@@ -300,7 +307,11 @@ router.post('/resident/login', async (req: Request, res: Response) => {
 // GET /api/auth/registration/flats
 router.get('/registration/flats', async (req: Request, res: Response) => {
   try {
-    const societyId = (req.query.societyId as string) || 'soc_greengate';
+    let societyId = req.query.societyId as string;
+    if (!societyId) {
+      const defSoc = await getDefaultSociety();
+      societyId = defSoc?.id || 'soc_greengate';
+    }
     const hierarchy = await getFlatsHierarchy(societyId);
     return res.json({
       success: true,
@@ -398,7 +409,12 @@ router.get('/registration/status', async (req: Request, res: Response) => {
 // POST /api/auth/registration/submit
 router.post('/registration/submit', async (req: Request, res: Response) => {
   try {
-    const { mobile, wing, floor, flatNumber, flatId, name, societyId = 'soc_greengate' } = req.body;
+    const { mobile, wing, floor, flatNumber, flatId, name } = req.body;
+    let societyId = req.body.societyId;
+    if (!societyId) {
+      const defSoc = await getDefaultSociety();
+      societyId = defSoc?.id || 'soc_greengate';
+    }
 
     // 1. Validate Mobile Number (Indian 10-digit format)
     const cleanMobile = String(mobile || '').replace(/\D/g, '').slice(-10);
@@ -630,6 +646,8 @@ router.post('/guard/login', async (req: Request, res: Response) => {
     };
 
     const token = generateToken(tokenUser);
+    const socRecord = await findSocietyById(user.societyId);
+    const societyName = socRecord?.name || 'Eco Residency Co-operative Housing Society Ltd';
 
     return res.json({
       success: true,
@@ -648,7 +666,7 @@ router.post('/guard/login', async (req: Request, res: Response) => {
         },
         society: {
           id: user.societyId,
-          name: 'Green Gate Residency',
+          name: societyName,
         },
       },
       guard: {
@@ -662,7 +680,7 @@ router.post('/guard/login', async (req: Request, res: Response) => {
       },
       society: {
         id: user.societyId,
-        name: 'Green Gate Residency',
+        name: societyName,
       },
     });
   } catch (error: any) {

@@ -17,7 +17,7 @@ class FlatDetailsScreen extends StatelessWidget {
     final user = AuthService.currentUser.value;
     final flatNumber = user?.flatNumber ?? 'Unit';
     final wing = user?.wing ?? 'Tower A';
-    final society = user?.societyName ?? 'Green Gate Residency';
+    final society = user?.societyName ?? 'Eco Residency Co-operative Housing Society Ltd';
 
     return Scaffold(
       backgroundColor: AppColors.mainBackground,

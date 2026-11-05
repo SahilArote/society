@@ -16,7 +16,7 @@ void main() {
         'flatId': 'flat_456',
         'flatNumber': '402',
         'wing': 'A',
-        'societyName': 'Green Gate Residency',
+        'societyName': 'Eco Residency Co-operative Housing Society Ltd',
       };
 
       final user = UserModel.fromJson(json);

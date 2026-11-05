@@ -301,11 +301,13 @@ class ApiService {
 
 
 
-  static Future<FlatsHierarchy> fetchRegistrationFlats({String societyId = 'soc_greengate'}) async {
+  static Future<FlatsHierarchy> fetchRegistrationFlats({String? societyId}) async {
 
     final response = await _get(
 
-      Uri.parse('${ApiEndpoints.registrationFlats}?societyId=$societyId'),
+      (societyId != null && societyId.isNotEmpty)
+          ? Uri.parse('${ApiEndpoints.registrationFlats}?societyId=$societyId')
+          : Uri.parse(ApiEndpoints.registrationFlats),
 
       headers: _headers(withAuth: false),
 
@@ -359,7 +361,7 @@ class ApiService {
 
     String? name,
 
-    String societyId = 'soc_greengate',
+    String? societyId,
 
   }) async {
 
@@ -375,7 +377,7 @@ class ApiService {
 
       'flatNumber': flatNumber,
 
-      'societyId': societyId,
+      if (societyId != null && societyId.isNotEmpty) 'societyId': societyId,
 
     };
 

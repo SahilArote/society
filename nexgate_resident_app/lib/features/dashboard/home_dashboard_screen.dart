@@ -174,7 +174,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> with WidgetsB
       appBar: CustomAppBar(
         isHome: true,
         flatNumber: user != null ? 'Flat ${user.flatNumber}' : 'Resident',
-        societyName: user?.societyName ?? 'Green Gate Residency',
+        societyName: user?.societyName ?? 'Eco Residency Co-operative Housing Society Ltd',
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_none_rounded, color: AppColors.primaryText),

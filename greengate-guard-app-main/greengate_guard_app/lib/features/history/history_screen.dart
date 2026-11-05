@@ -1,13 +1,9 @@
 import '../../core/widgets/visitor_photo_avatar.dart';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_dimensions.dart';
 import '../../models/visitor.dart';
 import '../../models/visitor_request.dart';
 import '../../repositories/visitor_repository.dart';
-import '../../services/api_service.dart';
 
 /// Professional, high-contrast Gate Visitor History & Logs Screen.
 /// Designed for quick audit, fast search, status filtering, and elderly guard readability.
@@ -24,7 +20,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
   final TextEditingController _searchController = TextEditingController();
   VisitorStatus? _selectedStatusFilter;
   String _searchQuery = '';
-  bool _isRefreshing = false;
 
   @override
   void dispose() {
@@ -32,12 +27,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     super.dispose();
   }
 
-  Future<void> _handleRefresh() async {
-    setState(() => _isRefreshing = true);
-    await widget.visitorRepo.fetchRecentRequests();
-    if (mounted) {
-      setState(() => _isRefreshing = false);
-    }
+  Future<void> _handleRefresh() async { await widget.visitorRepo.fetchRecentRequests(); }
   }
 
   @override

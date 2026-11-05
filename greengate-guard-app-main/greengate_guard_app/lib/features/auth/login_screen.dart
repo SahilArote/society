@@ -114,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
               if (newUrl.isNotEmpty) {
                 await widget.guardRepo.storage.setServerUrl(newUrl);
                 ApiService.setBaseUrl(newUrl);
-                if (mounted) {
+                if (ctx.mounted && mounted) {
                   Navigator.of(ctx).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Server connected to: $newUrl')),
@@ -202,7 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
             border: Border.all(color: const Color(0xFFCBD5E1), width: 1.0),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 4,
                 offset: const Offset(0, 1),
               ),
@@ -320,7 +320,7 @@ class _LoginScreenState extends State<LoginScreen> {
             boxShadow: isFocused
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.12),
+                      color: AppColors.primary.withValues(alpha: 0.12),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -379,7 +379,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     hintStyle: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
-                      color: const Color(0xFF94A3B8).withOpacity(0.85),
+                      color: const Color(0xFF94A3B8).withValues(alpha: 0.85),
                       letterSpacing: 1.0,
                     ),
                     border: InputBorder.none,
@@ -507,7 +507,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       boxShadow: isCurrent
                           ? [
                               BoxShadow(
-                                color: AppColors.primary.withOpacity(0.18),
+                                color: AppColors.primary.withValues(alpha: 0.18),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
@@ -515,7 +515,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           : (isFilled
                               ? [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.03),
+                                    color: Colors.black.withValues(alpha: 0.03),
                                     blurRadius: 4,
                                     offset: const Offset(0, 1),
                                   ),
@@ -620,7 +620,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           color: const Color(0xFFE2E8F0), width: 1.2),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.03),
+                          color: Colors.black.withValues(alpha: 0.03),
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
@@ -673,7 +673,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: const Color(0xFFE2E8F0), width: 1.2),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.04),
+                                color: Colors.black.withValues(alpha: 0.04),
                                 blurRadius: 12,
                                 offset: const Offset(0, 3),
                               ),
@@ -727,7 +727,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             boxShadow: [
                               BoxShadow(
                                 color:
-                                    const Color(0xFF0F172A).withOpacity(0.04),
+                                    const Color(0xFF0F172A).withValues(alpha: 0.04),
                                 blurRadius: 18,
                                 offset: const Offset(0, 6),
                               ),
@@ -800,7 +800,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       boxShadow: [
                                         BoxShadow(
                                           color: const Color(0xFF4F46E5)
-                                              .withOpacity(0.32),
+                                              .withValues(alpha: 0.32),
                                           blurRadius: 14,
                                           offset: const Offset(0, 4),
                                         ),

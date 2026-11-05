@@ -132,7 +132,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                             ],
                           ),
                           Text(
-                            societyName ?? 'Green Gate Residency',
+                            societyName ?? 'Eco Residency Co-operative Housing Society Ltd',
                             style: AppTypography.caption.copyWith(
                               color: AppColors.secondaryText,
                             ),

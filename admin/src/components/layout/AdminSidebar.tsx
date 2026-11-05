@@ -31,7 +31,7 @@ export function AdminSidebar() {
       const cached = localStorage.getItem('gg_admin_society_settings');
       if (cached) return JSON.parse(cached);
     } catch (_) {}
-    return { name: 'GreenGate Residency', city: 'Mumbai, MH', totalFlats: '120' };
+    return { name: 'Eco Residency Co-operative Housing Society Ltd', city: 'Mumbai, MH', totalFlats: '120' };
   });
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export function AdminSidebar() {
           <Shield size={18} color="white" />
         </div>
         <div>
-          <div className="sidebar-logo-title">GreenGate</div>
+          <div className="sidebar-logo-title">NexGate</div>
           <div className="sidebar-logo-sub">ADMIN PORTAL</div>
         </div>
       </div>
@@ -65,9 +65,9 @@ export function AdminSidebar() {
           <div
             className="sidebar-society-name"
             style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-            title={societyInfo.name || 'GreenGate Residency'}
+            title={societyInfo.name || 'Eco Residency Co-operative Housing Society Ltd'}
           >
-            {societyInfo.name || 'GreenGate Residency'}
+            {societyInfo.name || 'Eco Residency Co-operative Housing Society Ltd'}
           </div>
           <div
             className="sidebar-society-meta"

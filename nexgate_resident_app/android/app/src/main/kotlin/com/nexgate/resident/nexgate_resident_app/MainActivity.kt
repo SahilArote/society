@@ -28,6 +28,26 @@ class MainActivity : FlutterActivity() {
                 } else {
                     result.error("INVALID_PHONE", "Phone number is null or empty", null)
                 }
+            } else if (call.method == "getAppVersion") {
+                try {
+                    val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                    val versionName = pInfo.versionName ?: "1.1.0"
+                    val versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                        pInfo.longVersionCode
+                    } else {
+                        @Suppress("DEPRECATION")
+                        pInfo.versionCode.toLong()
+                    }
+                    val data = HashMap<String, Any>()
+                    data["version"] = versionName
+                    data["buildNumber"] = versionCode.toString()
+                    result.success(data)
+                } catch (e: Exception) {
+                    val fallback = HashMap<String, Any>()
+                    fallback["version"] = "1.1.0"
+                    fallback["buildNumber"] = "2"
+                    result.success(fallback)
+                }
             } else {
                 result.notImplemented()
             }

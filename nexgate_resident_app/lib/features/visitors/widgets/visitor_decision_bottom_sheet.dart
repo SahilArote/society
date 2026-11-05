@@ -30,7 +30,7 @@ class VisitorDecisionBottomSheet extends StatefulWidget {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Visitor Alert',
-      barrierColor: Colors.black.withOpacity(0.45),
+      barrierColor: Colors.black.withValues(alpha: 0.45),
       transitionDuration: const Duration(milliseconds: 320),
       transitionBuilder: (context, anim1, anim2, child) {
         final curve = CurvedAnimation(parent: anim1, curve: Curves.easeOutBack);
@@ -184,7 +184,7 @@ class _VisitorDecisionBottomSheetState extends State<VisitorDecisionBottomSheet>
                       width: 38,
                       height: 38,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.24),
+                        color: Colors.white.withValues(alpha: 0.24),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -219,12 +219,12 @@ class _VisitorDecisionBottomSheetState extends State<VisitorDecisionBottomSheet>
                                 borderRadius: BorderRadius.circular(28),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.12),
+                                    color: Colors.black.withValues(alpha: 0.12),
                                     blurRadius: 28,
                                     offset: const Offset(0, 14),
                                   ),
                                   BoxShadow(
-                                    color: const Color(0xFFFF5252).withOpacity(0.14),
+                                    color: const Color(0xFFFF5252).withValues(alpha: 0.14),
                                     blurRadius: 36,
                                     offset: const Offset(0, 18),
                                   ),
@@ -278,7 +278,7 @@ class _VisitorDecisionBottomSheetState extends State<VisitorDecisionBottomSheet>
                                             ),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: Colors.black.withOpacity(0.08),
+                                                color: Colors.black.withValues(alpha: 0.08),
                                                 blurRadius: 10,
                                                 offset: const Offset(0, 3),
                                               ),
@@ -346,11 +346,11 @@ class _VisitorDecisionBottomSheetState extends State<VisitorDecisionBottomSheet>
                                                   shape: BoxShape.circle,
                                                   border: Border.all(
                                                     color: const Color(0xFFB7EB8F)
-                                                        .withOpacity(0.8),
+                                                        .withValues(alpha: 0.8),
                                                   ),
                                                   boxShadow: [
                                                     BoxShadow(
-                                                      color: const Color(0xFF52C41A).withOpacity(0.20),
+                                                      color: const Color(0xFF52C41A).withValues(alpha: 0.20),
                                                       blurRadius: 8,
                                                       offset: const Offset(0, 2),
                                                     ),
@@ -399,7 +399,7 @@ class _VisitorDecisionBottomSheetState extends State<VisitorDecisionBottomSheet>
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.08),
+                                      color: Colors.black.withValues(alpha: 0.08),
                                       blurRadius: 16,
                                       offset: const Offset(0, 6),
                                     ),
@@ -428,7 +428,7 @@ class _VisitorDecisionBottomSheetState extends State<VisitorDecisionBottomSheet>
                                         child: Icon(
                                           Icons.star_rounded,
                                           size: 8,
-                                          color: Colors.white.withOpacity(0.85),
+                                          color: Colors.white.withValues(alpha: 0.85),
                                         ),
                                       ),
                                       // Bottom Right Sparkle
@@ -438,7 +438,7 @@ class _VisitorDecisionBottomSheetState extends State<VisitorDecisionBottomSheet>
                                         child: Icon(
                                           Icons.star_rounded,
                                           size: 9,
-                                          color: Colors.white.withOpacity(0.85),
+                                          color: Colors.white.withValues(alpha: 0.85),
                                         ),
                                       ),
                                       // Person Icon
@@ -474,17 +474,17 @@ class _VisitorDecisionBottomSheetState extends State<VisitorDecisionBottomSheet>
                                       color: Colors.white,
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: const Color(0xFFFF4D4F).withOpacity(0.35),
+                                        color: const Color(0xFFFF4D4F).withValues(alpha: 0.35),
                                         width: 2,
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.12),
+                                          color: Colors.black.withValues(alpha: 0.12),
                                           blurRadius: 18,
                                           offset: const Offset(0, 8),
                                         ),
                                         BoxShadow(
-                                          color: const Color(0xFFFF4D4F).withOpacity(0.20),
+                                          color: const Color(0xFFFF4D4F).withValues(alpha: 0.20),
                                           blurRadius: 14,
                                           offset: const Offset(0, 4),
                                         ),
@@ -552,17 +552,17 @@ class _VisitorDecisionBottomSheetState extends State<VisitorDecisionBottomSheet>
                                       ),
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: Colors.white.withOpacity(0.35),
+                                        color: Colors.white.withValues(alpha: 0.35),
                                         width: 2,
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: const Color(0xFF52C41A).withOpacity(0.45),
+                                          color: const Color(0xFF52C41A).withValues(alpha: 0.45),
                                           blurRadius: 20,
                                           offset: const Offset(0, 8),
                                         ),
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.12),
+                                          color: Colors.black.withValues(alpha: 0.12),
                                           blurRadius: 16,
                                           offset: const Offset(0, 6),
                                         ),

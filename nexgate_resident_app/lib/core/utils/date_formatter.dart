@@ -6,6 +6,7 @@ class DateFormatter {
 
   static final DateFormat _timeFormat = DateFormat('hh:mm a');
   static final DateFormat _dateFormat = DateFormat('dd MMM yyyy');
+  static final DateFormat _shortDateFormat = DateFormat('dd MMM');
   static final DateFormat _dateTimeFormat = DateFormat('dd MMM, hh:mm a');
 
   static String formatTime(DateTime? date) {
@@ -16,6 +17,11 @@ class DateFormatter {
   static String formatDate(DateTime? date) {
     if (date == null) return '';
     return _dateFormat.format(date.toLocal());
+  }
+
+  static String formatShortDate(DateTime? date) {
+    if (date == null) return '';
+    return _shortDateFormat.format(date.toLocal());
   }
 
   static String formatDateTime(DateTime? date) {

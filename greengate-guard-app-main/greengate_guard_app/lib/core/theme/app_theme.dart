@@ -90,12 +90,12 @@ class AppTheme {
           color: AppColors.textPrimary,
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppColors.surface,
         elevation: 0,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: AppDimensions.roundedLg,
-          side: const BorderSide(color: AppColors.border, width: 1.5),
+          side: BorderSide(color: AppColors.border, width: 1.5),
         ),
         margin: EdgeInsets.zero,
       ),
@@ -112,21 +112,21 @@ class AppTheme {
             color: AppColors.textSecondary,
             fontSize: 15,
             fontWeight: FontWeight.w600),
-        border: OutlineInputBorder(
+        border: const OutlineInputBorder(
           borderRadius: AppDimensions.roundedMd,
-          borderSide: const BorderSide(color: AppColors.border, width: 1.5),
+          borderside: BorderSide(color: AppColors.border, width: 1.5),
         ),
-        enabledBorder: OutlineInputBorder(
+        enabledborder: const OutlineInputBorder(
           borderRadius: AppDimensions.roundedMd,
-          borderSide: const BorderSide(color: AppColors.border, width: 1.5),
+          borderside: BorderSide(color: AppColors.border, width: 1.5),
         ),
-        focusedBorder: OutlineInputBorder(
+        focusedborder: const OutlineInputBorder(
           borderRadius: AppDimensions.roundedMd,
-          borderSide: const BorderSide(color: AppColors.primary, width: 2.0),
+          borderside: BorderSide(color: AppColors.primary, width: 2.0),
         ),
-        errorBorder: OutlineInputBorder(
+        errorborder: const OutlineInputBorder(
           borderRadius: AppDimensions.roundedMd,
-          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+          borderside: BorderSide(color: AppColors.error, width: 1.5),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -149,7 +149,7 @@ class AppTheme {
           foregroundColor: AppColors.textPrimary,
           minimumSize:
               const Size.fromHeight(AppDimensions.buttonHeightSecondary),
-          side: const BorderSide(color: AppColors.border, width: 1.5),
+          side: BorderSide(color: AppColors.border, width: 1.5),
           shape: const RoundedRectangleBorder(
             borderRadius: AppDimensions.roundedMd,
           ),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:package_info_plus/package_info_plus.dart';
+import '../../services/app_info_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_typography.dart';
@@ -82,7 +82,7 @@ class ProfileScreen extends StatelessWidget {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to delete account: ' + e.toString().replaceAll('Exception: ', '')),
+            content: Text('Failed to delete account: ${e.toString().replaceAll('Exception: ', '')}'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -98,7 +98,7 @@ class ProfileScreen extends StatelessWidget {
     final flat = user?.flatNumber ?? 'Unit';
     final wing = user?.wing ?? '';
     final mobile = user?.mobile ?? '';
-    final society = user?.societyName ?? 'Green Gate Residency';
+    final society = user?.societyName ?? 'Eco Residency Co-operative Housing Society Ltd';
 
     return Scaffold(
       backgroundColor: AppColors.mainBackground,
@@ -237,12 +237,12 @@ class ProfileScreen extends StatelessWidget {
               Text('SYSTEM', style: AppTypography.sectionHeader),
               const SizedBox(height: 8),
               _buildSettingsGroup([
-                FutureBuilder<PackageInfo>(
-                  future: PackageInfo.fromPlatform(),
+                FutureBuilder<String>(
+                  future: AppInfoService.getAppVersionString(),
                   builder: (context, snapshot) {
-                    final versionText = snapshot.hasData
-                        ? 'Version ' + snapshot.data!.version + ' (Build ' + snapshot.data!.buildNumber + ')'
-                        : 'Version 1.0.0';
+                    final versionText = snapshot.data ?? 'v1.1.0 (Build 2)';
+
+
                     return _SettingsTile(
                       icon: Icons.info_outline_rounded,
                       iconColor: AppColors.secondaryText,

@@ -77,7 +77,7 @@ export default function AdminLogin() {
               fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700,
               color: 'var(--text-primary)', lineHeight: 1.2, marginBottom: 4,
             }}>
-              GreenGate Admin
+              NexGate Admin
             </h1>
             <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Enterprise Society Management Portal</p>
           </div>
@@ -173,7 +173,7 @@ export default function AdminLogin() {
           background: 'var(--bg-elevated)',
         }}>
           <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            🔒 GreenGate Admin Panel · Secure Access Only
+            🔒 NexGate Admin Panel · Secure Access Only
           </p>
         </div>
       </motion.div>

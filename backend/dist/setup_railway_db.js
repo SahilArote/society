@@ -170,7 +170,7 @@ async function migrateAndSeedClean() {
     const adminPasswordHash = bcryptjs_1.default.hashSync('admin123', 10);
     const guardPinHash = bcryptjs_1.default.hashSync('1234', 10);
     // Society
-    await pool.query('INSERT INTO societies (id, name, address, status) VALUES (?, ?, ?, ?)', ['soc_greengate', 'Green Gate Residency', 'Plot 42, Main Road', 'ACTIVE']);
+    await pool.query('INSERT INTO societies (id, name, address, status) VALUES (?, ?, ?, ?)', ['soc_greengate', 'Eco Residency Co-operative Housing Society Ltd', 'Plot 42, Main Road', 'ACTIVE']);
     // Main Gate
     await pool.query('INSERT INTO gates (id, society_id, name, location, status) VALUES (?, ?, ?, ?, ?)', ['gate_main', 'soc_greengate', 'Main Gate', 'Main Entrance', 'OPERATIONAL']);
     // 1. Admin User: admin@greengate.in / admin123

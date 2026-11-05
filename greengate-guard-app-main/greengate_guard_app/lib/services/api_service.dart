@@ -35,7 +35,7 @@ class ApiService {
   static String get authToken => _authToken ?? '';
 
   static void _handle401() {
-    print(
+    debugPrint(
         '[ApiService] 401 Unauthorized received. Evicting session and logging out.');
     _authToken = null;
     onUnauthorized?.call();
@@ -75,14 +75,14 @@ class ApiService {
           return json;
         }
       } else {
-        print('Guard Login Failed [${response.statusCode}]: ${response.body}');
+        debugPrint('Guard Login Failed [${response.statusCode}]: ${response.body}');
       }
     } on TimeoutException {
-      print('[ApiService] Login request timed out after 15 seconds.');
+      debugPrint('[ApiService] Login request timed out after 15 seconds.');
       throw Exception(
           'Connection timed out. Please check your internet connection.');
     } catch (e) {
-      print('Exception during guard login: $e');
+      debugPrint('Exception during guard login: $e');
       rethrow;
     }
     return null;
@@ -106,13 +106,13 @@ class ApiService {
         final json = jsonDecode(response.body);
         return json['data'];
       } else {
-        print(
+        debugPrint(
             'Error fetching directory [${response.statusCode}]: ${response.body}');
       }
     } on TimeoutException {
-      print('[ApiService] Fetch directory timed out after 15 seconds.');
+      debugPrint('[ApiService] Fetch directory timed out after 15 seconds.');
     } catch (e) {
-      print('Error fetching directory: $e');
+      debugPrint('Error fetching directory: $e');
     }
     return null;
   }
@@ -221,7 +221,7 @@ class ApiService {
         final json = jsonDecode(response.body);
         return json['data'];
       } else {
-        print('API Error [${response.statusCode}]: ${response.body}');
+        debugPrint('API Error [${response.statusCode}]: ${response.body}');
         try {
           final json = jsonDecode(response.body);
           if (json is Map<String, dynamic> && json['error'] != null) {
@@ -247,10 +247,10 @@ class ApiService {
             'Failed to submit visitor request [HTTP ${response.statusCode}].');
       }
     } on TimeoutException {
-      print('[ApiService] Submit visitor request timed out after 15 seconds.');
+      debugPrint('[ApiService] Submit visitor request timed out after 15 seconds.');
       throw Exception('Request timed out after 15 seconds. Please try again.');
     } catch (e) {
-      print('Network/API exception during visitor submission: $e');
+      debugPrint('Network/API exception during visitor submission: $e');
       rethrow;
     }
   }
@@ -274,9 +274,9 @@ class ApiService {
         return json['data'];
       }
     } on TimeoutException {
-      print('[ApiService] Fetch visitor requests timed out after 15 seconds.');
+      debugPrint('[ApiService] Fetch visitor requests timed out after 15 seconds.');
     } catch (e) {
-      print('Error fetching requests: $e');
+      debugPrint('Error fetching requests: $e');
     }
     return null;
   }

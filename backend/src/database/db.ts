@@ -268,6 +268,21 @@ export async function findSocietyById(societyId: string): Promise<SocietyRow | n
   };
 }
 
+export async function getDefaultSociety(): Promise<SocietyRow | null> {
+  const pool = await getMysqlPool();
+  if (!pool) return null;
+  const [rows]: any = await pool.query('SELECT * FROM societies ORDER BY created_at ASC LIMIT 1');
+  if (!rows[0]) return null;
+  const r = rows[0];
+  return {
+    id: r.id,
+    name: r.name,
+    address: r.address,
+    status: r.status,
+    createdAt: r.created_at,
+  };
+}
+
 export async function updateSociety(societyId: string, data: { name?: string; address?: string }): Promise<SocietyRow | null> {
   const pool = await getMysqlPool();
   if (!pool) return null;

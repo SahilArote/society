@@ -1,6 +1,4 @@
 import '../../core/widgets/visitor_photo_avatar.dart';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
@@ -14,7 +12,6 @@ import '../visitor_entry/waiting_approval_screen.dart';
 import '../visitor_entry/entry_approved_screen.dart';
 import '../visitor_entry/entry_rejected_screen.dart';
 import 'widgets/verify_pass_dialog.dart';
-import '../../services/api_service.dart';
 
 class DashboardScreen extends StatelessWidget {
   final GuardRepository guardRepo;
@@ -79,7 +76,7 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final guard = guardRepo.currentGuard;
     final guardName = guard?.name ?? 'Ramesh Singh';
-    final societyName = guard?.societyName ?? 'NexGate Residency';
+    final societyName = guard?.societyName ?? 'Eco Residency Co-operative Housing Society Ltd';
     final gateName = guard?.assignedGate ?? 'Main Gate';
 
     return Scaffold(
@@ -243,7 +240,7 @@ class DashboardScreen extends StatelessWidget {
                                 boxShadow: [
                                   BoxShadow(
                                     color: const Color(0xFF4F46E5)
-                                        .withOpacity(0.32),
+                                        .withValues(alpha: 0.32),
                                     blurRadius: 14,
                                     offset: const Offset(0, 4),
                                   ),
@@ -255,7 +252,7 @@ class DashboardScreen extends StatelessWidget {
                                     width: 42,
                                     height: 42,
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.18),
+                                      color: Colors.white.withValues(alpha: 0.18),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: const Icon(

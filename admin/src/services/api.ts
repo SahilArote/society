@@ -479,7 +479,7 @@ export async function fetchAdminSettings() {
   } catch (_) {}
 
   return {
-    name: 'GreenGate Residency',
+    name: 'Eco Residency Co-operative Housing Society Ltd',
     address: 'Main Gate Boulevard, Tower A-D',
     city: 'Mumbai, MH',
     totalFlats: 120,
