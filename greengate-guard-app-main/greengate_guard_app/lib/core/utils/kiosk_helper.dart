@@ -2,7 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class KioskHelper {
-  static const MethodChannel _channel = MethodChannel('com.nexbuild.nexguard/kiosk');
+  static const MethodChannel _channel =
+      MethodChannel('com.nexbuild.nexguard/kiosk');
 
   /// Starts Android Lock Task mode (Kiosk pinning)
   static Future<bool> startLockTask() async {
@@ -11,7 +12,8 @@ class KioskHelper {
       final bool? result = await _channel.invokeMethod<bool>('startLockTask');
       return result ?? false;
     } catch (e) {
-      debugPrint('KioskHelper: Lock task start not available on this platform ($e)');
+      debugPrint(
+          'KioskHelper: Lock task start not available on this platform ($e)');
       return false;
     }
   }

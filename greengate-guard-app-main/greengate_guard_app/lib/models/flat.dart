@@ -13,5 +13,6 @@ class Flat {
     required this.residents,
   });
 
-  Resident? get primaryResident => residents.isNotEmpty ? residents.first : null;
+  Resident? get primaryResident =>
+      residents.isNotEmpty ? residents.first : null;
 }

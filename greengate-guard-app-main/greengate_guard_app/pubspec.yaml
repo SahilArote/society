@@ -35,13 +35,14 @@ dependencies:
   intl: any
   shared_preferences: any
   image_picker: any
-  camera: any
-  google_fonts: ^6.2.1
+  camera: 0.10.5+9
+  google_fonts: 6.1.0
   flutter_svg: any
   http: any
   http_parser: any
-  flutter_secure_storage: ^11.2.0
-  flutter_plugin_android_lifecycle: ^2.0.24
+  flutter_secure_storage: 9.2.4
+  mobile_scanner: 3.5.6
+
 
 dev_dependencies:
   flutter_test:
@@ -96,6 +97,6 @@ flutter:
   # see https://flutter.dev/to/font-from-package
 
 
-dependency_overrides:
-  camera_android: ^0.10.10+5
-  flutter_plugin_android_lifecycle: ^2.0.24
+
+
+

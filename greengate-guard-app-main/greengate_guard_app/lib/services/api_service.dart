@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
@@ -34,7 +35,8 @@ class ApiService {
   static String get authToken => _authToken ?? '';
 
   static void _handle401() {
-    print('[ApiService] 401 Unauthorized received. Evicting session and logging out.');
+    print(
+        '[ApiService] 401 Unauthorized received. Evicting session and logging out.');
     _authToken = null;
     onUnauthorized?.call();
   }
@@ -52,16 +54,18 @@ class ApiService {
     required String pin,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/guard/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'guardIdOrMobile': guardIdOrPhone.trim(),
-          'guardId': guardIdOrPhone.trim(),
-          'mobile': guardIdOrPhone.trim(),
-          'pin': pin.trim(),
-        }),
-      ).timeout(timeoutDuration);
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/auth/guard/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'guardIdOrMobile': guardIdOrPhone.trim(),
+              'guardId': guardIdOrPhone.trim(),
+              'mobile': guardIdOrPhone.trim(),
+              'pin': pin.trim(),
+            }),
+          )
+          .timeout(timeoutDuration);
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
@@ -75,7 +79,8 @@ class ApiService {
       }
     } on TimeoutException {
       print('[ApiService] Login request timed out after 15 seconds.');
-      throw Exception('Connection timed out. Please check your internet connection.');
+      throw Exception(
+          'Connection timed out. Please check your internet connection.');
     } catch (e) {
       print('Exception during guard login: $e');
       rethrow;
@@ -101,7 +106,8 @@ class ApiService {
         final json = jsonDecode(response.body);
         return json['data'];
       } else {
-        print('Error fetching directory [${response.statusCode}]: ${response.body}');
+        print(
+            'Error fetching directory [${response.statusCode}]: ${response.body}');
       }
     } on TimeoutException {
       print('[ApiService] Fetch directory timed out after 15 seconds.');
@@ -150,34 +156,61 @@ class ApiService {
       }
 
       if (photoPath != null && photoPath.isNotEmpty) {
-        final file = File(photoPath);
-        if (await file.exists()) {
-          final ext = photoPath.split('.').last.toLowerCase();
-          final String subType;
-          if (ext == 'png') {
-            subType = 'png';
-          } else if (ext == 'webp') {
-            subType = 'webp';
-          } else if (ext == 'heic') {
-            subType = 'heic';
-          } else if (ext == 'heif') {
-            subType = 'heif';
-          } else {
-            subType = 'jpeg';
+        if (photoPath.startsWith('assets/')) {
+          try {
+            final byteData = await rootBundle.load(photoPath);
+            final bytes = byteData.buffer.asUint8List();
+            request.files.add(
+              http.MultipartFile.fromBytes(
+                'photo',
+                bytes,
+                filename: 'visitor_portrait.png',
+                contentType: MediaType('image', 'png'),
+              ),
+            );
+            debugPrint(
+                '[ApiService] Attached bundled asset photo: $photoPath (${bytes.length} bytes)');
+          } catch (e) {
+            debugPrint('[ApiService] Failed to load asset photo bytes: $e');
           }
+        } else {
+          final file = File(photoPath);
+          if (await file.exists()) {
+            final ext = photoPath.split('.').last.toLowerCase();
+            final String subType;
+            if (ext == 'png') {
+              subType = 'png';
+            } else if (ext == 'webp') {
+              subType = 'webp';
+            } else if (ext == 'heic') {
+              subType = 'heic';
+            } else if (ext == 'heif') {
+              subType = 'heif';
+            } else {
+              subType = 'jpeg';
+            }
 
-          request.files.add(
-            await http.MultipartFile.fromPath(
-              'photo',
-              photoPath,
-              contentType: MediaType('image', subType),
-            ),
-          );
+            final fileSize = await file.length();
+            debugPrint(
+                '[ApiService] Attaching camera photo: $photoPath ($fileSize bytes, ext: $ext)');
+
+            request.files.add(
+              await http.MultipartFile.fromPath(
+                'photo',
+                photoPath,
+                contentType: MediaType('image', subType),
+              ),
+            );
+          } else {
+            debugPrint(
+                '[ApiService] Warning: photoPath file does not exist on disk: $photoPath');
+          }
         }
       }
 
       final streamedResponse = await request.send().timeout(timeoutDuration);
-      final response = await http.Response.fromStream(streamedResponse).timeout(timeoutDuration);
+      final response = await http.Response.fromStream(streamedResponse)
+          .timeout(timeoutDuration);
 
       if (response.statusCode == 401) {
         _handle401();
@@ -202,13 +235,16 @@ class ApiService {
         } catch (_) {}
 
         if (response.statusCode == 404) {
-          throw Exception('Backend API endpoint not found [HTTP 404]. Please verify backend server.');
+          throw Exception(
+              'Backend API endpoint not found [HTTP 404]. Please verify backend server.');
         } else if (response.statusCode == 413) {
           throw Exception('Photo exceeds the maximum allowed size of 10MB.');
         } else if (response.statusCode >= 500) {
-          throw Exception('Backend server error [HTTP ${response.statusCode}]. Please try again.');
+          throw Exception(
+              'Backend server error [HTTP ${response.statusCode}]. Please try again.');
         }
-        throw Exception('Failed to submit visitor request [HTTP ${response.statusCode}].');
+        throw Exception(
+            'Failed to submit visitor request [HTTP ${response.statusCode}].');
       }
     } on TimeoutException {
       print('[ApiService] Submit visitor request timed out after 15 seconds.');
@@ -264,10 +300,14 @@ class ApiService {
         .timeout(timeoutDuration);
 
     final data = jsonDecode(response.body);
-    if (response.statusCode >= 200 && response.statusCode < 300 && data['success'] == true) {
+    if (response.statusCode >= 200 &&
+        response.statusCode < 300 &&
+        data['success'] == true) {
       return data;
     } else {
-      final msg = data['error']?['message'] ?? data['message'] ?? 'Failed to verify pass';
+      final msg = data['error']?['message'] ??
+          data['message'] ??
+          'Failed to verify pass';
       throw Exception(msg);
     }
   }

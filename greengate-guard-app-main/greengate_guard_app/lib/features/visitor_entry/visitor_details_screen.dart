@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/widgets/custom_button.dart';
+import '../../core/widgets/visitor_photo_avatar.dart';
 import '../../models/visitor.dart';
 import '../../repositories/visitor_repository.dart';
 import '../../repositories/guard_repository.dart';
@@ -145,7 +146,8 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
       if (flats.isNotEmpty) {
         _updateFlatSelection(flats.first.flatNumber);
       } else {
-        setState(() => _validationError = 'Please select a valid destination flat');
+        setState(
+            () => _validationError = 'Please select a valid destination flat');
         return;
       }
     }
@@ -158,10 +160,13 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
     try {
       final request = await widget.visitorRepo.createVisitorRequest(
         name: name,
-        phoneNumber: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
+        phoneNumber: _phoneController.text.trim().isNotEmpty
+            ? _phoneController.text.trim()
+            : null,
         photoPath: widget.photoPath,
         type: _selectedType,
-        deliveryCompany: _selectedType == VisitorType.delivery ? _selectedCompany : null,
+        deliveryCompany:
+            _selectedType == VisitorType.delivery ? _selectedCompany : null,
         buildingWing: _selectedWing,
         flatNumber: _selectedFlat,
         residentName: _selectedResidentName,
@@ -194,10 +199,10 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
-    final flatsInCurrentWing = widget.visitorRepo.wingFlats[_selectedWing] ?? [];
+    final flatsInCurrentWing =
+        widget.visitorRepo.wingFlats[_selectedWing] ?? [];
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final isKeyboardOpen = bottomInset > 0;
 
@@ -217,189 +222,94 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
         child: SafeArea(
           child: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics()),
             padding: EdgeInsets.fromLTRB(16, 12, 16, isKeyboardOpen ? 180 : 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-              // Photo Thumbnail Header Card
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: AppDimensions.roundedLg,
-                  border: Border.all(color: AppColors.border, width: 1.5),
-                  boxShadow: AppDimensions.cardShadow,
-                ),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: AppDimensions.roundedMd,
-                      child: Container(
-                        width: 72,
-                        height: 72,
-                        color: AppColors.surfaceLow,
-                        child: _buildPhotoThumbnail(),
+                // Photo Thumbnail Header Card
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: AppDimensions.roundedLg,
+                    border: Border.all(color: AppColors.border, width: 1.5),
+                    boxShadow: AppDimensions.cardShadow,
+                  ),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: AppDimensions.roundedMd,
+                        child: Container(
+                          width: 72,
+                          height: 72,
+                          color: AppColors.surfaceLow,
+                          child: _buildPhotoThumbnail(),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.check_circle, size: 18, color: AppColors.success),
-                              SizedBox(width: 6),
-                              Text(
-                                'VISITOR PHOTO CONFIRMED',
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.check_circle,
+                                    size: 18, color: AppColors.success),
+                                SizedBox(width: 6),
+                                Text(
+                                  'VISITOR PHOTO CONFIRMED',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.successText,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            TextButton.icon(
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              icon: const Icon(Icons.replay,
+                                  size: 16, color: AppColors.primary),
+                              label: const Text(
+                                'Retake Photo',
                                 style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.successText,
-                                  letterSpacing: 0.3,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          TextButton.icon(
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              onPressed: () => Navigator.of(context).pop(),
                             ),
-                            icon: const Icon(Icons.replay, size: 16, color: AppColors.primary),
-                            label: const Text(
-                              'Retake Photo',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            onPressed: () => Navigator.of(context).pop(),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              // Form: Visitor Information
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: AppDimensions.roundedLg,
-                  border: Border.all(color: AppColors.border, width: 1.5),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'VISITOR NAME & MOBILE',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Name
-                    TextField(
-                      controller: _nameController,
-                      textInputAction: TextInputAction.next,
-                      scrollPadding: const EdgeInsets.only(bottom: 140),
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                      decoration: const InputDecoration(
-                        labelText: 'Visitor Full Name *',
-                        prefixIcon: Icon(Icons.person, size: 24, color: AppColors.primary),
-                        hintText: 'Enter full name',
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    // Mobile
-                    TextField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      textInputAction: TextInputAction.done,
-                      scrollPadding: const EdgeInsets.only(bottom: 140),
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                      decoration: const InputDecoration(
-                        labelText: 'Mobile Number (Optional)',
-                        prefixIcon: Icon(Icons.phone, size: 24, color: AppColors.primary),
-                        hintText: 'Enter phone number',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Form: Visitor Type (Large selectable chips)
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: AppDimensions.roundedLg,
-                  border: Border.all(color: AppColors.border, width: 1.5),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'VISITOR TYPE',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: VisitorType.values.map((type) {
-                        final isSelected = _selectedType == type;
-                        return ChoiceChip(
-                          label: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                            child: Text(type.displayName),
-                          ),
-                          selected: isSelected,
-                          onSelected: (val) {
-                            if (val) setState(() => _selectedType = type);
-                          },
-                          selectedColor: AppColors.primary,
-                          labelStyle: TextStyle(
-                            color: isSelected ? Colors.white : AppColors.textPrimary,
-                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                            fontSize: 15,
-                          ),
-                          backgroundColor: AppColors.surfaceLow,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: AppDimensions.roundedMd,
-                            side: BorderSide(
-                              color: isSelected ? AppColors.primaryDark : AppColors.border,
-                              width: 1.5,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-
-                    // Delivery Company Options (when Delivery selected)
-                    if (_selectedType == VisitorType.delivery) ...[
-                      const SizedBox(height: 18),
+                // Form: Visitor Information
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: AppDimensions.roundedLg,
+                    border: Border.all(color: AppColors.border, width: 1.5),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       const Text(
-                        'DELIVERY COMPANY',
+                        'VISITOR NAME & MOBILE',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
@@ -407,270 +317,421 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
                           letterSpacing: 0.5,
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
+                      // Name
+                      TextField(
+                        controller: _nameController,
+                        textInputAction: TextInputAction.next,
+                        scrollPadding: const EdgeInsets.only(bottom: 140),
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700),
+                        decoration: const InputDecoration(
+                          labelText: 'Visitor Full Name *',
+                          prefixIcon: Icon(Icons.person,
+                              size: 24, color: AppColors.primary),
+                          hintText: 'Enter full name',
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      // Mobile
+                      TextField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        textInputAction: TextInputAction.done,
+                        scrollPadding: const EdgeInsets.only(bottom: 140),
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700),
+                        decoration: const InputDecoration(
+                          labelText: 'Mobile Number (Optional)',
+                          prefixIcon: Icon(Icons.phone,
+                              size: 24, color: AppColors.primary),
+                          hintText: 'Enter phone number',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Form: Visitor Type (Large selectable chips)
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: AppDimensions.roundedLg,
+                    border: Border.all(color: AppColors.border, width: 1.5),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'VISITOR TYPE',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _deliveryCompanies.map((company) {
-                          final isSelected = _selectedCompany == company;
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: VisitorType.values.map((type) {
+                          final isSelected = _selectedType == type;
                           return ChoiceChip(
-                            label: Text(company),
+                            label: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 4),
+                              child: Text(type.displayName),
+                            ),
                             selected: isSelected,
                             onSelected: (val) {
-                              if (val) setState(() => _selectedCompany = company);
+                              if (val) setState(() => _selectedType = type);
                             },
-                            selectedColor: AppColors.primaryLight,
+                            selectedColor: AppColors.primary,
                             labelStyle: TextStyle(
-                              color: isSelected ? AppColors.primary : AppColors.textPrimary,
-                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                              fontSize: 14,
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.textPrimary,
+                              fontWeight: isSelected
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
+                              fontSize: 15,
                             ),
                             backgroundColor: AppColors.surfaceLow,
                             shape: RoundedRectangleBorder(
                               borderRadius: AppDimensions.roundedMd,
                               side: BorderSide(
-                                color: isSelected ? AppColors.primary : AppColors.border,
+                                color: isSelected
+                                    ? AppColors.primaryDark
+                                    : AppColors.border,
                                 width: 1.5,
                               ),
                             ),
                           );
                         }).toList(),
                       ),
-                    ],
-                  ],
-                ),
-              ),
 
-              const SizedBox(height: 16),
-
-              // Form: Building/Wing & Flat & Resident
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: AppDimensions.roundedLg,
-                  border: Border.all(color: AppColors.border, width: 1.5),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'DESTINATION RESIDENCE',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Select Wing (Large touch-friendly buttons)
-                    const Text(
-                      'Select Building / Wing',
-                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 8),
-                    if (widget.visitorRepo.wings.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceLow,
-                          borderRadius: AppDimensions.roundedMd,
-                          border: Border.all(color: AppColors.border),
+                      // Delivery Company Options (when Delivery selected)
+                      if (_selectedType == VisitorType.delivery) ...[
+                        const SizedBox(height: 18),
+                        const Text(
+                          'DELIVERY COMPANY',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                            letterSpacing: 0.5,
+                          ),
                         ),
-                        child: Row(
-                          children: [
-                            if (_isLoadingDirectory)
-                              const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                            else
-                              const Icon(Icons.info_outline, size: 18, color: AppColors.textSecondary),
-                            const SizedBox(width: 10),
-                            const Expanded(
-                              child: Text(
-                                'Loading flats from database...',
-                                style: TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _deliveryCompanies.map((company) {
+                            final isSelected = _selectedCompany == company;
+                            return ChoiceChip(
+                              label: Text(company),
+                              selected: isSelected,
+                              onSelected: (val) {
+                                if (val)
+                                  setState(() => _selectedCompany = company);
+                              },
+                              selectedColor: AppColors.primaryLight,
+                              labelStyle: TextStyle(
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.textPrimary,
+                                fontWeight: isSelected
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
+                                fontSize: 14,
                               ),
-                            ),
-                            TextButton(
-                              onPressed: _loadDirectory,
-                              child: const Text('Refresh', style: TextStyle(fontWeight: FontWeight.w800)),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      Row(
-                        children: widget.visitorRepo.wings.map((wing) {
-                          final isSelected = _selectedWing == wing;
-                          return Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                              child: SizedBox(
-                                height: 52, // 52px button height
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: isSelected ? AppColors.primary : AppColors.surfaceLow,
-                                    foregroundColor: isSelected ? Colors.white : AppColors.textPrimary,
-                                    elevation: isSelected ? 2 : 0,
-                                    side: BorderSide(
-                                      color: isSelected ? AppColors.primaryDark : AppColors.border,
-                                      width: 1.5,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: AppDimensions.roundedMd,
-                                    ),
-                                    padding: EdgeInsets.zero,
-                                  ),
-                                  onPressed: () => _onWingChanged(wing),
-                                  child: Text(
-                                    wing.replaceFirst('Tower ', 'Wing '),
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800,
-                                      color: isSelected ? Colors.white : AppColors.textPrimary,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-
-                    const SizedBox(height: 16),
-
-                    // Select Flat Number
-                    const Text(
-                      'Select Flat Number',
-                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      height: 56,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceLow,
-                        borderRadius: AppDimensions.roundedMd,
-                        border: Border.all(color: AppColors.border, width: 1.5),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: flatsInCurrentWing.any((f) => f.flatNumber == _selectedFlat)
-                              ? _selectedFlat
-                              : (flatsInCurrentWing.isNotEmpty ? flatsInCurrentWing.first.flatNumber : null),
-                          isExpanded: true,
-                          hint: const Text('Loading flats from database...', style: TextStyle(fontSize: 15, color: AppColors.textSecondary)),
-                          icon: const Icon(Icons.arrow_drop_down, size: 28, color: AppColors.textPrimary),
-                          items: flatsInCurrentWing.map((flat) {
-                            return DropdownMenuItem<String>(
-                              value: flat.flatNumber,
-                              child: Text(
-                                '${flat.flatNumber}  —  ${flat.primaryResident?.name ?? "Resident"}',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
+                              backgroundColor: AppColors.surfaceLow,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: AppDimensions.roundedMd,
+                                side: BorderSide(
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : AppColors.border,
+                                  width: 1.5,
                                 ),
                               ),
                             );
                           }).toList(),
-                          onChanged: (val) {
-                            if (val != null) _updateFlatSelection(val);
-                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Form: Building/Wing & Flat & Resident
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: AppDimensions.roundedLg,
+                    border: Border.all(color: AppColors.border, width: 1.5),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'DESTINATION RESIDENCE',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                          letterSpacing: 0.5,
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 14),
 
-                    const SizedBox(height: 14),
-
-                    // Resident Summary Pill
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryLight,
-                        borderRadius: AppDimensions.roundedMd,
-                        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                      // Select Wing (Large touch-friendly buttons)
+                      const Text(
+                        'Select Building / Wing',
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w700),
                       ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.person, size: 22, color: AppColors.primary),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Resident: $_selectedResidentName • Flat $_selectedFlat',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.primary,
+                      const SizedBox(height: 8),
+                      if (widget.visitorRepo.wings.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceLow,
+                            borderRadius: AppDimensions.roundedMd,
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Row(
+                            children: [
+                              if (_isLoadingDirectory)
+                                const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                              else
+                                const Icon(Icons.info_outline,
+                                    size: 18, color: AppColors.textSecondary),
+                              const SizedBox(width: 10),
+                              const Expanded(
+                                child: Text(
+                                  'Loading flats from database...',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _loadDirectory,
+                                child: const Text('Refresh',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w800)),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Row(
+                          children: widget.visitorRepo.wings.map((wing) {
+                            final isSelected = _selectedWing == wing;
+                            return Expanded(
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 4),
+                                child: SizedBox(
+                                  height: 52, // 52px button height
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: isSelected
+                                          ? AppColors.primary
+                                          : AppColors.surfaceLow,
+                                      foregroundColor: isSelected
+                                          ? Colors.white
+                                          : AppColors.textPrimary,
+                                      elevation: isSelected ? 2 : 0,
+                                      side: BorderSide(
+                                        color: isSelected
+                                            ? AppColors.primaryDark
+                                            : AppColors.border,
+                                        width: 1.5,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: AppDimensions.roundedMd,
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                    ),
+                                    onPressed: () => _onWingChanged(wing),
+                                    child: Text(
+                                      wing.replaceFirst('Tower ', 'Wing '),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+
+                      const SizedBox(height: 16),
+
+                      // Select Flat Number
+                      const Text(
+                        'Select Flat Number',
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 56,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceLow,
+                          borderRadius: AppDimensions.roundedMd,
+                          border:
+                              Border.all(color: AppColors.border, width: 1.5),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: flatsInCurrentWing
+                                    .any((f) => f.flatNumber == _selectedFlat)
+                                ? _selectedFlat
+                                : (flatsInCurrentWing.isNotEmpty
+                                    ? flatsInCurrentWing.first.flatNumber
+                                    : null),
+                            isExpanded: true,
+                            hint: const Text('Loading flats from database...',
+                                style: TextStyle(
+                                    fontSize: 15,
+                                    color: AppColors.textSecondary)),
+                            icon: const Icon(Icons.arrow_drop_down,
+                                size: 28, color: AppColors.textPrimary),
+                            items: flatsInCurrentWing.map((flat) {
+                              return DropdownMenuItem<String>(
+                                value: flat.flatNumber,
+                                child: Text(
+                                  '${flat.flatNumber}  —  ${flat.primaryResident?.name ?? "Resident"}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) _updateFlatSelection(val);
+                            },
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // Resident Summary Pill
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
+                          borderRadius: AppDimensions.roundedMd,
+                          border: Border.all(
+                              color: AppColors.primary.withOpacity(0.2)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.person,
+                                size: 22, color: AppColors.primary),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Resident: $_selectedResidentName • Flat $_selectedFlat',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.primary,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 14),
+                      const SizedBox(height: 14),
 
-                    // Purpose of Visit
-                    TextField(
-                      controller: _purposeController,
-                      textInputAction: TextInputAction.done,
-                      scrollPadding: const EdgeInsets.only(bottom: 160),
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                      decoration: const InputDecoration(
-                        labelText: 'Purpose of Visit',
-                        prefixIcon: Icon(Icons.description, size: 24, color: AppColors.primary),
-                        hintText: 'e.g. Delivery, Guest',
+                      // Purpose of Visit
+                      TextField(
+                        controller: _purposeController,
+                        textInputAction: TextInputAction.done,
+                        scrollPadding: const EdgeInsets.only(bottom: 160),
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600),
+                        decoration: const InputDecoration(
+                          labelText: 'Purpose of Visit',
+                          prefixIcon: Icon(Icons.description,
+                              size: 24, color: AppColors.primary),
+                          hintText: 'e.g. Delivery, Guest',
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-
-              if (_validationError != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.errorLight,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _validationError!,
-                    style: const TextStyle(
-                      color: AppColors.errorText,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    ],
                   ),
                 ),
+
+                if (_validationError != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.errorLight,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _validationError!,
+                      style: const TextStyle(
+                        color: AppColors.errorText,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 22),
+
+                // SEND REQUEST Button (64px height)
+                CustomButton(
+                  text: 'SEND REQUEST',
+                  icon: Icons.send,
+                  height: 64,
+                  isLoading: _isSending,
+                  onPressed: _sendRequest,
+                ),
+
+                const SizedBox(height: 20),
               ],
-
-              const SizedBox(height: 22),
-
-              // SEND REQUEST Button (64px height)
-              CustomButton(
-                text: 'SEND REQUEST',
-                icon: Icons.send,
-                height: 64,
-                isLoading: _isSending,
-                onPressed: _sendRequest,
-              ),
-
-              const SizedBox(height: 20),
-            ],
+            ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildPhotoThumbnail() {
-    if (widget.photoPath.startsWith('assets/')) {
-      return Image.asset(widget.photoPath, fit: BoxFit.cover);
-    }
-    return Image.file(File(widget.photoPath), fit: BoxFit.cover);
+    return VisitorPhotoAvatar.buildImageWidget(widget.photoPath, size: 72);
   }
 }

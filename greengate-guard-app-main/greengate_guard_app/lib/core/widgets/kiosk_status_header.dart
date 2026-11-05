@@ -68,7 +68,8 @@ class _KioskStatusHeaderState extends State<KioskStatusHeader> {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: AppColors.surfaceLow,
                       borderRadius: BorderRadius.circular(4),
@@ -105,7 +106,8 @@ class _KioskStatusHeaderState extends State<KioskStatusHeader> {
                     ),
                   ),
                   SizedBox(width: 2),
-                  Icon(Icons.battery_charging_full, size: 14, color: AppColors.success),
+                  Icon(Icons.battery_charging_full,
+                      size: 14, color: AppColors.success),
                 ],
               ),
             ],
@@ -128,7 +130,8 @@ class _KioskStatusHeaderState extends State<KioskStatusHeader> {
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.shield, color: Colors.white, size: 16),
+                      child: const Icon(Icons.shield,
+                          color: Colors.white, size: 16),
                     ),
                   ),
                 ),
@@ -152,7 +155,8 @@ class _KioskStatusHeaderState extends State<KioskStatusHeader> {
                           ),
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1),
                             decoration: BoxDecoration(
                               color: AppColors.successLight,
                               borderRadius: BorderRadius.circular(999),

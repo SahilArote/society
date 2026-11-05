@@ -17,7 +17,6 @@ class GuardRepository extends ChangeNotifier {
   bool get isAuthenticated => _isAuthenticated;
   StorageService get storage => _storage;
 
-
   void _loadInitialState() {
     _isAuthenticated = _storage.isLoggedIn();
     _currentGuard = _storage.getGuard() ?? _defaultGuard;
@@ -80,7 +79,6 @@ class GuardRepository extends ChangeNotifier {
     notifyListeners();
     return false;
   }
-
 
   /// Change 4-digit PIN
   Future<bool> changePin(String oldPin, String newPin) async {

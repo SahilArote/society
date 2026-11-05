@@ -17,6 +17,8 @@ class VisitorRepository extends ChangeNotifier {
     _loadRequests();
     fetchDirectoryFromBackend();
     _startStatusPolling();
+    // Immediate initial sync from backend
+    _pollBackendStatus();
   }
 
   void _startStatusPolling() {
@@ -26,35 +28,43 @@ class VisitorRepository extends ChangeNotifier {
     });
   }
 
+  Future<void> fetchRecentRequests() => _pollBackendStatus();
+
   Future<void> _pollBackendStatus() async {
     final apiData = await ApiService.fetchVisitorRequests();
     if (apiData == null || apiData.isEmpty) return;
 
     bool updated = false;
     for (var item in apiData) {
-      final String? id = item['id'];
-      if (id == null) continue;
+      if (item is! Map) continue;
+      final map = Map<String, dynamic>.from(item);
+      final String? id = map['id']?.toString();
+      if (id == null || id.isEmpty) continue;
 
-      final String statusStr = (item['status'] ?? '').toString().toLowerCase();
       final index = _requests.indexWhere((r) => r.id == id);
+      final newStatus = VisitorStatus.fromString(map['status']?.toString());
 
       if (index != -1) {
         final currentReq = _requests[index];
-        VisitorStatus newStatus = currentReq.status;
 
-        if (statusStr == 'approved') {
-          newStatus = VisitorStatus.approved;
-        } else if (statusStr == 'rejected') {
-          newStatus = VisitorStatus.rejected;
-        } else if (statusStr == 'completed' || statusStr == 'entered') {
-          newStatus = VisitorStatus.completed;
-        }
+        final decisionTime = map['respondedAt'] != null
+            ? DateTime.tryParse(map['respondedAt'].toString())?.toLocal()
+            : (map['decisionTime'] != null
+                ? DateTime.tryParse(map['decisionTime'].toString())?.toLocal()
+                : currentReq.decisionTime);
 
-        if (newStatus != currentReq.status) {
-          final decisionTime = item['respondedAt'] != null
-              ? DateTime.tryParse(item['respondedAt'].toString())?.toLocal()
-              : DateTime.now();
+        final decisionBy =
+            (map['responseBy'] ?? map['decisionBy'])?.toString() ??
+                currentReq.decisionBy;
+        final rejectionReason =
+            (map['rejectionReason'] ?? map['reason'])?.toString() ??
+                (newStatus == VisitorStatus.rejected
+                    ? 'Entry denied by resident'
+                    : currentReq.rejectionReason);
 
+        if (newStatus != currentReq.status ||
+            decisionBy != currentReq.decisionBy ||
+            rejectionReason != currentReq.rejectionReason) {
           _requests[index] = VisitorRequest(
             id: currentReq.id,
             visitor: currentReq.visitor,
@@ -66,16 +76,27 @@ class VisitorRepository extends ChangeNotifier {
             status: newStatus,
             requestTime: currentReq.requestTime,
             decisionTime: decisionTime,
-            decisionBy: item['responseBy'] ?? currentReq.residentName,
-            rejectionReason: item['rejectionReason'] ??
-                (newStatus == VisitorStatus.rejected ? 'Entry denied by resident' : null),
+            decisionBy: decisionBy,
+            rejectionReason: rejectionReason,
           );
           updated = true;
+        }
+      } else {
+        // Request exists on backend but not in local cache (e.g. after logout/login or shift change)
+        try {
+          final serverReq = VisitorRequest.fromJson(map);
+          _requests.add(serverReq);
+          updated = true;
+        } catch (e) {
+          debugPrint(
+              '[VisitorRepository] Error parsing server request $id: $e');
         }
       }
     }
 
     if (updated) {
+      // Sort newest requests first
+      _requests.sort((a, b) => b.requestTime.compareTo(a.requestTime));
       await _storage.saveRequests(_requests);
       notifyListeners();
     }
@@ -100,19 +121,22 @@ class VisitorRepository extends ChangeNotifier {
       final data = await ApiService.fetchDirectory();
       if (data != null && data['wings'] != null && data['wingFlats'] != null) {
         final List<String> loadedWings = List<String>.from(data['wings']);
-        final Map<String, dynamic> rawMap = Map<String, dynamic>.from(data['wingFlats']);
+        final Map<String, dynamic> rawMap =
+            Map<String, dynamic>.from(data['wingFlats']);
         final Map<String, List<Flat>> loadedWingFlats = {};
 
         rawMap.forEach((wingName, flatList) {
           if (flatList is List) {
             loadedWingFlats[wingName] = flatList.map((f) {
-              final residentsList = (f['residents'] as List? ?? []).map((r) => Resident(
-                id: r['id'] ?? '',
-                name: r['name'] ?? '',
-                phoneNumber: r['phoneNumber'] ?? '',
-                flatNumber: r['flatNumber'] ?? '',
-                buildingWing: r['buildingWing'] ?? '',
-              )).toList();
+              final residentsList = (f['residents'] as List? ?? [])
+                  .map((r) => Resident(
+                        id: r['id'] ?? '',
+                        name: r['name'] ?? '',
+                        phoneNumber: r['phoneNumber'] ?? '',
+                        flatNumber: r['flatNumber'] ?? '',
+                        buildingWing: r['buildingWing'] ?? '',
+                      ))
+                  .toList();
 
               return Flat(
                 flatNumber: f['flatNumber'] ?? '',
@@ -139,7 +163,10 @@ class VisitorRepository extends ChangeNotifier {
     final stored = _storage.getRequests();
     if (stored != null && stored.isNotEmpty) {
       // Filter out any previous mock seed requests
-      _requests = stored.where((r) => !r.id.startsWith('REQ-1001') && r.visitor.name != 'Rahul Verma').toList();
+      _requests = stored
+          .where((r) =>
+              !r.id.startsWith('REQ-1001') && r.visitor.name != 'Rahul Verma')
+          .toList();
     } else {
       _requests = [];
     }
@@ -163,8 +190,11 @@ class VisitorRepository extends ChangeNotifier {
   List<VisitorRequest> get enteredRequests => completedRequests;
 
   int get pendingCount => pendingRequests.length;
-  int get approvedTodayCount =>
-      _requests.where((r) => r.status == VisitorStatus.approved || r.status == VisitorStatus.completed).length;
+  int get approvedTodayCount => _requests
+      .where((r) =>
+          r.status == VisitorStatus.approved ||
+          r.status == VisitorStatus.completed)
+      .length;
   int get rejectedTodayCount => rejectedRequests.length;
   int get completedTodayCount => completedRequests.length;
   int get totalTodayCount => _requests.length;
@@ -205,11 +235,11 @@ class VisitorRepository extends ChangeNotifier {
     );
 
     if (apiResult == null || apiResult['id'] == null) {
-      throw Exception('Backend server rejected the request or network is unavailable. Please ensure valid flat and credentials.');
+      throw Exception(
+          'Backend server rejected the request or network is unavailable. Please ensure valid flat and credentials.');
     }
 
     final newId = apiResult['id'];
-
 
     final request = VisitorRequest(
       id: newId,
@@ -228,7 +258,9 @@ class VisitorRepository extends ChangeNotifier {
       purpose: purpose.isNotEmpty ? purpose : 'Visit to $flatNumber',
       status: VisitorStatus.pending,
       requestTime: apiResult['requestedAt'] != null
-          ? (DateTime.tryParse(apiResult['requestedAt'].toString())?.toLocal() ?? DateTime.now())
+          ? (DateTime.tryParse(apiResult['requestedAt'].toString())
+                  ?.toLocal() ??
+              DateTime.now())
           : DateTime.now(),
     );
 
@@ -269,7 +301,8 @@ class VisitorRepository extends ChangeNotifier {
   }) async {
     final index = _requests.indexWhere((r) => r.id == requestId);
     if (index != -1) {
-      _requests[index].status = isApproved ? VisitorStatus.approved : VisitorStatus.rejected;
+      _requests[index].status =
+          isApproved ? VisitorStatus.approved : VisitorStatus.rejected;
       if (!isApproved && reason != null) {
         _requests[index].rejectionReason = reason;
       }

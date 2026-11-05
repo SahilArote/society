@@ -660,6 +660,8 @@ export async function findVisitorRequestJoinedById(id: string): Promise<any | nu
       f.wing as buildingWing,
       u_res.id as residentId,
       u_res.name as residentName,
+      u_res.mobile as residentMobile,
+      u_res.mobile as residentPhone,
       u_grd.name as guardName,
       g.name as gateName
     FROM visitor_requests vr

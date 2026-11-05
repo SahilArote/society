@@ -19,7 +19,8 @@ class CustomButton extends StatelessWidget {
     this.icon,
     this.variant = CustomButtonVariant.primary,
     this.isLoading = false,
-    this.height = AppDimensions.buttonHeightPrimary, // 60px default for accessible touch targets
+    this.height = AppDimensions
+        .buttonHeightPrimary, // 60px default for accessible touch targets
   });
 
   @override

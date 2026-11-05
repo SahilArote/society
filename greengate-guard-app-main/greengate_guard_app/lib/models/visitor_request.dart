@@ -18,6 +18,16 @@ enum VisitorStatus {
         return 'Completed';
     }
   }
+
+  static VisitorStatus fromString(String? val) {
+    if (val == null || val.isEmpty) return VisitorStatus.pending;
+    final lower = val.toLowerCase().trim();
+    if (lower == 'approved') return VisitorStatus.approved;
+    if (lower == 'rejected') return VisitorStatus.rejected;
+    if (lower == 'completed' || lower == 'entered')
+      return VisitorStatus.completed;
+    return VisitorStatus.pending;
+  }
 }
 
 class VisitorRequest {
@@ -64,30 +74,51 @@ class VisitorRequest {
         'rejectionReason': rejectionReason,
       };
 
-  factory VisitorRequest.fromJson(Map<String, dynamic> json) => VisitorRequest(
-        id: json['id'] as String,
-        visitor: Visitor.fromJson(json['visitor'] as Map<String, dynamic>),
-        flatNumber: json['flatNumber'] as String,
-        buildingWing: json['buildingWing'] as String,
-        residentName: json['residentName'] as String,
-        residentPhone: json['residentPhone'] as String,
-        purpose: json['purpose'] as String,
-        status: VisitorStatus.values.firstWhere(
-          (e) => e.name == json['status'] || (json['status'] == 'entered' && e == VisitorStatus.completed),
-          orElse: () => VisitorStatus.pending,
-        ),
-        requestTime: (json['requestTime'] != null
-                ? DateTime.tryParse(json['requestTime'].toString())?.toLocal()
-                : (json['requestedAt'] != null
-                    ? DateTime.tryParse(json['requestedAt'].toString())?.toLocal()
-                    : null)) ??
-            DateTime.now(),
-        decisionTime: json['decisionTime'] != null
-            ? DateTime.tryParse(json['decisionTime'].toString())?.toLocal()
-            : (json['respondedAt'] != null
-                ? DateTime.tryParse(json['respondedAt'].toString())?.toLocal()
-                : null),
-        decisionBy: json['decisionBy'] as String?,
-        rejectionReason: json['rejectionReason'] as String?,
-      );
+  factory VisitorRequest.fromJson(Map<String, dynamic> json) {
+    final visitorData = json['visitor'];
+    final Map<String, dynamic> visitorMap;
+    if (visitorData is Map<String, dynamic>) {
+      visitorMap = visitorData;
+    } else if (visitorData is Map) {
+      visitorMap = Map<String, dynamic>.from(visitorData);
+    } else {
+      visitorMap = <String, dynamic>{
+        'name': json['visitorName'] ?? json['name'] ?? 'Visitor',
+        'mobile':
+            json['visitorMobile'] ?? json['mobile'] ?? json['phoneNumber'],
+        'photoUrl': json['photoUrl'] ?? json['photoPath'],
+        'visitorType': json['visitorType'] ?? json['type'],
+        'vehicleNumber': json['vehicleNumber'],
+        'deliveryCompany': json['deliveryCompany'],
+      };
+    }
+
+    final purpose =
+        (json['purpose'] ?? visitorMap['purpose'] ?? 'Visit').toString();
+
+    return VisitorRequest(
+      id: (json['id'] ?? '').toString(),
+      visitor: Visitor.fromJson(visitorMap),
+      flatNumber: (json['flatNumber'] ?? '').toString(),
+      buildingWing: (json['buildingWing'] ?? '').toString(),
+      residentName: (json['residentName'] ?? '').toString(),
+      residentPhone:
+          (json['residentPhone'] ?? json['residentMobile'] ?? '').toString(),
+      purpose: purpose,
+      status: VisitorStatus.fromString(json['status']?.toString()),
+      requestTime: (json['requestTime'] != null
+              ? DateTime.tryParse(json['requestTime'].toString())?.toLocal()
+              : (json['requestedAt'] != null
+                  ? DateTime.tryParse(json['requestedAt'].toString())?.toLocal()
+                  : null)) ??
+          DateTime.now(),
+      decisionTime: json['decisionTime'] != null
+          ? DateTime.tryParse(json['decisionTime'].toString())?.toLocal()
+          : (json['respondedAt'] != null
+              ? DateTime.tryParse(json['respondedAt'].toString())?.toLocal()
+              : null),
+      decisionBy: (json['decisionBy'] ?? json['responseBy'])?.toString(),
+      rejectionReason: (json['rejectionReason'] ?? json['reason'])?.toString(),
+    );
+  }
 }

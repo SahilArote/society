@@ -51,12 +51,13 @@ class _LoginScreenState extends State<LoginScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
             Icon(Icons.dns_rounded, color: AppColors.primary, size: 22),
             SizedBox(width: 8),
-            Text('Server Connection', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text('Server Connection',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
           ],
         ),
         content: Column(
@@ -65,7 +66,10 @@ class _LoginScreenState extends State<LoginScreen> {
           children: [
             const Text(
               'Backend API URL:',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -76,9 +80,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 hintText: 'https://dazclothess.com/api',
                 filled: true,
                 fillColor: const Color(0xFFF8FAFC),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 isDense: true,
@@ -94,12 +99,15 @@ class _LoginScreenState extends State<LoginScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child: const Text('Cancel',
+                style: TextStyle(fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             ),
             onPressed: () async {
               final newUrl = urlController.text.trim();
@@ -114,7 +122,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 }
               }
             },
-            child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: const Text('Save',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -132,7 +142,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     if (mobile.length < 10) {
-      setState(() => _errorMessage = 'Please enter valid 10-digit Mobile Number');
+      setState(
+          () => _errorMessage = 'Please enter valid 10-digit Mobile Number');
       _mobileFocusNode.requestFocus();
       return;
     }
@@ -166,72 +177,85 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Widget _buildQuickGuardCard({
+  Widget _buildQuickGuardChip({
     required String name,
     required String mobile,
-    required String gate,
   }) {
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _mobileController.text = mobile;
-          _pinController.text = '1234';
-          _errorMessage = null;
-        });
-        FocusScope.of(context).unfocus();
-      },
+    return Material(
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEEF2FF),
-                borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _mobileController.text = mobile;
+            _pinController.text = '1234';
+            _errorMessage = null;
+          });
+          FocusScope.of(context).unfocus();
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFCBD5E1), width: 1.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
               ),
-              child: const Icon(
-                Icons.shield_rounded,
-                size: 17,
-                color: AppColors.primary,
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEF2FF),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.shield_rounded,
+                  size: 16,
+                  color: AppColors.primary,
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    mobile,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textMuted,
-                      letterSpacing: 0.2,
+                    const SizedBox(height: 2),
+                    Text(
+                      mobile,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF64748B),
+                        letterSpacing: 0.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -248,17 +272,16 @@ class _LoginScreenState extends State<LoginScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'GUARD MOBILE NUMBER',
+              'Guard Mobile Number',
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF475569),
-                letterSpacing: 0.5,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1E293B),
               ),
             ),
             if (isComplete)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: const Color(0xFFECFDF5),
                   borderRadius: BorderRadius.circular(6),
@@ -267,8 +290,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF059669)),
-                    SizedBox(width: 3),
+                    Icon(Icons.check_circle_rounded,
+                        size: 12, color: Color(0xFF059669)),
+                    SizedBox(width: 4),
                     Text(
                       '10 Digits',
                       style: TextStyle(
@@ -284,13 +308,13 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(height: 7),
         AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          height: 52,
+          duration: const Duration(milliseconds: 150),
+          height: 54,
           decoration: BoxDecoration(
             color: isFocused ? Colors.white : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: isFocused ? AppColors.primary : const Color(0xFFE2E8F0),
+              color: isFocused ? AppColors.primary : const Color(0xFFCBD5E1),
               width: isFocused ? 2.0 : 1.2,
             ),
             boxShadow: isFocused
@@ -305,32 +329,33 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           child: Row(
             children: [
-              // Country Code Section
+              // Country Code Prefix
               Padding(
                 padding: const EdgeInsets.only(left: 14, right: 10),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.phone_iphone_rounded, size: 18, color: AppColors.primary),
+                    const Icon(Icons.phone_iphone_rounded,
+                        size: 19, color: AppColors.primary),
                     const SizedBox(width: 6),
                     const Text(
                       '+91',
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: 16,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E293B),
+                        color: Color(0xFF0F172A),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Container(
                       width: 1.2,
-                      height: 22,
+                      height: 24,
                       color: const Color(0xFFCBD5E1),
                     ),
                   ],
                 ),
               ),
-              // Clean Text Field without default nested borders
+              // Phone Input Field (Clean seamless background)
               Expanded(
                 child: TextField(
                   controller: _mobileController,
@@ -342,17 +367,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     LengthLimitingTextInputFormatter(10),
                   ],
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
                     color: Color(0xFF0F172A),
                     letterSpacing: 1.2,
                   ),
                   decoration: InputDecoration(
                     hintText: '98000 11122',
+                    filled: false,
+                    fillColor: Colors.transparent,
                     hintStyle: TextStyle(
-                      fontSize: 15,
+                      fontSize: 16,
                       fontWeight: FontWeight.w500,
-                      color: const Color(0xFF94A3B8).withOpacity(0.8),
+                      color: const Color(0xFF94A3B8).withOpacity(0.85),
                       letterSpacing: 1.0,
                     ),
                     border: InputBorder.none,
@@ -361,11 +388,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     errorBorder: InputBorder.none,
                     focusedErrorBorder: InputBorder.none,
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16),
                     suffixIcon: _mobileController.text.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.cancel, size: 16, color: Color(0xFF94A3B8)),
-                            onPressed: () => setState(() => _mobileController.clear()),
+                            icon: const Icon(Icons.cancel,
+                                size: 18, color: Color(0xFF94A3B8)),
+                            onPressed: () =>
+                                setState(() => _mobileController.clear()),
                           )
                         : null,
                   ),
@@ -398,28 +427,30 @@ class _LoginScreenState extends State<LoginScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              '4-DIGIT SECURITY PIN',
+              '4-Digit Security PIN',
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF475569),
-                letterSpacing: 0.5,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1E293B),
               ),
             ),
             GestureDetector(
               onTap: () => setState(() => _obscurePin = !_obscurePin),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEEF2FF),
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE0E7FF)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _obscurePin ? Icons.visibility_rounded : Icons.visibility_off_rounded,
-                      size: 13,
+                      _obscurePin
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      size: 14,
                       color: AppColors.primary,
                     ),
                     const SizedBox(width: 4),
@@ -437,9 +468,9 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
 
-        // Sleek Fintech-Grade PIN Input (No ugly nested outer container)
+        // 4 Distinct PIN Digits
         GestureDetector(
           onTap: () => _pinFocusNode.requestFocus(),
           behavior: HitTestBehavior.opaque,
@@ -447,19 +478,21 @@ class _LoginScreenState extends State<LoginScreen> {
             alignment: Alignment.center,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: List.generate(4, (index) {
                   final isFilled = index < pin.length;
-                  final isCurrent = isPinFocused && (index == pin.length || (pin.length == 4 && index == 3));
+                  final isCurrent = isPinFocused &&
+                      (index == pin.length || (pin.length == 4 && index == 3));
                   final digit = isFilled ? pin[index] : '';
 
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 140),
-                    margin: const EdgeInsets.symmetric(horizontal: 9),
-                    width: 54,
-                    height: 58,
+                    width: 64,
+                    height: 60,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isFilled || isCurrent
+                          ? Colors.white
+                          : const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: _errorMessage != null
@@ -467,40 +500,34 @@ class _LoginScreenState extends State<LoginScreen> {
                             : (isCurrent
                                 ? AppColors.primary
                                 : (isFilled
-                                    ? AppColors.primary.withOpacity(0.8)
-                                    : const Color(0xFFE2E8F0))),
-                        width: isCurrent ? 2.2 : (isFilled ? 1.6 : 1.3),
+                                    ? AppColors.primary
+                                    : const Color(0xFFCBD5E1))),
+                        width: isCurrent ? 2.2 : (isFilled ? 1.8 : 1.3),
                       ),
                       boxShadow: isCurrent
                           ? [
                               BoxShadow(
-                                color: AppColors.primary.withOpacity(0.22),
-                                blurRadius: 10,
-                                offset: const Offset(0, 3),
+                                color: AppColors.primary.withOpacity(0.18),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
                               ),
                             ]
                           : (isFilled
                               ? [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.04),
+                                    color: Colors.black.withOpacity(0.03),
                                     blurRadius: 4,
                                     offset: const Offset(0, 1),
                                   ),
                                 ]
-                              : [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.02),
-                                    blurRadius: 3,
-                                    offset: const Offset(0, 1),
-                                  ),
-                                ]),
+                              : null),
                     ),
                     child: Center(
                       child: isFilled
                           ? (_obscurePin
                               ? Container(
-                                  width: 13,
-                                  height: 13,
+                                  width: 14,
+                                  height: 14,
                                   decoration: const BoxDecoration(
                                     color: Color(0xFF1E1B4B),
                                     shape: BoxShape.circle,
@@ -517,10 +544,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           : (isCurrent
                               ? Container(
                                   width: 2.2,
-                                  height: 22,
+                                  height: 24,
                                   decoration: BoxDecoration(
                                     color: AppColors.primary,
-                                    borderRadius: BorderRadius.circular(1),
+                                    borderRadius: BorderRadius.circular(1.5),
                                   ),
                                 )
                               : const SizedBox.shrink()),
@@ -529,11 +556,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 }),
               ),
 
-              // Transparent native input catching numeric keyboard
+              // Invisible Keyboard Capture
               Opacity(
                 opacity: 0.0,
                 child: SizedBox(
-                  height: 58,
+                  height: 60,
                   child: TextField(
                     controller: _pinController,
                     focusNode: _pinFocusNode,
@@ -549,7 +576,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       setState(() {
                         _errorMessage = null;
                       });
-                      if (val.length == 4 && _mobileController.text.length == 10) {
+                      if (val.length == 4 &&
+                          _mobileController.text.length == 10) {
                         _handleLogin();
                       }
                     },
@@ -566,9 +594,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final isKeyboardOpen = bottomInset > 0;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       resizeToAvoidBottomInset: true,
@@ -576,299 +601,335 @@ class _LoginScreenState extends State<LoginScreen> {
         onTap: () => FocusScope.of(context).unfocus(),
         behavior: HitTestBehavior.opaque,
         child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-              padding: EdgeInsets.fromLTRB(20, 16, 20, isKeyboardOpen ? 26 : 20),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Brand Header & Server Status
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 42,
-                              height: 42,
-                              padding: const EdgeInsets.all(7),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.04),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Image.asset(
-                                'assets/images/logo.png',
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) => const Icon(
-                                  Icons.shield_rounded,
-                                  size: 22,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            const Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'NexGate',
-                                  style: TextStyle(
-                                    fontSize: 19,
-                                    fontWeight: FontWeight.w900,
-                                    color: Color(0xFF0F172A),
-                                    letterSpacing: -0.3,
-                                  ),
-                                ),
-                                Text(
-                                  'Gate Terminal · Guard Access',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF64748B),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        // Cloud Status Pill
-                        InkWell(
-                          onTap: _showServerConfigDialog,
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.circle, size: 7, color: Color(0xFF10B981)),
-                                SizedBox(width: 5),
-                                Text(
-                                  'Live Cloud',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF334155),
-                                  ),
-                                ),
-                                SizedBox(width: 4),
-                                Icon(Icons.tune_rounded, size: 12, color: Color(0xFF94A3B8)),
-                              ],
-                            ),
-                          ),
+          child: Stack(
+            children: [
+              // 1. TOP-RIGHT LIVE CLOUD BUTTON
+              Positioned(
+                top: 10,
+                right: 20,
+                child: InkWell(
+                  onTap: _showServerConfigDialog,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: const Color(0xFFE2E8F0), width: 1.2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 18),
-
-                    // Main Card
-                    Container(
-                      padding: const EdgeInsets.all(22),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 18,
-                            offset: const Offset(0, 6),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.circle, size: 7, color: Color(0xFF10B981)),
+                        SizedBox(width: 5),
+                        Text(
+                          'Live Cloud',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF334155),
                           ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Badge Title
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEEF2FF),
-                              borderRadius: BorderRadius.circular(6),
+                        ),
+                        SizedBox(width: 4),
+                        Icon(Icons.tune_rounded,
+                            size: 12, color: Color(0xFF94A3B8)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // 2. MAIN SCROLLABLE BODY
+              Center(
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  physics: const ClampingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // BRANDING HEADER (Clean & Centered)
+                        Container(
+                          width: 64,
+                          height: 64,
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                                color: const Color(0xFFE2E8F0), width: 1.2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 12,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.asset(
+                              'assets/images/logo.png',
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(
+                                Icons.shield_rounded,
+                                size: 32,
+                                color: AppColors.primary,
+                              ),
                             ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.lock_outline_rounded, size: 12, color: AppColors.primary),
-                                SizedBox(width: 5),
-                                Text(
-                                  'SECURITY CHECKPOINT ACCESS',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.primaryDark,
-                                    letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'NexGate Guard',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        const Text(
+                          'Gate Security Terminal · Guard Access',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        // MAIN LOGIN FORM CARD
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 22),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(
+                                color: const Color(0xFFE2E8F0), width: 1.2),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    const Color(0xFF0F172A).withOpacity(0.04),
+                                blurRadius: 18,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // 1. Mobile Field
+                              _buildMobileField(),
+
+                              const SizedBox(height: 18),
+
+                              // 2. PIN Field
+                              _buildPinSection(),
+
+                              // Error Banner
+                              if (_errorMessage != null) ...[
+                                const SizedBox(height: 14),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 9),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFEF2F2),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: const Color(0xFFFECACA)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.error_outline_rounded,
+                                          size: 16, color: Color(0xFFDC2626)),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _errorMessage!,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF991B1B),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
-                            ),
-                          ),
-                          const SizedBox(height: 18),
 
-                          // 1. Guard Mobile Number Input
-                          _buildMobileField(),
-                          const SizedBox(height: 22),
+                              const SizedBox(height: 20),
 
-                          // 2. 4-Digit Security PIN Input
-                          _buildPinSection(),
-
-                          // Error Banner
-                          if (_errorMessage != null) ...[
-                            const SizedBox(height: 14),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFEF2F2),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFFFECACA)),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.error_outline_rounded, size: 16, color: Color(0xFFDC2626)),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      _errorMessage!,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF991B1B),
+                              // 3. Primary Action Button
+                              Material(
+                                color: Colors.transparent,
+                                borderRadius: BorderRadius.circular(14),
+                                child: InkWell(
+                                  onTap: _isLoading ? null : _handleLogin,
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Ink(
+                                    height: 54,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFF4F46E5),
+                                          Color(0xFF4338CA)
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
                                       ),
+                                      borderRadius: BorderRadius.circular(14),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFF4F46E5)
+                                              .withOpacity(0.32),
+                                          blurRadius: 14,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Center(
+                                      child: _isLoading
+                                          ? const SizedBox(
+                                              width: 22,
+                                              height: 22,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.2,
+                                                valueColor:
+                                                    AlwaysStoppedAnimation<
+                                                        Color>(Colors.white),
+                                              ),
+                                            )
+                                          : const Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Icon(Icons.vpn_key_rounded,
+                                                    size: 19,
+                                                    color: Colors.white),
+                                                SizedBox(width: 8),
+                                                Text(
+                                                  'UNLOCK GATE TERMINAL',
+                                                  style: TextStyle(
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: Colors.white,
+                                                    letterSpacing: 0.6,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                     ),
                                   ),
-                                ],
-                              ),
-                            ),
-                          ],
-
-                          // Symmetrical Quick Demo Cards
-                          const SizedBox(height: 22),
-                          const Text(
-                            'QUICK VERIFICATION (ONE-TAP DEMO):',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF64748B),
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildQuickGuardCard(
-                                  name: 'Ramesh',
-                                  mobile: '98000 11122',
-                                  gate: 'Gate 1',
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildQuickGuardCard(
-                                  name: 'Suresh',
-                                  mobile: '98000 11123',
-                                  gate: 'Gate 2',
+
+                              const SizedBox(height: 16),
+
+                              // 4. Quick Demo Helper (Two-line Cards, Zero Overflow)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: Column(
+                                  children: [
+                                    const Row(
+                                      children: [
+                                        Icon(Icons.touch_app_rounded,
+                                            size: 14, color: AppColors.primary),
+                                        SizedBox(width: 5),
+                                        Text(
+                                          'Quick Demo Login (One-Tap):',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF475569),
+                                          ),
+                                        ),
+                                        Spacer(),
+                                        Text(
+                                          'PIN: 1234',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.primaryDark,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: _buildQuickGuardChip(
+                                            name: 'Ramesh',
+                                            mobile: '98000 11122',
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: _buildQuickGuardChip(
+                                            name: 'Suresh',
+                                            mobile: '98000 11123',
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
+                        ),
 
-                          const SizedBox(height: 22),
+                        const SizedBox(height: 16),
 
-                          // Modern Gradient Login Button with Perfect Rounded Geometry
-                          Material(
-                            color: Colors.transparent,
-                            borderRadius: BorderRadius.circular(14),
-                            child: InkWell(
-                              onTap: _isLoading ? null : _handleLogin,
-                              borderRadius: BorderRadius.circular(14),
-                              child: Ink(
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFF4F46E5), Color(0xFF4338CA)],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(14),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF4F46E5).withOpacity(0.35),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Center(
-                                  child: _isLoading
-                                      ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2.2,
-                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                          ),
-                                        )
-                                      : const Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Icon(Icons.vpn_key_rounded, size: 18, color: Colors.white),
-                                            SizedBox(width: 8),
-                                            Text(
-                                              'UNLOCK GATE TERMINAL',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w800,
-                                                color: Colors.white,
-                                                letterSpacing: 0.6,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                ),
+                        // 3. FOOTER
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.shield_outlined,
+                                size: 13, color: Color(0xFF94A3B8)),
+                            SizedBox(width: 5),
+                            Text(
+                              'Encrypted Terminal Session • NexGate Security',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF94A3B8),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 14),
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.shield_outlined, size: 13, color: Color(0xFF94A3B8)),
-                        SizedBox(width: 5),
-                        Text(
-                          'Encrypted Terminal Session • Default PIN: 1234',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF94A3B8),
-                          ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),

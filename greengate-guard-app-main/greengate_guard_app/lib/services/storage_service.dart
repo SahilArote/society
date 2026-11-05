@@ -129,6 +129,8 @@ class StorageService {
     await setLoggedIn(false);
     await removeToken();
     await _prefs.remove(_keyGuardData);
-    await _prefs.remove(_keyVisitorRequests);
+    // Gate visitor requests are NOT wiped on guard logout.
+    // They belong to the gate terminal station and society logs,
+    // ensuring the queue persists across guard shifts and re-logins.
   }
 }

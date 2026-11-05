@@ -8,11 +8,16 @@ class AppDimensions {
   static const double radiusXl = 20.0;
   static const double radiusFull = 999.0;
 
-  static const BorderRadius roundedSm = BorderRadius.all(Radius.circular(radiusSm));
-  static const BorderRadius roundedMd = BorderRadius.all(Radius.circular(radiusMd));
-  static const BorderRadius roundedLg = BorderRadius.all(Radius.circular(radiusLg));
-  static const BorderRadius roundedXl = BorderRadius.all(Radius.circular(radiusXl));
-  static const BorderRadius roundedFull = BorderRadius.all(Radius.circular(radiusFull));
+  static const BorderRadius roundedSm =
+      BorderRadius.all(Radius.circular(radiusSm));
+  static const BorderRadius roundedMd =
+      BorderRadius.all(Radius.circular(radiusMd));
+  static const BorderRadius roundedLg =
+      BorderRadius.all(Radius.circular(radiusLg));
+  static const BorderRadius roundedXl =
+      BorderRadius.all(Radius.circular(radiusXl));
+  static const BorderRadius roundedFull =
+      BorderRadius.all(Radius.circular(radiusFull));
 
   // Spacing & Padding
   static const double p4 = 4.0;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_typography.dart';
@@ -79,10 +80,9 @@ class ProfileScreen extends StatelessWidget {
         if (!context.mounted) return;
         Navigator.of(context).pop();
 
-        final errorMsg = e.toString().replaceAll('Exception: ', '');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to delete account: $errorMsg'),
+            content: Text('Failed to delete account: ' + e.toString().replaceAll('Exception: ', '')),
             backgroundColor: AppColors.error,
           ),
         );
@@ -90,22 +90,6 @@ class ProfileScreen extends StatelessWidget {
     }
   }
 
-  void _testDoorbell(BuildContext context) {
-    HapticHelper.heavyImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.doorbell_rounded, color: Colors.white, size: 20),
-            SizedBox(width: 10),
-            Text('🔔 Gate Doorbell Chime & Haptic Alert Active!'),
-          ],
-        ),
-        backgroundColor: AppColors.primaryBlue,
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -249,45 +233,25 @@ class ProfileScreen extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // Security & Alerts Group
-              Text('SECURITY & ALERTS', style: AppTypography.sectionHeader),
-              const SizedBox(height: 8),
-              _buildSettingsGroup([
-                _SettingsTile(
-                  icon: Icons.doorbell_rounded,
-                  iconColor: AppColors.deepPurple,
-                  iconBg: AppColors.lightPurple,
-                  title: 'Test Gate Doorbell Chime',
-                  subtitle: 'Simulate gate guard arrival alert chime',
-                  onTap: () => _testDoorbell(context),
-                ),
-                _SettingsTile(
-                  icon: Icons.security_rounded,
-                  iconColor: AppColors.success,
-                  iconBg: AppColors.successBackground,
-                  title: 'Security Gate Intercom',
-                  subtitle: 'Main Security Gate • Guard on Duty',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Gate Intercom: Main Security Desk (Ext: 101)')),
-                    );
-                  },
-                ),
-              ]),
-
-              const SizedBox(height: 24),
-
               // App Version & Sign Out
               Text('SYSTEM', style: AppTypography.sectionHeader),
               const SizedBox(height: 8),
               _buildSettingsGroup([
-                _SettingsTile(
-                  icon: Icons.info_outline_rounded,
-                  iconColor: AppColors.secondaryText,
-                  iconBg: AppColors.mainBackground,
-                  title: 'NexGate Resident App',
-                  subtitle: 'Version 1.0.0 (Native Flutter Edition)',
-                  onTap: () {},
+                FutureBuilder<PackageInfo>(
+                  future: PackageInfo.fromPlatform(),
+                  builder: (context, snapshot) {
+                    final versionText = snapshot.hasData
+                        ? 'Version ' + snapshot.data!.version + ' (Build ' + snapshot.data!.buildNumber + ')'
+                        : 'Version 1.0.0';
+                    return _SettingsTile(
+                      icon: Icons.info_outline_rounded,
+                      iconColor: AppColors.secondaryText,
+                      iconBg: AppColors.mainBackground,
+                      title: 'NexGate Resident App',
+                      subtitle: versionText,
+                      onTap: () {},
+                    );
+                  },
                 ),
                 _SettingsTile(
                   icon: Icons.logout_rounded,

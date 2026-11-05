@@ -1,12 +1,16 @@
+import '../../core/widgets/visitor_photo_avatar.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
-import '../../core/widgets/status_badge.dart';
+import '../../models/visitor.dart';
 import '../../models/visitor_request.dart';
 import '../../repositories/visitor_repository.dart';
+import '../../services/api_service.dart';
 
+/// Professional, high-contrast Gate Visitor History & Logs Screen.
+/// Designed for quick audit, fast search, status filtering, and elderly guard readability.
 class HistoryScreen extends StatefulWidget {
   final VisitorRepository visitorRepo;
 
@@ -17,9 +21,10 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  final _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   VisitorStatus? _selectedStatusFilter;
   String _searchQuery = '';
+  bool _isRefreshing = false;
 
   @override
   void dispose() {
@@ -27,13 +32,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
     super.dispose();
   }
 
+  Future<void> _handleRefresh() async {
+    setState(() => _isRefreshing = true);
+    await widget.visitorRepo.fetchRecentRequests();
+    if (mounted) {
+      setState(() => _isRefreshing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Visitor History'),
-      ),
+      backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
         child: AnimatedBuilder(
           animation: widget.visitorRepo,
@@ -45,210 +55,34 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
             return Column(
               children: [
-                // Search & Filter Header
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    border: const Border(
-                      bottom: BorderSide(color: AppColors.border, width: 1.5),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      // Search by Visitor Name or Flat
-                      TextField(
-                        controller: _searchController,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                        onChanged: (val) => setState(() => _searchQuery = val.trim()),
-                        decoration: InputDecoration(
-                          hintText: 'Search visitor name or flat...',
-                          prefixIcon: const Icon(Icons.search, size: 24, color: AppColors.primary),
-                          suffixIcon: _searchQuery.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear, size: 20, color: AppColors.textSecondary),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() => _searchQuery = '');
-                                  },
-                                )
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
+                // 1. Header Bar
+                _buildHeader(),
 
-                      // Status Filter Chips
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            _buildFilterChip(
-                              label: 'ALL',
-                              isSelected: _selectedStatusFilter == null,
-                              onSelected: () => setState(() => _selectedStatusFilter = null),
-                            ),
-                            const SizedBox(width: 8),
-                            _buildFilterChip(
-                              label: 'APPROVED',
-                              isSelected: _selectedStatusFilter == VisitorStatus.approved,
-                              onSelected: () => setState(() => _selectedStatusFilter = VisitorStatus.approved),
-                            ),
-                            const SizedBox(width: 8),
-                            _buildFilterChip(
-                              label: 'COMPLETED',
-                              isSelected: _selectedStatusFilter == VisitorStatus.completed,
-                              onSelected: () => setState(() => _selectedStatusFilter = VisitorStatus.completed),
-                            ),
-                            const SizedBox(width: 8),
-                            _buildFilterChip(
-                              label: 'PENDING',
-                              isSelected: _selectedStatusFilter == VisitorStatus.pending,
-                              onSelected: () => setState(() => _selectedStatusFilter = VisitorStatus.pending),
-                            ),
-                            const SizedBox(width: 8),
-                            _buildFilterChip(
-                              label: 'REJECTED',
-                              isSelected: _selectedStatusFilter == VisitorStatus.rejected,
-                              onSelected: () => setState(() => _selectedStatusFilter = VisitorStatus.rejected),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                // 2. Search & Filter Section
+                _buildSearchAndFilters(),
 
-                // Log Count & Date Info Bar
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Showing ${filteredList.length} records',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          const Icon(Icons.calendar_today, size: 14, color: AppColors.primary),
-                          const SizedBox(width: 6),
-                          Text(
-                            DateFormat('dd MMM yyyy').format(DateTime.now()),
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+                // 3. Activity Summary Bar
+                _buildSummaryBar(filteredList.length),
 
-                // List of Records
+                // 4. Logs List View with Pull to Refresh
                 Expanded(
-                  child: filteredList.isEmpty
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24.0),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.search_off, size: 56, color: AppColors.textMuted),
-                                const SizedBox(height: 12),
-                                Text(
-                                  _searchQuery.isNotEmpty
-                                      ? 'No visitors matching "$_searchQuery"'
-                                      : 'No history found',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
+                  child: RefreshIndicator(
+                    onRefresh: _handleRefresh,
+                    color: const Color(0xFF4F46E5),
+                    child: filteredList.isEmpty
+                        ? _buildEmptyState()
+                        : ListView.separated(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+                            itemCount: filteredList.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final req = filteredList[index];
+                              return _buildHistoryCard(req);
+                            },
                           ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                          itemCount: filteredList.length,
-                          itemBuilder: (context, index) {
-                            final req = filteredList[index];
-                            final timeFormatted = DateFormat('hh:mm a').format(req.requestTime);
-                            final dateFormatted = DateFormat('dd MMM').format(req.requestTime);
-
-                            return InkWell(
-                              onTap: () => _showDetailsSheet(context, req),
-                              borderRadius: AppDimensions.roundedLg,
-                              child: Container(
-                                margin: const EdgeInsets.only(bottom: 10),
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surface,
-                                  borderRadius: AppDimensions.roundedLg,
-                                  border: Border.all(color: AppColors.border, width: 1.5),
-                                  boxShadow: AppDimensions.cardShadow,
-                                ),
-                                child: Row(
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(10),
-                                      child: Container(
-                                        width: 50,
-                                        height: 50,
-                                        color: AppColors.surfaceLow,
-                                        child: _buildPhoto(req.visitor.photoPath),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            req.visitor.name,
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w800,
-                                              color: AppColors.textPrimary,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 3),
-                                          Text(
-                                            'Flat ${req.flatNumber} • ${req.visitor.type.displayName}',
-                                            style: const TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
-                                              color: AppColors.textSecondary,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            '$dateFormatted at $timeFormatted',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
-                                              color: AppColors.textMuted,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    StatusBadge(status: req.status),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                  ),
                 ),
               ],
             );
@@ -258,51 +92,615 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  // Top Screen Header
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEF2FF),
+                  borderRadius: BorderRadius.circular(14),
+                  border:
+                      Border.all(color: const Color(0xFFC7D2FE), width: 1.5),
+                ),
+                child: const Icon(
+                  Icons.history_rounded,
+                  color: Color(0xFF4F46E5),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Visitor Logs',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF0F172A),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  Text(
+                    'Gate Checkpoint Records',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          // Date Pill
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFCBD5E1)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_today_rounded,
+                    size: 13, color: Color(0xFF4F46E5)),
+                const SizedBox(width: 5),
+                Text(
+                  DateFormat('dd MMM yyyy').format(DateTime.now()),
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Search Input & Filter Chips
+  Widget _buildSearchAndFilters() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Column(
+        children: [
+          // Search Field
+          TextField(
+            controller: _searchController,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0F172A),
+            ),
+            onChanged: (val) => setState(() => _searchQuery = val.trim()),
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              hintText: 'Search by visitor name, flat, or phone...',
+              hintStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF94A3B8),
+              ),
+              prefixIcon: const Icon(Icons.search_rounded,
+                  size: 22, color: Color(0xFF6366F1)),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.close_rounded,
+                          size: 18, color: Color(0xFF64748B)),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: const Color(0xFFF8FAFC),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide:
+                    const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide:
+                    const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide:
+                    const BorderSide(color: Color(0xFF4F46E5), width: 2),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // Horizontal Filter Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildFilterChip(
+                  label: 'ALL RECORDS',
+                  isSelected: _selectedStatusFilter == null,
+                  onSelected: () =>
+                      setState(() => _selectedStatusFilter = null),
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  label: 'APPROVED',
+                  isSelected: _selectedStatusFilter == VisitorStatus.approved,
+                  activeColor: const Color(0xFF059669),
+                  onSelected: () => setState(
+                      () => _selectedStatusFilter = VisitorStatus.approved),
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  label: 'ENTERED',
+                  isSelected: _selectedStatusFilter == VisitorStatus.completed,
+                  activeColor: const Color(0xFF475569),
+                  onSelected: () => setState(
+                      () => _selectedStatusFilter = VisitorStatus.completed),
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  label: 'PENDING',
+                  isSelected: _selectedStatusFilter == VisitorStatus.pending,
+                  activeColor: const Color(0xFFD97706),
+                  onSelected: () => setState(
+                      () => _selectedStatusFilter = VisitorStatus.pending),
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  label: 'REJECTED',
+                  isSelected: _selectedStatusFilter == VisitorStatus.rejected,
+                  activeColor: const Color(0xFFDC2626),
+                  onSelected: () => setState(
+                      () => _selectedStatusFilter = VisitorStatus.rejected),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFilterChip({
     required String label,
     required bool isSelected,
+    Color activeColor = const Color(0xFF4F46E5),
     required VoidCallback onSelected,
   }) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (_) => onSelected(),
-      selectedColor: AppColors.primary,
-      labelStyle: TextStyle(
-        color: isSelected ? Colors.white : AppColors.textPrimary,
-        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-        fontSize: 12,
-      ),
-      backgroundColor: AppColors.surfaceLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(999),
-        side: BorderSide(
-          color: isSelected ? AppColors.primaryDark : AppColors.border,
-          width: 1.5,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onSelected,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? activeColor : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected ? activeColor : const Color(0xFFCBD5E1),
+              width: 1.2,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+              color: isSelected ? Colors.white : const Color(0xFF475569),
+              letterSpacing: 0.3,
+            ),
+          ),
         ),
       ),
     );
   }
 
+  // Summary Row showing result count
+  Widget _buildSummaryBar(int count) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF8FAFC),
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Showing $count ${count == 1 ? "entry" : "entries"}',
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF475569),
+            ),
+          ),
+          if (_searchQuery.isNotEmpty || _selectedStatusFilter != null)
+            GestureDetector(
+              onTap: () {
+                _searchController.clear();
+                setState(() {
+                  _searchQuery = '';
+                  _selectedStatusFilter = null;
+                });
+              },
+              child: const Text(
+                'Reset Filters',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF4F46E5),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // Polished History Card
+  Widget _buildHistoryCard(VisitorRequest req) {
+    final timeFormatted = DateFormat('hh:mm a').format(req.requestTime);
+    final dateFormatted = DateFormat('dd MMM').format(req.requestTime);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(15, 23, 42, 0.03),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _showDetailsSheet(context, req),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Visitor Avatar (48x48)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    color: const Color(0xFFF1F5F9),
+                    child: _buildPhoto(req.visitor.photoPath),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Visitor Details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              req.visitor.name,
+                              style: const TextStyle(
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -0.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          _buildVisitorTypeChip(req.visitor.type),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+
+                      // Flat & Resident
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(5),
+                              border:
+                                  Border.all(color: const Color(0xFFCBD5E1)),
+                            ),
+                            child: Text(
+                              'Flat ${req.flatNumber}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '• ${req.residentName}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF64748B),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+
+                      // Date & Time
+                      Row(
+                        children: [
+                          const Icon(Icons.access_time_rounded,
+                              size: 12, color: Color(0xFF94A3B8)),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$dateFormatted at $timeFormatted',
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+
+                // Status Badge & Arrow
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    _buildStatusPill(req.status),
+                    const SizedBox(height: 8),
+                    const Icon(Icons.chevron_right_rounded,
+                        size: 18, color: Color(0xFFCBD5E1)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+      children: [
+        Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  shape: BoxShape.circle,
+                  border:
+                      Border.all(color: const Color(0xFFCBD5E1), width: 1.5),
+                ),
+                child: const Icon(Icons.search_off_rounded,
+                    size: 36, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                _searchQuery.isNotEmpty
+                    ? 'No Results Found'
+                    : 'No Visitor Logs',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _searchQuery.isNotEmpty
+                    ? 'No visitors found matching "$_searchQuery". Try clearing your search.'
+                    : 'Check-in and check-out logs for visitors will appear here.',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF64748B),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (_searchQuery.isNotEmpty || _selectedStatusFilter != null) ...[
+                const SizedBox(height: 18),
+                ElevatedButton(
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {
+                      _searchQuery = '';
+                      _selectedStatusFilter = null;
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4F46E5),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Clear Filters',
+                      style: TextStyle(fontWeight: FontWeight.w800)),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVisitorTypeChip(VisitorType type) {
+    Color bg;
+    Color fg;
+
+    switch (type) {
+      case VisitorType.delivery:
+        bg = const Color(0xFFFEF3C7);
+        fg = const Color(0xFF92400E);
+        break;
+      case VisitorType.cab:
+        bg = const Color(0xFFEDE9FE);
+        fg = const Color(0xFF5B21B6);
+        break;
+      case VisitorType.maintenance:
+        bg = const Color(0xFFE0F2FE);
+        fg = const Color(0xFF0369A1);
+        break;
+      case VisitorType.guest:
+      default:
+        bg = const Color(0xFFEEF2FF);
+        fg = const Color(0xFF3730A3);
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Text(
+        type.displayName,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          color: fg,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusPill(VisitorStatus status) {
+    Color bg;
+    Color fg;
+    Color border;
+    IconData icon;
+    String label;
+
+    switch (status) {
+      case VisitorStatus.pending:
+        bg = const Color(0xFFFEF3C7);
+        fg = const Color(0xFF92400E);
+        border = const Color(0xFFFDE68A);
+        icon = Icons.access_time_filled_rounded;
+        label = 'Pending';
+        break;
+      case VisitorStatus.approved:
+        bg = const Color(0xFFECFDF5);
+        fg = const Color(0xFF047857);
+        border = const Color(0xFFA7F3D0);
+        icon = Icons.check_circle_rounded;
+        label = 'Approved';
+        break;
+      case VisitorStatus.rejected:
+        bg = const Color(0xFFFFF1F2);
+        fg = const Color(0xFFBE123C);
+        border = const Color(0xFFFECDD3);
+        icon = Icons.cancel_rounded;
+        label = 'Rejected';
+        break;
+      case VisitorStatus.completed:
+        bg = const Color(0xFFF1F5F9);
+        fg = const Color(0xFF334155);
+        border = const Color(0xFFCBD5E1);
+        icon = Icons.task_alt_rounded;
+        label = 'Entered';
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: fg),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              color: fg,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPhoto(String? path) {
-    if (path == null) {
-      return const Icon(Icons.person, size: 28, color: AppColors.textMuted);
-    }
-    if (path.startsWith('assets/')) {
-      return Image.asset(path, fit: BoxFit.cover);
-    }
-    return Image.file(File(path), fit: BoxFit.cover);
+    return VisitorPhotoAvatar.buildImageWidget(path, size: 48);
   }
 
   void _showDetailsSheet(BuildContext context, VisitorRequest req) {
-    final timeFormatted = DateFormat('hh:mm a, dd MMM yyyy').format(req.requestTime);
+    final timeFormatted =
+        DateFormat('hh:mm a, dd MMM yyyy').format(req.requestTime);
     final decisionTimeFormatted = req.decisionTime != null
         ? DateFormat('hh:mm a, dd MMM yyyy').format(req.decisionTime!)
         : null;
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -319,7 +717,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     width: 40,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: AppColors.border,
+                      color: const Color(0xFFE2E8F0),
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
@@ -330,9 +728,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
-                        width: 54,
-                        height: 54,
-                        color: AppColors.surfaceLow,
+                        width: 52,
+                        height: 52,
+                        color: const Color(0xFFF1F5F9),
                         child: _buildPhoto(req.visitor.photoPath),
                       ),
                     ),
@@ -346,7 +744,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
-                              color: AppColors.textPrimary,
+                              color: Color(0xFF0F172A),
                             ),
                           ),
                           const SizedBox(height: 3),
@@ -355,24 +753,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
+                              color: Color(0xFF64748B),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    StatusBadge(status: req.status),
+                    _buildStatusPill(req.status),
                   ],
                 ),
                 const SizedBox(height: 16),
-                const Divider(color: AppColors.border),
+                const Divider(color: Color(0xFFE2E8F0)),
                 const SizedBox(height: 12),
-                _buildModalRow('Flat & Wing:', '${req.flatNumber} (${req.buildingWing})'),
+                _buildModalRow(
+                    'Flat & Wing:', '${req.flatNumber} (${req.buildingWing})'),
                 const SizedBox(height: 8),
-                _buildModalRow('Resident:', '${req.residentName} (${req.residentPhone})'),
+                _buildModalRow(
+                    'Resident:', '${req.residentName} (${req.residentPhone})'),
                 const SizedBox(height: 8),
                 _buildModalRow('Purpose:', req.purpose),
-                if (req.visitor.vehicleNumber != null && req.visitor.vehicleNumber!.isNotEmpty) ...[
+                if (req.visitor.vehicleNumber != null &&
+                    req.visitor.vehicleNumber!.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   _buildModalRow('Vehicle:', req.visitor.vehicleNumber!),
                 ],
@@ -382,21 +783,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   const SizedBox(height: 8),
                   _buildModalRow('Decision Time:', decisionTimeFormatted),
                 ],
-                if (req.status == VisitorStatus.rejected && req.rejectionReason != null) ...[
+                if (req.status == VisitorStatus.rejected &&
+                    req.rejectionReason != null &&
+                    req.rejectionReason!.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.errorLight,
-                      borderRadius: AppDimensions.roundedMd,
+                      color: const Color(0xFFFFF1F2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFFECDD3)),
                     ),
                     child: Text(
                       'Rejection Reason: ${req.rejectionReason!}',
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.errorText,
+                        color: Color(0xFFBE123C),
                       ),
                     ),
                   ),
@@ -404,21 +808,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
-                  height: 52,
+                  height: 50,
                   child: ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.surfaceLow,
-                      foregroundColor: AppColors.textPrimary,
+                      backgroundColor: const Color(0xFF0F172A),
+                      foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
                     child: const Text(
                       'CLOSE',
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
                     ),
                   ),
                 ),
@@ -441,7 +845,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: AppColors.textSecondary,
+              color: Color(0xFF64748B),
             ),
           ),
         ),
@@ -451,7 +855,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: Color(0xFF0F172A),
             ),
           ),
         ),

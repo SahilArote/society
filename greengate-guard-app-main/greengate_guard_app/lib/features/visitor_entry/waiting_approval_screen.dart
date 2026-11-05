@@ -1,3 +1,4 @@
+import '../../core/widgets/visitor_photo_avatar.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +7,7 @@ import '../../core/constants/app_dimensions.dart';
 import '../../core/widgets/custom_button.dart';
 import '../../models/visitor_request.dart';
 import '../../repositories/visitor_repository.dart';
+import '../../services/api_service.dart';
 import '../../repositories/guard_repository.dart';
 import 'entry_approved_screen.dart';
 import 'entry_rejected_screen.dart';
@@ -79,7 +81,8 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final reqTimeFormatted = DateFormat('hh:mm a').format(widget.request.requestTime);
+    final reqTimeFormatted =
+        DateFormat('hh:mm a').format(widget.request.requestTime);
 
     return WillPopScope(
       onWillPop: () async {
@@ -104,7 +107,8 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
                 // Main Prominent Status Box
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
                   decoration: BoxDecoration(
                     color: AppColors.warningLight,
                     borderRadius: AppDimensions.roundedXl,
@@ -118,7 +122,8 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
                         height: 52,
                         child: CircularProgressIndicator(
                           strokeWidth: 4.0,
-                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.warning),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(AppColors.warning),
                         ),
                       ),
                       const SizedBox(height: 18),
@@ -294,7 +299,8 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
                 // Helper note explaining background status
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   decoration: BoxDecoration(
                     color: AppColors.surfaceLow,
                     borderRadius: AppDimensions.roundedLg,
@@ -302,7 +308,8 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
                   ),
                   child: Row(
                     children: const [
-                      Icon(Icons.info_outline, size: 20, color: AppColors.textSecondary),
+                      Icon(Icons.info_outline,
+                          size: 20, color: AppColors.textSecondary),
                       SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -327,12 +334,6 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
   }
 
   Widget _buildPhoto(String? path) {
-    if (path == null) {
-      return const Icon(Icons.person, size: 44, color: AppColors.textMuted);
-    }
-    if (path.startsWith('assets/')) {
-      return Image.asset(path, fit: BoxFit.cover);
-    }
-    return Image.file(File(path), fit: BoxFit.cover);
+    return VisitorPhotoAvatar.buildImageWidget(path, size: 90);
   }
 }

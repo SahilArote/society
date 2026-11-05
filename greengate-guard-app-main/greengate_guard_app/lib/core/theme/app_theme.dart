@@ -90,7 +90,7 @@ class AppTheme {
           color: AppColors.textPrimary,
         ),
       ),
-      cardTheme: CardThemeData(
+      cardTheme: CardTheme(
         color: AppColors.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -102,9 +102,16 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surfaceLow,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 15, fontWeight: FontWeight.w500),
-        labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 15, fontWeight: FontWeight.w600),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        hintStyle: const TextStyle(
+            color: AppColors.textMuted,
+            fontSize: 15,
+            fontWeight: FontWeight.w500),
+        labelStyle: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 15,
+            fontWeight: FontWeight.w600),
         border: OutlineInputBorder(
           borderRadius: AppDimensions.roundedMd,
           borderSide: const BorderSide(color: AppColors.border, width: 1.5),
@@ -140,7 +147,8 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.textPrimary,
-          minimumSize: const Size.fromHeight(AppDimensions.buttonHeightSecondary),
+          minimumSize:
+              const Size.fromHeight(AppDimensions.buttonHeightSecondary),
           side: const BorderSide(color: AppColors.border, width: 1.5),
           shape: const RoundedRectangleBorder(
             borderRadius: AppDimensions.roundedMd,

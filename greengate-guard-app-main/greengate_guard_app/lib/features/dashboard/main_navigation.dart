@@ -93,23 +93,31 @@ class _MainNavigationState extends State<MainNavigation> {
             onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
             destinations: const [
               NavigationDestination(
-                icon: Icon(Icons.shield_outlined, size: 26, color: AppColors.textSecondary),
-                selectedIcon: Icon(Icons.shield, size: 26, color: AppColors.primary),
+                icon: Icon(Icons.shield_outlined,
+                    size: 26, color: AppColors.textSecondary),
+                selectedIcon:
+                    Icon(Icons.shield, size: 26, color: AppColors.primary),
                 label: 'Home',
               ),
               NavigationDestination(
-                icon: Icon(Icons.badge_outlined, size: 26, color: AppColors.textSecondary),
-                selectedIcon: Icon(Icons.badge, size: 26, color: AppColors.primary),
+                icon: Icon(Icons.badge_outlined,
+                    size: 26, color: AppColors.textSecondary),
+                selectedIcon:
+                    Icon(Icons.badge, size: 26, color: AppColors.primary),
                 label: 'Visitors',
               ),
               NavigationDestination(
-                icon: Icon(Icons.history, size: 26, color: AppColors.textSecondary),
-                selectedIcon: Icon(Icons.history, size: 26, color: AppColors.primary),
+                icon: Icon(Icons.history,
+                    size: 26, color: AppColors.textSecondary),
+                selectedIcon:
+                    Icon(Icons.history, size: 26, color: AppColors.primary),
                 label: 'History',
               ),
               NavigationDestination(
-                icon: Icon(Icons.person_outline, size: 26, color: AppColors.textSecondary),
-                selectedIcon: Icon(Icons.person, size: 26, color: AppColors.primary),
+                icon: Icon(Icons.person_outline,
+                    size: 26, color: AppColors.textSecondary),
+                selectedIcon:
+                    Icon(Icons.person, size: 26, color: AppColors.primary),
                 label: 'Profile',
               ),
             ],

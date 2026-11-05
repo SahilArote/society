@@ -1,3 +1,4 @@
+import '../../core/widgets/visitor_photo_avatar.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +7,7 @@ import '../../core/constants/app_dimensions.dart';
 import '../../core/widgets/custom_button.dart';
 import '../../models/visitor_request.dart';
 import '../../repositories/visitor_repository.dart';
+import '../../services/api_service.dart';
 import '../../repositories/guard_repository.dart';
 import '../dashboard/main_navigation.dart';
 
@@ -62,7 +64,8 @@ class _EntryApprovedScreenState extends State<EntryApprovedScreen> {
               // Large Visually Obvious Green Approval Banner
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 16),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 26, horizontal: 16),
                 decoration: BoxDecoration(
                   color: AppColors.successLight,
                   borderRadius: AppDimensions.roundedXl,
@@ -78,7 +81,8 @@ class _EntryApprovedScreenState extends State<EntryApprovedScreen> {
                         color: AppColors.success,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.check, color: Colors.white, size: 48),
+                      child: const Icon(Icons.check,
+                          color: Colors.white, size: 48),
                     ),
                     const SizedBox(height: 16),
                     const Text(
@@ -125,7 +129,8 @@ class _EntryApprovedScreenState extends State<EntryApprovedScreen> {
                             width: 68,
                             height: 68,
                             color: AppColors.surfaceLow,
-                            child: _buildPhoto(widget.request.visitor.photoPath),
+                            child:
+                                _buildPhoto(widget.request.visitor.photoPath),
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -164,7 +169,8 @@ class _EntryApprovedScreenState extends State<EntryApprovedScreen> {
                     _buildInfoRow(
                       icon: Icons.apartment,
                       title: 'FLAT NUMBER',
-                      value: '${widget.request.flatNumber} (${widget.request.buildingWing})',
+                      value:
+                          '${widget.request.flatNumber} (${widget.request.buildingWing})',
                     ),
                     const SizedBox(height: 14),
                     // Approved By
@@ -249,12 +255,6 @@ class _EntryApprovedScreenState extends State<EntryApprovedScreen> {
   }
 
   Widget _buildPhoto(String? path) {
-    if (path == null) {
-      return const Icon(Icons.person, size: 40, color: AppColors.textMuted);
-    }
-    if (path.startsWith('assets/')) {
-      return Image.asset(path, fit: BoxFit.cover);
-    }
-    return Image.file(File(path), fit: BoxFit.cover);
+    return VisitorPhotoAvatar.buildImageWidget(path, size: 68);
   }
 }

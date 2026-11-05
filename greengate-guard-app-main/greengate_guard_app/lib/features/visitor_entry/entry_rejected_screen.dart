@@ -1,3 +1,4 @@
+import '../../core/widgets/visitor_photo_avatar.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
@@ -5,6 +6,7 @@ import '../../core/constants/app_dimensions.dart';
 import '../../core/widgets/custom_button.dart';
 import '../../models/visitor_request.dart';
 import '../../repositories/visitor_repository.dart';
+import '../../services/api_service.dart';
 import '../../repositories/guard_repository.dart';
 import '../dashboard/main_navigation.dart';
 
@@ -47,7 +49,8 @@ class EntryRejectedScreen extends StatelessWidget {
               // Large Visually Obvious Red Rejection Banner
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 16),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 26, horizontal: 16),
                 decoration: BoxDecoration(
                   color: AppColors.errorLight,
                   borderRadius: AppDimensions.roundedXl,
@@ -63,7 +66,8 @@ class EntryRejectedScreen extends StatelessWidget {
                         color: AppColors.error,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.close, color: Colors.white, size: 48),
+                      child: const Icon(Icons.close,
+                          color: Colors.white, size: 48),
                     ),
                     const SizedBox(height: 16),
                     const Text(
@@ -197,12 +201,6 @@ class EntryRejectedScreen extends StatelessWidget {
   }
 
   Widget _buildPhoto(String? path) {
-    if (path == null) {
-      return const Icon(Icons.person, size: 36, color: AppColors.textMuted);
-    }
-    if (path.startsWith('assets/')) {
-      return Image.asset(path, fit: BoxFit.cover);
-    }
-    return Image.file(File(path), fit: BoxFit.cover);
+    return VisitorPhotoAvatar.buildImageWidget(path, size: 64);
   }
 }
