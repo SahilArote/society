@@ -183,16 +183,16 @@ async function migrateAndSeedClean() {
     ['gate_main', 'soc_greengate', 'Main Gate', 'Main Entrance', 'OPERATIONAL']
   );
 
-  // 1. Admin User: admin@greengate.in / admin123
+  // 1. Admin User: admin@nexgate.co.in / admin123
   await pool.query(
     'INSERT INTO users (id, name, mobile, email, password_hash, pin_hash, role, society_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    ['admin_user', 'Admin', '9999988888', 'admin@greengate.in', adminPasswordHash, null, 'ADMIN', 'soc_greengate', 'ACTIVE']
+    ['admin_user', 'Admin', '9999988888', 'admin@nexgate.co.in', adminPasswordHash, null, 'ADMIN', 'soc_greengate', 'ACTIVE']
   );
 
   // 2. Guard User: guard_ramesh / 9800011122 / PIN 1234
   await pool.query(
     'INSERT INTO users (id, name, mobile, email, password_hash, pin_hash, role, society_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    ['guard_ramesh', 'Ramesh Singh', '9800011122', 'guard@greengate.in', null, guardPinHash, 'GUARD', 'soc_greengate', 'ACTIVE']
+    ['guard_ramesh', 'Ramesh Singh', '9800011122', 'guard@nexgate.co.in', null, guardPinHash, 'GUARD', 'soc_greengate', 'ACTIVE']
   );
 
   // Guard profile record
@@ -204,7 +204,7 @@ async function migrateAndSeedClean() {
   // 3. Resident User: Sahil Arote / 9876543210 / Flat A-402
   await pool.query(
     'INSERT INTO users (id, name, mobile, email, password_hash, pin_hash, role, society_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    ['res_sahil', 'Sahil Arote', '9876543210', 'sahil@greengate.in', null, null, 'RESIDENT', 'soc_greengate', 'ACTIVE']
+    ['res_sahil', 'Sahil Arote', '9876543210', 'sahil@nexgate.co.in', null, null, 'RESIDENT', 'soc_greengate', 'ACTIVE']
   );
 
   // Flat for Sahil
@@ -214,7 +214,7 @@ async function migrateAndSeedClean() {
   );
 
   console.log('Successfully seeded exactly 3 real users:');
-  console.log('   1. Admin: admin@greengate.in / admin123');
+  console.log('   1. Admin: admin@nexgate.co.in / admin123');
   console.log('   2. Guard: guard_ramesh / PIN 1234 / 9800011122');
   console.log('   3. Resident: Sahil Arote / 9876543210 / Flat A-402');
   console.log('   (Zero mock visitors, zero mock requests)');

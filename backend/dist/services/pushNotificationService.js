@@ -19,7 +19,7 @@ const mysql_1 = require("../database/mysql");
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY ||
     'BHf6Vh5V0gvg0zqlvik142bjPQ8RK7ebNEAYhaHDXUQE0FElv7j9gRPsMvRr4aPnN-kXXHg2UVRqMZ7W8rXmc5Q';
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'BAxuAJvIkK9jXtmsGvqOdNUf9TEU43dF5byhMSn97UE';
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:support@greengate.in';
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:support@nexgate.co.in';
 // Configure Web Push with VAPID credentials (for Web Browser PWAs)
 web_push_1.default.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 // In-memory subscription cache for fast retrieval & offline fallback

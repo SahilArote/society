@@ -23,6 +23,7 @@ import { generateToken, AuthenticatedRequest, authenticateToken } from '../middl
 import { emitRegistrationCreated } from '../services/socketService';
 import { getMysqlPool } from '../database/mysql';
 import { AuthUser } from '../types';
+import { generateSecureOtp, sendDltOtpSms } from '../services/smsService';
 
 const router = Router();
 
@@ -103,16 +104,28 @@ router.post('/resident/send-otp', async (req: Request, res: Response) => {
       });
     }
 
-    console.log(`[AUTH] OTP requested for ${user.name} (${cleanMobile}) - OTP: 123456`);
+    const isProduction = process.env.NODE_ENV === 'production';
+    const otp = isProduction || process.env.ALLOW_DEV_FIXED_OTP !== 'true'
+      ? generateSecureOtp(6)
+      : '123456';
+
     const otpId = `otp_${uuidv4().slice(0, 8)}`;
-    await saveOtpRecord(otpId, cleanMobile, '123456');
+    await saveOtpRecord(otpId, cleanMobile, otp);
+
+    // Send real DLT SMS
+    const smsResult = await sendDltOtpSms(cleanMobile, otp);
+    if (!smsResult.success && isProduction) {
+      console.error(`[AUTH] Failed to dispatch DLT SMS to ${cleanMobile}:`, smsResult.error);
+    }
+
+    console.log(`[AUTH] OTP generated for ${user.name} (${cleanMobile})${!isProduction ? ` - OTP: ${otp}` : ''}`);
 
     return res.json({
       success: true,
-      message: 'Verification code sent',
+      message: 'Verification code sent successfully',
       data: {
         mobile: cleanMobile,
-        devOtpHint: '123456',
+        ...(isProduction ? {} : { devOtpHint: otp }),
       },
     });
   } catch (error: any) {
@@ -708,8 +721,11 @@ router.post('/admin/login', async (req: Request, res: Response) => {
       });
     }
 
-    // Locate Admin
-    const user = await findUserByEmail(email);
+    // Locate Admin (Supports both new nexgate.co.in and legacy greengate.in domains)
+    let user = await findUserByEmail(email);
+    if (!user && (email.trim().toLowerCase() === 'admin@nexgate.co.in' || email.trim().toLowerCase() === 'admin@greengate.in')) {
+      user = (await findUserByEmail('admin@nexgate.co.in')) || (await findUserByEmail('admin@greengate.in'));
+    }
     if (!user || user.role !== 'ADMIN') {
       return res.status(401).json({
         success: false,

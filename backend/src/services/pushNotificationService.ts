@@ -13,7 +13,7 @@ const VAPID_PUBLIC_KEY =
 const VAPID_PRIVATE_KEY =
   process.env.VAPID_PRIVATE_KEY || 'BAxuAJvIkK9jXtmsGvqOdNUf9TEU43dF5byhMSn97UE';
 
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:support@greengate.in';
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:support@nexgate.co.in';
 
 // Configure Web Push with VAPID credentials (for Web Browser PWAs)
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);

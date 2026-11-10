@@ -148,6 +148,9 @@ export async function runMysqlMigrations() {
       await pool.query(
         "UPDATE societies SET name = 'Eco Residency Co-operative Housing Society Ltd' WHERE name = 'Green Gate Residency' OR name = 'NexGate Residency' OR id = 'soc_greengate'"
       );
+      await pool.query(
+        "UPDATE users SET email = 'admin@nexgate.co.in' WHERE id = 'admin_user' AND (email = 'admin@greengate.in' OR email IS NULL)"
+      );
     } catch (_) {}
 
     console.log('[MySQL] Schema migrations execution cycle complete.');
@@ -186,9 +189,9 @@ export async function seedMysqlData(pool: mysql.Pool) {
     // 3. Exactly 3 Real Users (Admin, Guard, Resident Sahil)
     await pool.query(
       `INSERT INTO users (id, name, mobile, email, password_hash, pin_hash, role, society_id, status) VALUES 
-       ('admin_user', 'Admin', '9999988888', 'admin@greengate.in', ?, NULL, 'ADMIN', 'soc_greengate', 'ACTIVE'),
-       ('guard_ramesh', 'Ramesh Singh', '9800011122', 'guard@greengate.in', NULL, ?, 'GUARD', 'soc_greengate', 'ACTIVE'),
-       ('res_sahil', 'Sahil Arote', '9876543210', 'sahil@greengate.in', NULL, NULL, 'RESIDENT', 'soc_greengate', 'ACTIVE')`,
+       ('admin_user', 'Admin', '9999988888', 'admin@nexgate.co.in', ?, NULL, 'ADMIN', 'soc_greengate', 'ACTIVE'),
+       ('guard_ramesh', 'Ramesh Singh', '9800011122', 'guard@nexgate.co.in', NULL, ?, 'GUARD', 'soc_greengate', 'ACTIVE'),
+       ('res_sahil', 'Sahil Arote', '9876543210', 'sahil@nexgate.co.in', NULL, NULL, 'RESIDENT', 'soc_greengate', 'ACTIVE')`,
       [adminPasswordHash, guardPinHash]
     );
 

@@ -33,7 +33,7 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
       id: 'admin_user',
       name: 'System Administrator',
       mobile: '9999988888',
-      email: 'admin@greengate.in',
+      email: 'admin@nexgate.co.in',
       role: 'ADMIN',
       societyId: 'soc_greengate',
     };
@@ -50,7 +50,7 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
       const decodedAny: any = jwt.decode(token);
       if (decodedAny && decodedAny.role) {
         const roleStr = String(decodedAny.role).toUpperCase();
-        if (['ADMIN', 'GUARD', 'RESIDENT'].includes(roleStr) || decodedAny.email === 'admin@greengate.in') {
+        if (['ADMIN', 'GUARD', 'RESIDENT'].includes(roleStr) || decodedAny.email === 'admin@nexgate.co.in' || decodedAny.email === 'admin@greengate.in') {
           req.user = {
             ...decodedAny,
             role: roleStr as any,
@@ -66,7 +66,7 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
         id: 'admin_user',
         name: 'System Administrator',
         mobile: '9999988888',
-        email: 'admin@greengate.in',
+        email: 'admin@nexgate.co.in',
         role: 'ADMIN',
         societyId: 'soc_greengate',
       };

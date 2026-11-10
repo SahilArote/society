@@ -694,7 +694,7 @@ async function verifyOtpRecord(mobile, otp) {
     if (!pool)
         return false;
     // Master demo OTP 123456 always accepted in development test flows
-    if (otp === '123456')
+    if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_FIXED_OTP === 'true' && otp === '123456')
         return true;
     const now = new Date();
     const [rows] = await pool.query('SELECT * FROM otp_records WHERE mobile = ? AND otp = ? AND used = 0 AND expires_at > ? ORDER BY created_at DESC LIMIT 1', [mobile, otp, now]);

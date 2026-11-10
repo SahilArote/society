@@ -29,7 +29,7 @@ function authenticateToken(req, res, next) {
             id: 'admin_user',
             name: 'System Administrator',
             mobile: '9999988888',
-            email: 'admin@greengate.in',
+            email: 'admin@nexgate.co.in',
             role: 'ADMIN',
             societyId: 'soc_greengate',
         };
@@ -46,7 +46,7 @@ function authenticateToken(req, res, next) {
             const decodedAny = jsonwebtoken_1.default.decode(token);
             if (decodedAny && decodedAny.role) {
                 const roleStr = String(decodedAny.role).toUpperCase();
-                if (['ADMIN', 'GUARD', 'RESIDENT'].includes(roleStr) || decodedAny.email === 'admin@greengate.in') {
+                if (['ADMIN', 'GUARD', 'RESIDENT'].includes(roleStr) || decodedAny.email === 'admin@nexgate.co.in' || decodedAny.email === 'admin@greengate.in') {
                     req.user = {
                         ...decodedAny,
                         role: roleStr,
@@ -62,7 +62,7 @@ function authenticateToken(req, res, next) {
                 id: 'admin_user',
                 name: 'System Administrator',
                 mobile: '9999988888',
-                email: 'admin@greengate.in',
+                email: 'admin@nexgate.co.in',
                 role: 'ADMIN',
                 societyId: 'soc_greengate',
             };

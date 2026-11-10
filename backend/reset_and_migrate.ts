@@ -104,11 +104,11 @@ async function main() {
   // 3. Users
   await connection.query(
     `INSERT INTO users (id, name, mobile, email, password_hash, pin_hash, role, society_id, status) VALUES 
-     ('admin_user', 'Admin', '9999988888', 'admin@greengate.in', ?, NULL, 'ADMIN', 'soc_greengate', 'ACTIVE'),
-     ('guard_ramesh', 'Ramesh Singh', '9800011122', 'guard@greengate.in', NULL, ?, 'GUARD', 'soc_greengate', 'ACTIVE'),
-     ('guard_suresh', 'Suresh Patil', '9800011123', 'suresh@greengate.in', NULL, ?, 'GUARD', 'soc_greengate', 'ACTIVE'),
-     ('guard_vikram', 'Vikram Rathod', '9800011124', 'vikram@greengate.in', NULL, ?, 'GUARD', 'soc_greengate', 'ACTIVE'),
-     ('res_sahil', 'Sahil Arote', '9876543210', 'sahil@greengate.in', NULL, NULL, 'RESIDENT', 'soc_greengate', 'ACTIVE')`,
+     ('admin_user', 'Admin', '9999988888', 'admin@nexgate.co.in', ?, NULL, 'ADMIN', 'soc_greengate', 'ACTIVE'),
+     ('guard_ramesh', 'Ramesh Singh', '9800011122', 'guard@nexgate.co.in', NULL, ?, 'GUARD', 'soc_greengate', 'ACTIVE'),
+     ('guard_suresh', 'Suresh Patil', '9800011123', 'suresh@nexgate.co.in', NULL, ?, 'GUARD', 'soc_greengate', 'ACTIVE'),
+     ('guard_vikram', 'Vikram Rathod', '9800011124', 'vikram@nexgate.co.in', NULL, ?, 'GUARD', 'soc_greengate', 'ACTIVE'),
+     ('res_sahil', 'Sahil Arote', '9876543210', 'sahil@nexgate.co.in', NULL, NULL, 'RESIDENT', 'soc_greengate', 'ACTIVE')`,
     [adminPasswordHash, guardPinHash, guardPinHash, guardPinHash]
   );
 

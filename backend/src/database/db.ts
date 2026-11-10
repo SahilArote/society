@@ -883,7 +883,7 @@ export async function verifyOtpRecord(mobile: string, otp: string): Promise<bool
   if (!pool) return false;
 
   // Master demo OTP 123456 always accepted in development test flows
-  if (otp === '123456') return true;
+  if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_FIXED_OTP === 'true' && otp === '123456') return true;
 
   const now = new Date();
   const [rows]: any = await pool.query(

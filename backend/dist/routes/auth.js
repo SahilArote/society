@@ -10,6 +10,7 @@ const db_1 = require("../database/db");
 const auth_1 = require("../middleware/auth");
 const socketService_1 = require("../services/socketService");
 const mysql_1 = require("../database/mysql");
+const smsService_1 = require("../services/smsService");
 const router = (0, express_1.Router)();
 // =============================================================
 // RESIDENT AUTH FLOW
@@ -80,15 +81,24 @@ router.post('/resident/send-otp', async (req, res) => {
                 },
             });
         }
-        console.log(`[AUTH] OTP requested for ${user.name} (${cleanMobile}) - OTP: 123456`);
+        const isProduction = process.env.NODE_ENV === 'production';
+        const otp = isProduction || process.env.ALLOW_DEV_FIXED_OTP !== 'true'
+            ? (0, smsService_1.generateSecureOtp)(6)
+            : '123456';
         const otpId = `otp_${(0, uuid_1.v4)().slice(0, 8)}`;
-        await (0, db_1.saveOtpRecord)(otpId, cleanMobile, '123456');
+        await (0, db_1.saveOtpRecord)(otpId, cleanMobile, otp);
+        // Send real DLT SMS
+        const smsResult = await (0, smsService_1.sendDltOtpSms)(cleanMobile, otp);
+        if (!smsResult.success && isProduction) {
+            console.error(`[AUTH] Failed to dispatch DLT SMS to ${cleanMobile}:`, smsResult.error);
+        }
+        console.log(`[AUTH] OTP generated for ${user.name} (${cleanMobile})${!isProduction ? ` - OTP: ${otp}` : ''}`);
         return res.json({
             success: true,
-            message: 'Verification code sent',
+            message: 'Verification code sent successfully',
             data: {
                 mobile: cleanMobile,
-                devOtpHint: '123456',
+                ...(isProduction ? {} : { devOtpHint: otp }),
             },
         });
     }
@@ -633,8 +643,11 @@ router.post('/admin/login', async (req, res) => {
                 error: { code: 'INVALID_INPUT', message: 'Email and password are required' },
             });
         }
-        // Locate Admin
-        const user = await (0, db_1.findUserByEmail)(email);
+        // Locate Admin (Supports both new nexgate.co.in and legacy greengate.in domains)
+        let user = await (0, db_1.findUserByEmail)(email);
+        if (!user && (email.trim().toLowerCase() === 'admin@nexgate.co.in' || email.trim().toLowerCase() === 'admin@greengate.in')) {
+            user = (await (0, db_1.findUserByEmail)('admin@nexgate.co.in')) || (await (0, db_1.findUserByEmail)('admin@greengate.in'));
+        }
         if (!user || user.role !== 'ADMIN') {
             return res.status(401).json({
                 success: false,
