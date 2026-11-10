@@ -7,6 +7,7 @@
         </trust-anchors>
     </base-config>
     <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">nexgate.co.in</domain>
         <domain includeSubdomains="true">dazclothess.com</domain>
     </domain-config>
 </network-security-config>

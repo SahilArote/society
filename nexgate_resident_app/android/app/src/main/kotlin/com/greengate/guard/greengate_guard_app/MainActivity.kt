@@ -1,4 +1,4 @@
-package com.nexgate.resident.nexgate_resident_app
+package com.greengate.guard.greengate_guard_app
 
 import android.content.Intent
 import android.net.Uri
@@ -45,7 +45,7 @@ class MainActivity : FlutterActivity() {
                 } catch (e: Exception) {
                     val fallback = HashMap<String, Any>()
                     fallback["version"] = "1.1.0"
-                    fallback["buildNumber"] = "2"
+                    fallback["buildNumber"] = "15"
                     result.success(fallback)
                 }
             } else {
@@ -54,3 +54,4 @@ class MainActivity : FlutterActivity() {
         }
     }
 }
+
