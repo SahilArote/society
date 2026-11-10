@@ -43,7 +43,7 @@ class ProfileScreen extends StatelessWidget {
       context,
       title: 'Delete NexGate Account',
       message: 'Are you sure you want to permanently delete your account? This action is irreversible. Your flat occupancy binding, visitor approval history, family members, and registered vehicles will be permanently purged.',
-      confirmLabel: 'Permanently Delete',
+      confirmLabel: 'Delete Account',
       isDestructive: true,
       icon: Icons.delete_forever_rounded,
     );

@@ -90,43 +90,43 @@ class AppTheme {
           color: AppColors.textPrimary,
         ),
       ),
-      cardTheme: const CardTheme(
+      cardTheme: CardTheme(
         color: AppColors.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: AppDimensions.roundedLg,
-          side: BorderSide(color: AppColors.border, width: 1.5),
+          side: const BorderSide(color: AppColors.border, width: 1.5),
         ),
         margin: EdgeInsets.zero,
       ),
-      inputDecorationTheme: const InputDecorationTheme(
+      inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surfaceLow,
         contentPadding:
-            EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        hintStyle: TextStyle(
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        hintStyle: const TextStyle(
             color: AppColors.textMuted,
             fontSize: 15,
             fontWeight: FontWeight.w500),
-        labelStyle: TextStyle(
+        labelStyle: const TextStyle(
             color: AppColors.textSecondary,
             fontSize: 15,
             fontWeight: FontWeight.w600),
         border: OutlineInputBorder(
           borderRadius: AppDimensions.roundedMd,
-          borderSide: BorderSide(color: AppColors.border, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.border, width: 1.5),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: AppDimensions.roundedMd,
-          borderSide: BorderSide(color: AppColors.border, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.border, width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: AppDimensions.roundedMd,
-          borderSide: BorderSide(color: AppColors.primary, width: 2.0),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2.0),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: AppDimensions.roundedMd,
-          borderSide: BorderSide(color: AppColors.error, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(

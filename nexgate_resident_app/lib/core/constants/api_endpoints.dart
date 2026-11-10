@@ -3,8 +3,8 @@ class ApiEndpoints {
   ApiEndpoints._();
 
   // Production Backend URL (AWS Lightsail)
-  static const String defaultBaseUrl = 'https://dazclothess.com/api';
-  static const String defaultSocketUrl = 'https://dazclothess.com';
+  static const String defaultBaseUrl = 'https://nexgate.co.in/api';
+  static const String defaultSocketUrl = 'https://nexgate.co.in';
 
   // Base URL resolution
   static String baseUrl = defaultBaseUrl;

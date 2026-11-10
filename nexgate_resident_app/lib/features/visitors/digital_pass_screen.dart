@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -11,6 +13,7 @@ import '../../core/widgets/secondary_button.dart';
 import '../../models/invite_model.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
+import '../dashboard/main_navigation_shell.dart';
 
 /// Shareable Digital Visitor Entry Pass with QR code.
 class DigitalPassScreen extends StatefulWidget {
@@ -47,7 +50,7 @@ class _DigitalPassScreenState extends State<DigitalPassScreen> {
     _status = widget.invite?.status ?? 'ACTIVE';
   }
 
-  void _handleShare() {
+  Future<void> _handleShare() async {
     final user = AuthService.currentUser.value;
     final flat = widget.invite?.flatNumber.isNotEmpty == true
         ? widget.invite!.flatNumber
@@ -65,6 +68,42 @@ Purpose: ${widget.purpose.toUpperCase()}
 ${widget.notes != null && widget.notes!.isNotEmpty ? 'Notes: ${widget.notes}\n' : ''}
 Please present this pass or show the QR code at the security gate for instant entry.
 ''';
+
+    try {
+      final qrData = 'NEXGATE-PASS:${widget.passId}:${widget.visitorName}:$flat:${widget.date}';
+      final painter = QrPainter(
+        data: qrData,
+        version: QrVersions.auto,
+        gapless: true,
+        eyeStyle: const QrEyeStyle(
+          eyeShape: QrEyeShape.square,
+          color: AppColors.primaryBlue,
+        ),
+        dataModuleStyle: const QrDataModuleStyle(
+          dataModuleShape: QrDataModuleShape.square,
+          color: AppColors.primaryText,
+        ),
+      );
+
+      final picData = await painter.toImageData(600, format: ui.ImageByteFormat.png);
+      if (picData != null) {
+        final tempDir = Directory.systemTemp;
+        final tempFile = File('${tempDir.path}/nexgate_pass_${widget.passId}.png');
+        await tempFile.writeAsBytes(picData.buffer.asUint8List());
+
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(tempFile.path)],
+            text: text,
+            subject: 'NexGate Entry Pass for ${widget.visitorName}',
+          ),
+        );
+        return;
+      }
+    } catch (e) {
+      debugPrint('[SHARE] QR image generation fallback to text-only: $e');
+    }
+
     SharePlus.instance.share(
       ShareParams(
         text: text,
@@ -114,6 +153,13 @@ Please present this pass or show the QR code at the security gate for instant en
     }
   }
 
+  void _navigateToHome() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const MainNavigationShell(initialTab: 0)),
+      (route) => false,
+    );
+  }
+
   Color _getStatusColor() {
     switch (_status.toUpperCase()) {
       case 'ACTIVE':
@@ -135,13 +181,20 @@ Please present this pass or show the QR code at the security gate for instant en
         ? widget.invite!.flatNumber
         : (user?.flatNumber ?? 'Resident');
 
-    return Scaffold(
-      backgroundColor: AppColors.mainBackground,
-      appBar: const CustomAppBar(
-        title: 'Visitor Pass',
-        showBack: true,
-      ),
-      body: SafeArea(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) return;
+        _navigateToHome();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.mainBackground,
+        appBar: CustomAppBar(
+          title: 'Visitor Pass',
+          showBack: true,
+          onBack: _navigateToHome,
+        ),
+        body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
           child: Column(
@@ -167,27 +220,32 @@ Please present this pass or show the QR code at the security gate for instant en
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'NEXGATE PASS',
-                                style: AppTypography.caption.copyWith(
-                                  color: Colors.white.withValues(alpha: 0.8),
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 1.0,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'NEXGATE PASS',
+                                  style: AppTypography.caption.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.8),
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.0,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                user?.societyName ?? 'Eco Residency Co-operative Housing Society Ltd',
-                                style: AppTypography.titleSmall.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
+                                const SizedBox(height: 2),
+                                Text(
+                                  user?.societyName ?? 'Eco Residency Co-operative Housing Society Ltd',
+                                  style: AppTypography.titleSmall.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
@@ -331,14 +389,15 @@ Please present this pass or show the QR code at the security gate for instant en
 
               SecondaryButton(
                 label: 'Done',
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: _navigateToHome,
               ),
             ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPassRow(String label, String value) {
     return Row(

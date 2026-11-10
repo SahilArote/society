@@ -154,12 +154,22 @@ class _MainNavigationShellState extends State<MainNavigationShell> with WidgetsB
       const ProfileScreen(),
     ];
 
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: screens,
-      ),
-      bottomNavigationBar: Container(
+    return PopScope(
+      canPop: _currentIndex == 0,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) return;
+        if (_currentIndex != 0) {
+          setState(() {
+            _currentIndex = 0;
+          });
+        }
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: _currentIndex,
+          children: screens,
+        ),
+        bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: Colors.white,
           border: Border(
@@ -200,6 +210,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> with WidgetsB
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

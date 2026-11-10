@@ -1,4 +1,6 @@
 import '../../core/widgets/visitor_photo_avatar.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
@@ -12,6 +14,7 @@ import '../visitor_entry/waiting_approval_screen.dart';
 import '../visitor_entry/entry_approved_screen.dart';
 import '../visitor_entry/entry_rejected_screen.dart';
 import 'widgets/verify_pass_dialog.dart';
+import '../../services/api_service.dart';
 
 class DashboardScreen extends StatelessWidget {
   final GuardRepository guardRepo;
@@ -76,7 +79,7 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final guard = guardRepo.currentGuard;
     final guardName = guard?.name ?? 'Ramesh Singh';
-    final societyName = guard?.societyName ?? 'Eco Residency Co-operative Housing Society Ltd';
+    final societyName = guard?.societyName ?? 'NexGate Residency';
     final gateName = guard?.assignedGate ?? 'Main Gate';
 
     return Scaffold(

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_dimensions.dart';
 import '../../../repositories/visitor_repository.dart';
 import '../../../services/api_service.dart';
-
+import 'pass_scanner_screen.dart';
 
 /// Modal dialog allowing security guards to verify visitor passes at the gate
 /// either by scanning QR code with camera or entering the 6-digit pass code.
@@ -70,12 +71,19 @@ class _VerifyPassDialogState extends State<VerifyPassDialog> {
     }
   }
 
-  void _openCameraScanner() { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter the 6-character Pass Code from the visitor pass below.'), duration: Duration(seconds: 2))); }
+  Future<void> _openCameraScanner() async {
+    final scannedCode = await PassScannerScreen.open(context);
+    if (!mounted || scannedCode == null || scannedCode.trim().isEmpty) return;
+
+    final code = scannedCode.trim();
+    _codeController.text = code;
+    _handleVerify(code);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: const RoundedRectangleBorder(borderRadius: AppDimensions.roundedXl),
+      shape: RoundedRectangleBorder(borderRadius: AppDimensions.roundedXl),
       backgroundColor: Colors.white,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: Container(

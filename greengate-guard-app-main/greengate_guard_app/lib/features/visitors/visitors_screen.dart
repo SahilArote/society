@@ -1,10 +1,14 @@
 import '../../core/widgets/visitor_photo_avatar.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_dimensions.dart';
 import '../../models/visitor.dart';
 import '../../models/visitor_request.dart';
 import '../../repositories/visitor_repository.dart';
 import '../../repositories/guard_repository.dart';
+import '../../services/api_service.dart';
 import '../visitor_entry/waiting_approval_screen.dart';
 import '../visitor_entry/entry_approved_screen.dart';
 import '../visitor_entry/entry_rejected_screen.dart';

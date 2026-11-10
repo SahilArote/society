@@ -1,4 +1,5 @@
 import '../../core/widgets/visitor_photo_avatar.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
@@ -6,6 +7,7 @@ import '../../core/constants/app_dimensions.dart';
 import '../../core/widgets/custom_button.dart';
 import '../../models/visitor_request.dart';
 import '../../repositories/visitor_repository.dart';
+import '../../services/api_service.dart';
 import '../../repositories/guard_repository.dart';
 import 'entry_approved_screen.dart';
 import 'entry_rejected_screen.dart';
@@ -112,10 +114,10 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
                     borderRadius: AppDimensions.roundedXl,
                     border: Border.all(color: AppColors.warning, width: 2.0),
                   ),
-                  child: const Column(
+                  child: Column(
                     children: [
                       // Simple loading indicator
-                      SizedBox(
+                      const SizedBox(
                         width: 52,
                         height: 52,
                         child: CircularProgressIndicator(
@@ -124,8 +126,8 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
                               AlwaysStoppedAnimation<Color>(AppColors.warning),
                         ),
                       ),
-                      SizedBox(height: 18),
-                      Text(
+                      const SizedBox(height: 18),
+                      const Text(
                         'WAITING FOR APPROVAL',
                         style: TextStyle(
                           fontSize: 22,
@@ -135,8 +137,8 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      SizedBox(height: 6),
-                      Text(
+                      const SizedBox(height: 6),
+                      const Text(
                         'Request sent to resident',
                         style: TextStyle(
                           fontSize: 16,
@@ -161,7 +163,8 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
                     border: Border.all(color: AppColors.border, width: 1.5),
                     boxShadow: AppDimensions.cardShadow,
                   ),
-                  child: Column(children: [
+                  child: Column(
+                    children: [
                       // Visitor Photo
                       ClipRRect(
                         borderRadius: BorderRadius.circular(16),
@@ -303,7 +306,8 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen> {
                     borderRadius: AppDimensions.roundedLg,
                     border: Border.all(color: AppColors.border, width: 1.0),
                   ),
-                  child: const Row(children: [
+                  child: Row(
+                    children: const [
                       Icon(Icons.info_outline,
                           size: 20, color: AppColors.textSecondary),
                       SizedBox(width: 10),

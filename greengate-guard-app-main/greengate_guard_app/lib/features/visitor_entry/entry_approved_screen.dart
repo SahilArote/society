@@ -1,4 +1,5 @@
 import '../../core/widgets/visitor_photo_avatar.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
@@ -6,6 +7,7 @@ import '../../core/constants/app_dimensions.dart';
 import '../../core/widgets/custom_button.dart';
 import '../../models/visitor_request.dart';
 import '../../repositories/visitor_repository.dart';
+import '../../services/api_service.dart';
 import '../../repositories/guard_repository.dart';
 import '../dashboard/main_navigation.dart';
 

@@ -2,7 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import { getAdminToken } from './api';
 
 function resolveSocketUrl(): string {
-  let url = (import.meta.env.VITE_SOCKET_URL || 'https://dazclothess.com').trim();
+  let url = (import.meta.env.VITE_SOCKET_URL || 'https://nexgate.co.in').trim();
   if (url.endsWith('/')) {
     url = url.slice(0, -1);
   }

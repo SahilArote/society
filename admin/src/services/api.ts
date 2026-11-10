@@ -1,5 +1,5 @@
 function resolveApiBaseUrl(): string {
-  let url = (import.meta.env.VITE_API_URL || 'https://dazclothess.com/api').trim();
+  let url = (import.meta.env.VITE_API_URL || 'https://nexgate.co.in/api').trim();
   if (url.endsWith('/')) {
     url = url.slice(0, -1);
   }
@@ -60,14 +60,14 @@ export async function adminLogin(email: string, password: string) {
   }
 
   // Backup fallback for admin login: admin@greengate.in / admin123
-  if (email.trim().toLowerCase() === 'admin@greengate.in' && password === 'admin123') {
+  if ((email.trim().toLowerCase() === 'admin@greengate.in' || email.trim().toLowerCase() === 'admin@nexgate.co.in') && password === 'admin123') {
     const fallbackToken = 'backup_admin_token_' + Date.now();
     const fallbackAdmin = { id: 'admin_user', email: 'admin@greengate.in', name: 'Admin', role: 'ADMIN' };
     setAdminSession(fallbackToken, fallbackAdmin);
     return { success: true, token: fallbackToken, admin: fallbackAdmin };
   }
 
-  throw new Error('Invalid admin credentials. Use admin@greengate.in / admin123');
+  throw new Error('Invalid admin credentials. Use admin@nexgate.co.in / admin123');
 }
 
 async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {

@@ -24,7 +24,8 @@ enum VisitorStatus {
     final lower = val.toLowerCase().trim();
     if (lower == 'approved') return VisitorStatus.approved;
     if (lower == 'rejected') return VisitorStatus.rejected;
-    if (lower == 'completed' || lower == 'entered') { return VisitorStatus.completed; }
+    if (lower == 'completed' || lower == 'entered')
+      return VisitorStatus.completed;
     return VisitorStatus.pending;
   }
 }

@@ -30,7 +30,7 @@ class GuardRepository extends ChangeNotifier {
     id: 'guard_ramesh',
     name: 'Ramesh Singh',
     badgeNumber: 'NX-SEC-01',
-    societyName: 'Eco Residency Co-operative Housing Society Ltd',
+    societyName: 'NexGate Residency',
     assignedGate: 'Main Gate',
     shift: 'Morning Shift (07:00 AM - 07:00 PM)',
   );
@@ -62,7 +62,7 @@ class GuardRepository extends ChangeNotifier {
         id: g['id'] ?? cleanInput,
         name: g['name'] ?? 'Ramesh Singh',
         badgeNumber: 'NX-SEC-01',
-        societyName: soc['name'] ?? 'Eco Residency Co-operative Housing Society Ltd',
+        societyName: soc['name'] ?? 'NexGate Residency',
         assignedGate: gate['name'] ?? 'Main Gate',
         shift: g['shift'] ?? 'Morning Shift (07:00 AM - 07:00 PM)',
       );

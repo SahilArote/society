@@ -155,7 +155,7 @@ class VisitorRepository extends ChangeNotifier {
         }
       }
     } catch (e) {
-      debugPrint('Notice: Could not refresh dynamic directory from API: $e');
+      print('Notice: Could not refresh dynamic directory from API: $e');
     }
   }
 

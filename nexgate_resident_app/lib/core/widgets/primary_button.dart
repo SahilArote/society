@@ -47,6 +47,7 @@ class PrimaryButton extends StatelessWidget {
                 onPressed!();
               },
         style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           backgroundColor: bgColor,
           foregroundColor: fgColor,
           disabledBackgroundColor: bgColor.withValues(alpha: 0.6),
@@ -72,9 +73,14 @@ class PrimaryButton extends StatelessWidget {
                     Icon(icon, size: 18, color: fgColor),
                     const SizedBox(width: 8),
                   ],
-                  Text(
-                    label,
-                    style: AppTypography.button.copyWith(color: fgColor),
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: AppTypography.button.copyWith(color: fgColor),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ],
               ),

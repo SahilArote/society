@@ -28,9 +28,9 @@ export default function Settings() {
 
   // Admin users state
   const [admins, setAdmins] = useState([
-    { id: 1, name: 'Rajesh Sharma', role: 'Society Secretary', email: 'secretary@greengate.in', phone: '+91 98765 00001', access: 'Super Admin' },
-    { id: 2, name: 'Vikram Joshi', role: 'Security Supervisor', email: 'security@greengate.in', phone: '+91 98765 00002', access: 'Gates & Guards' },
-    { id: 3, name: 'Anita Deshmukh', role: 'Treasurer & Accounts', email: 'treasurer@greengate.in', phone: '+91 98765 00003', access: 'Billing & Reports' },
+    { id: 1, name: 'Rajesh Sharma', role: 'Society Secretary', email: 'secretary@nexgate.co.in', phone: '+91 98765 00001', access: 'Super Admin' },
+    { id: 2, name: 'Vikram Joshi', role: 'Security Supervisor', email: 'security@nexgate.co.in', phone: '+91 98765 00002', access: 'Gates & Guards' },
+    { id: 3, name: 'Anita Deshmukh', role: 'Treasurer & Accounts', email: 'treasurer@nexgate.co.in', phone: '+91 98765 00003', access: 'Billing & Reports' },
   ]);
 
   const [showAddAdmin, setShowAddAdmin] = useState(false);
@@ -731,7 +731,7 @@ export default function Settings() {
                     value={newAdminEmail}
                     onChange={e => setNewAdminEmail(e.target.value)}
                     required
-                    placeholder="e.g. ramesh@greengate.in"
+                    placeholder="e.g. ramesh@nexgate.co.in"
                     className="field-input"
                   />
                 </div>

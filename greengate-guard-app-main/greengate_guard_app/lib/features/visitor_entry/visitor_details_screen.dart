@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
@@ -435,7 +436,8 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
                               label: Text(company),
                               selected: isSelected,
                               onSelected: (val) {
-                                if (val) { setState(() => _selectedCompany = company); }
+                                if (val)
+                                  setState(() => _selectedCompany = company);
                               },
                               selectedColor: AppColors.primaryLight,
                               labelStyle: TextStyle(
@@ -562,7 +564,9 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
                                             : AppColors.border,
                                         width: 1.5,
                                       ),
-                                      shape: const RoundedRectangleBorder(borderRadius: AppDimensions.roundedMd),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: AppDimensions.roundedMd,
+                                      ),
                                       padding: EdgeInsets.zero,
                                     ),
                                     onPressed: () => _onWingChanged(wing),

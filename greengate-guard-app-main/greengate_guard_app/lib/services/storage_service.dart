@@ -62,7 +62,7 @@ class StorageService {
   }
 
   String getServerUrl() {
-    var url = _prefs.getString(_keyServerUrl) ?? 'https://dazclothess.com/api';
+    var url = _prefs.getString(_keyServerUrl) ?? 'https://nexgate.co.in/api';
     var clean = url.trim();
     while (clean.endsWith('/')) {
       clean = clean.substring(0, clean.length - 1);
@@ -70,7 +70,7 @@ class StorageService {
     if (clean.isNotEmpty && !clean.endsWith('/api')) {
       clean = '$clean/api';
     }
-    return clean.isNotEmpty ? clean : 'https://dazclothess.com/api';
+    return clean.isNotEmpty ? clean : 'https://nexgate.co.in/api';
   }
 
   Future<void> setServerUrl(String url) async {

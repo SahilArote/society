@@ -13,7 +13,7 @@ const daysAgo = (d: number) => new Date(now.getTime() - d * 86400000);
 export const mockAdminUser: AdminUser = {
   id: 'admin-1',
   name: 'Rajesh Sharma',
-  email: 'secretary@greengate.in',
+  email: 'secretary@nexgate.co.in',
   role: 'secretary',
   phone: '+91 98765 00001',
   lastLogin: hoursAgo(2),

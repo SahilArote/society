@@ -21,9 +21,8 @@ class OtpVerifyScreen extends StatefulWidget {
 }
 
 class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
-  final List<TextEditingController> _controllers =
-      List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  final TextEditingController _otpController = TextEditingController();
+  final FocusNode _otpFocusNode = FocusNode();
 
   int _countdown = 30;
   Timer? _timer;
@@ -34,6 +33,9 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   void initState() {
     super.initState();
     _startTimer();
+    _otpController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   void _startTimer() {
@@ -48,7 +50,27 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     });
   }
 
-  String get _otpCode => _controllers.map((c) => c.text).join();
+  String get _otpCode => _otpController.text.trim();
+
+  Future<void> _pasteFromClipboard() async {
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      final raw = data?.text ?? '';
+      final digits = raw.replaceAll(RegExp(r'\D'), '');
+      if (digits.isNotEmpty) {
+        final code = digits.length >= 6 ? digits.substring(0, 6) : digits;
+        _otpController.text = code;
+        _otpController.selection = TextSelection.collapsed(offset: code.length);
+        if (_errorMessage != null) {
+          setState(() => _errorMessage = null);
+        }
+        if (code.length == 6) {
+          _otpFocusNode.unfocus();
+          _handleVerify();
+        }
+      }
+    } catch (_) {}
+  }
 
   Future<void> _handleVerify() async {
     final code = _otpCode;
@@ -145,12 +167,8 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    for (final c in _controllers) {
-      c.dispose();
-    }
-    for (final f in _focusNodes) {
-      f.dispose();
-    }
+    _otpController.dispose();
+    _otpFocusNode.dispose();
     super.dispose();
   }
 
@@ -194,68 +212,115 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
 
               const SizedBox(height: 36),
 
-              // 6 OTP Digit Boxes
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(6, (index) {
-                  return SizedBox(
-                    width: 48,
-                    height: 56,
-                    child: TextField(
-                      controller: _controllers[index],
-                      focusNode: _focusNodes[index],
-                      textAlign: TextAlign.center,
-                      keyboardType: TextInputType.number,
-                      autofocus: index == 0,
-                      style: AppTypography.titleLarge.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primaryText,
-                      ),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(1),
-                      ],
-                      decoration: InputDecoration(
-                        contentPadding: EdgeInsets.zero,
-                        filled: true,
-                        fillColor: _controllers[index].text.isNotEmpty
-                            ? AppColors.lightBlue
-                            : AppColors.mainBackground,
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: _controllers[index].text.isNotEmpty
-                                ? AppColors.primaryBlue
-                                : AppColors.border,
-                            width: 1.5,
+              // 6 OTP Digit Boxes with full Cut / Copy / Paste & Autofill support
+              AutofillGroup(
+                child: Stack(
+                  children: [
+                    // Visual 6 digit pin containers
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: List.generate(6, (index) {
+                        final digit = index < _otpController.text.length
+                            ? _otpController.text[index]
+                            : '';
+                        final isFocused = _otpFocusNode.hasFocus &&
+                            (index == _otpController.text.length.clamp(0, 5) ||
+                                (_otpController.text.length == 6 && index == 5));
+                        final isFilled = digit.isNotEmpty;
+
+                        return Container(
+                          width: 48,
+                          height: 56,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: isFilled || isFocused
+                                ? AppColors.lightBlue
+                                : AppColors.mainBackground,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isFocused
+                                  ? AppColors.primaryBlue
+                                  : (isFilled ? AppColors.primaryBlue : AppColors.border),
+                              width: isFocused ? 2.0 : 1.5,
+                            ),
                           ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: AppColors.primaryBlue,
-                            width: 2.0,
+                          child: Text(
+                            digit,
+                            style: AppTypography.titleLarge.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primaryText,
+                            ),
                           ),
-                        ),
-                      ),
-                      onChanged: (val) {
-                        if (_errorMessage != null) {
-                          setState(() => _errorMessage = null);
-                        }
-                        if (val.isNotEmpty) {
-                          if (index < 5) {
-                            _focusNodes[index + 1].requestFocus();
-                          } else {
-                            _focusNodes[index].unfocus();
-                            _handleVerify();
-                          }
-                        } else if (val.isEmpty && index > 0) {
-                          _focusNodes[index - 1].requestFocus();
-                        }
-                      },
+                        );
+                      }),
                     ),
-                  );
-                }),
+
+                    // Invisible transparent TextField covering the entire OTP area
+                    Positioned.fill(
+                      child: Opacity(
+                        opacity: 0.0,
+                        child: TextField(
+                          controller: _otpController,
+                          focusNode: _otpFocusNode,
+                          autofocus: true,
+                          showCursor: false,
+                          keyboardType: TextInputType.number,
+                          autofillHints: const [AutofillHints.oneTimeCode],
+                          enableInteractiveSelection: true,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(6),
+                          ],
+                          onChanged: (val) {
+                            if (_errorMessage != null) {
+                              setState(() => _errorMessage = null);
+                            }
+                            if (val.length == 6) {
+                              _otpFocusNode.unfocus();
+                              _handleVerify();
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Clipboard Paste Shortcut Helper
+              Center(
+                child: InkWell(
+                  onTap: _pasteFromClipboard,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: AppColors.lightBlue,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.content_paste_rounded,
+                          size: 15,
+                          color: AppColors.primaryBlue,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Paste code from clipboard',
+                          style: AppTypography.caption.copyWith(
+                            color: AppColors.primaryBlue,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
 
               if (_errorMessage != null) ...[
@@ -317,36 +382,6 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                           ),
                         ),
                       ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // Dev hint card
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.lightPurple,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFC7D2FE)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.info_outline_rounded,
-                      size: 16,
-                      color: AppColors.deepPurple,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Development OTP Hint: 123456',
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.deepPurple,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ],
           ),

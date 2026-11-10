@@ -63,7 +63,7 @@ class CustomButton extends StatelessWidget {
           foregroundColor: fg,
           elevation: variant == CustomButtonVariant.outline ? 0 : 2,
           side: border,
-          shape: const RoundedRectangleBorder(
+          shape: RoundedRectangleBorder(
             borderRadius: AppDimensions.roundedLg,
           ),
           padding: const EdgeInsets.symmetric(horizontal: 20),

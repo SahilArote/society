@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
 import '../../core/widgets/custom_app_bar.dart';
@@ -240,6 +241,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           style: AppTypography.bodySmall,
         ),
         const SizedBox(height: 32),
+        
         CustomTextField(
           controller: _nameController,
           label: 'Full Name',
@@ -250,11 +252,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
         CustomTextField(
           controller: _mobileController,
           label: 'Mobile Number',
-          hint: '10-digit phone number',
+          hint: 'Enter 10-digit number',
           keyboardType: TextInputType.phone,
-          prefix: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12),
-            child: Text('+91', style: TextStyle(fontWeight: FontWeight.bold)),
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(10),
+          ],
+          prefix: Container(
+            width: 58,
+            alignment: Alignment.center,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '+91',
+                  style: AppTypography.bodyLarge.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryText,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Container(
+                  width: 1,
+                  height: 18,
+                  color: AppColors.border,
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 36),

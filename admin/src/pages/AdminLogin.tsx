@@ -8,7 +8,7 @@ import { adminLogin } from '../services/api';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('admin@greengate.in');
+  const [email, setEmail] = useState('admin@nexgate.co.in');
   const [password, setPassword] = useState('admin123');
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -22,7 +22,7 @@ export default function AdminLogin() {
       await adminLogin(email, password);
       navigate('/admin/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Invalid email or password. Try admin@greengate.in / admin123');
+      setError(err.message || 'Invalid email or password. Try admin@nexgate.co.in / admin123');
     } finally {
       setLoading(false);
     }
@@ -110,7 +110,7 @@ export default function AdminLogin() {
                   id="admin-email" type="email" required
                   value={email} onChange={e => setEmail(e.target.value)}
                   className="field-input" style={{ paddingLeft: 38 }}
-                  placeholder="admin@greengate.in"
+                  placeholder="admin@nexgate.co.in"
                 />
               </div>
             </div>
@@ -161,7 +161,7 @@ export default function AdminLogin() {
               DEMO CREDENTIALS
             </p>
             <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-              admin@greengate.in · admin123
+              admin@nexgate.co.in · admin123
             </p>
           </div>
         </div>

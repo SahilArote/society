@@ -46,6 +46,7 @@ class SecondaryButton extends StatelessWidget {
                 onPressed!();
               },
         style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           backgroundColor: bgColor,
           foregroundColor: fgColor,
           side: BorderSide(color: bColor, width: 1.2),
@@ -71,9 +72,14 @@ class SecondaryButton extends StatelessWidget {
                     Icon(icon, size: 18, color: fgColor),
                     const SizedBox(width: 8),
                   ],
-                  Text(
-                    label,
-                    style: AppTypography.button.copyWith(color: fgColor),
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: AppTypography.button.copyWith(color: fgColor),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ],
               ),
