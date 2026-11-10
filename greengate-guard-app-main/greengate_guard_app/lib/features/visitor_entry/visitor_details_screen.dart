@@ -647,7 +647,7 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
                           color: AppColors.primaryLight,
                           borderRadius: AppDimensions.roundedMd,
                           border: Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.2)),
+                              color: AppColors.primary.withOpacity(0.2)),
                         ),
                         child: Row(
                           children: [

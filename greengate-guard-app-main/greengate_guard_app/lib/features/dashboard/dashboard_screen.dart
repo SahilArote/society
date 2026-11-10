@@ -240,7 +240,7 @@ class DashboardScreen extends StatelessWidget {
                                 boxShadow: [
                                   BoxShadow(
                                     color: const Color(0xFF4F46E5)
-                                        .withValues(alpha: 0.32),
+                                        .withOpacity(0.32),
                                     blurRadius: 14,
                                     offset: const Offset(0, 4),
                                   ),
@@ -252,7 +252,7 @@ class DashboardScreen extends StatelessWidget {
                                     width: 42,
                                     height: 42,
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.18),
+                                      color: Colors.white.withOpacity(0.18),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: const Icon(

@@ -158,7 +158,7 @@ class _VerifyPassDialogState extends State<VerifyPassDialog> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF4F46E5).withValues(alpha: 0.32),
+                    color: const Color(0xFF4F46E5).withOpacity(0.32),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -170,7 +170,7 @@ class _VerifyPassDialogState extends State<VerifyPassDialog> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
+                      color: Colors.white.withOpacity(0.18),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
@@ -292,7 +292,7 @@ class _VerifyPassDialogState extends State<VerifyPassDialog> {
               color: const Color(0xFFFFF1F2),
               borderRadius: BorderRadius.circular(10),
               border:
-                  Border.all(color: const Color(0xFFF43F5E).withValues(alpha: 0.3)),
+                  Border.all(color: const Color(0xFFF43F5E).withOpacity(0.3)),
             ),
             child: Row(
               children: [

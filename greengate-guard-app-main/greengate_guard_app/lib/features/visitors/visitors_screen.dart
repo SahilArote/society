@@ -469,10 +469,10 @@ class _VisitorsScreenState extends State<VisitorsScreen>
                     width: 72,
                     height: 72,
                     decoration: BoxDecoration(
-                      color: accentColor.withValues(alpha: 0.1),
+                      color: accentColor.withOpacity(0.1),
                       shape: BoxShape.circle,
                       border: Border.all(
-                          color: accentColor.withValues(alpha: 0.25), width: 1.5),
+                          color: accentColor.withOpacity(0.25), width: 1.5),
                     ),
                     child: Icon(emptyIcon, size: 34, color: accentColor),
                   ),
