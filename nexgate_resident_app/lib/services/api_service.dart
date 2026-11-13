@@ -20,6 +20,9 @@ import '../models/vehicle_model.dart';
 
 import '../models/visitor_model.dart';
 import '../models/invite_model.dart';
+import '../models/society_service_model.dart';
+import '../models/lost_found_model.dart';
+import '../models/society_event_model.dart';
 
 import 'auth_service.dart';
 
@@ -136,6 +139,17 @@ class ApiService {
   }
 
 
+
+  static Future<http.Response> _patch(Uri uri, {Map<String, String>? headers, Object? body}) {
+    return http.patch(uri, headers: headers, body: body).timeout(
+      timeoutDuration,
+      onTimeout: () => throw ApiException(
+        'Request timed out after 15 seconds. Please check your network connection.',
+        code: 'TIMEOUT',
+        statusCode: 408,
+      ),
+    );
+  }
 
   static Future<http.Response> _delete(Uri uri, {Map<String, String>? headers, Object? body}) {
 
@@ -908,5 +922,163 @@ class ApiService {
     final json = _handleResponse(response);
     return json['success'] == true;
   }
-}
 
+  // ==========================================================
+  // SERVICES (VENDORS, UTILITIES, STAFF)
+  // ==========================================================
+
+  static Future<List<SocietyServiceModel>> fetchServices({
+    String? type,
+    String? category,
+    String? search,
+  }) async {
+    final queryParams = <String, String>{};
+    if (type != null && type.isNotEmpty && type.toLowerCase() != 'all') {
+      queryParams['type'] = type;
+    }
+    if (category != null && category.isNotEmpty && category.toLowerCase() != 'all') {
+      queryParams['category'] = category;
+    }
+    if (search != null && search.trim().isNotEmpty) {
+      queryParams['search'] = search.trim();
+    }
+
+    final uri = Uri.parse(ApiEndpoints.services).replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+    final response = await _get(uri, headers: _headers());
+    final json = _handleResponse(response);
+    final list = json['data'] as List<dynamic>? ?? [];
+    return list.map((item) => SocietyServiceModel.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
+  static Future<SocietyServiceModel> fetchServiceDetail(String id) async {
+    final response = await _get(
+      Uri.parse(ApiEndpoints.serviceDetail(id)),
+      headers: _headers(),
+    );
+    final json = _handleResponse(response);
+    return SocietyServiceModel.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  // ==========================================================
+  // COMMUNITY: LOST & FOUND
+  // ==========================================================
+
+  static Future<List<LostFoundModel>> fetchLostFoundItems({
+    String? type,
+    String? status,
+    String? search,
+  }) async {
+    final queryParams = <String, String>{};
+    if (type != null && type.isNotEmpty && type.toUpperCase() != 'ALL') {
+      queryParams['type'] = type.toUpperCase();
+    }
+    if (status != null && status.isNotEmpty && status.toUpperCase() != 'ALL') {
+      queryParams['status'] = status.toUpperCase();
+    }
+    if (search != null && search.trim().isNotEmpty) {
+      queryParams['search'] = search.trim();
+    }
+
+    final uri = Uri.parse(ApiEndpoints.lostFound).replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+    final response = await _get(uri, headers: _headers());
+    final json = _handleResponse(response);
+    final list = json['data'] as List<dynamic>? ?? [];
+    return list.map((item) => LostFoundModel.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
+  static Future<LostFoundModel> fetchLostFoundDetail(String id) async {
+    final response = await _get(
+      Uri.parse(ApiEndpoints.lostFoundDetail(id)),
+      headers: _headers(),
+    );
+    final json = _handleResponse(response);
+    return LostFoundModel.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  static Future<LostFoundModel> createLostFoundItem({
+    required String type,
+    required String title,
+    required String description,
+    required String category,
+    required String location,
+    DateTime? incidentDate,
+    String? imageUrl,
+  }) async {
+    final response = await _post(
+      Uri.parse(ApiEndpoints.lostFound),
+      headers: _headers(),
+      body: jsonEncode({
+        'type': type.toUpperCase(),
+        'title': title.trim(),
+        'description': description.trim(),
+        'category': category.trim(),
+        'location': location.trim(),
+        'incidentDate': (incidentDate ?? DateTime.now()).toIso8601String(),
+        'imageUrl': imageUrl,
+      }),
+    );
+    final json = _handleResponse(response);
+    return LostFoundModel.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  static Future<bool> updateLostFoundStatus(String id, String status) async {
+    final response = await _patch(
+      Uri.parse(ApiEndpoints.lostFoundStatus(id)),
+      headers: _headers(),
+      body: jsonEncode({'status': status.toUpperCase()}),
+    );
+    final json = _handleResponse(response);
+    return json['success'] == true;
+  }
+
+  static Future<bool> deleteLostFoundItem(String id) async {
+    final response = await _delete(
+      Uri.parse(ApiEndpoints.lostFoundDetail(id)),
+      headers: _headers(),
+    );
+    final json = _handleResponse(response);
+    return json['success'] == true;
+  }
+
+  // ==========================================================
+  // COMMUNITY: EVENTS
+  // ==========================================================
+
+  static Future<List<SocietyEventModel>> fetchSocietyEvents({String filter = 'upcoming'}) async {
+    final uri = Uri.parse(ApiEndpoints.events).replace(queryParameters: {'filter': filter});
+    final response = await _get(uri, headers: _headers());
+    final json = _handleResponse(response);
+    final list = json['data'] as List<dynamic>? ?? [];
+    return list.map((item) => SocietyEventModel.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
+  static Future<SocietyEventModel> fetchSocietyEventDetail(String id) async {
+    final response = await _get(
+      Uri.parse(ApiEndpoints.eventDetail(id)),
+      headers: _headers(),
+    );
+    final json = _handleResponse(response);
+    return SocietyEventModel.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  static Future<bool> registerForEvent(String id, {int guestCount = 1}) async {
+    final response = await _post(
+      Uri.parse(ApiEndpoints.eventRegister(id)),
+      headers: _headers(),
+      body: jsonEncode({'guestCount': guestCount}),
+    );
+    final json = _handleResponse(response);
+    return json['success'] == true;
+  }
+
+  static Future<bool> cancelEventRegistration(String id) async {
+    final response = await _post(
+      Uri.parse(ApiEndpoints.eventCancel(id)),
+      headers: _headers(),
+      body: jsonEncode({}),
+    );
+    final json = _handleResponse(response);
+    return json['success'] == true;
+  }
+
+}

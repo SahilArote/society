@@ -522,3 +522,214 @@ export async function updateAdminSettings(data: {
 
 
 
+
+// =============================================================
+// SERVICES (ADMIN)
+// =============================================================
+
+export interface AdminServiceItem {
+  id: string;
+  societyId: string;
+  name: string;
+  category: string;
+  serviceType: 'VENDOR' | 'UTILITY' | 'STAFF';
+  providerName?: string;
+  phone: string;
+  alternatePhone?: string;
+  address?: string;
+  description?: string;
+  rating: number;
+  reviewCount: number;
+  isVerified: boolean;
+  timing?: string;
+  createdAt: string;
+}
+
+export async function fetchAdminServices(params: { type?: string; category?: string; search?: string } = {}) {
+  const query = new URLSearchParams();
+  if (params.type) query.append('type', params.type);
+  if (params.category) query.append('category', params.category);
+  if (params.search) query.append('search', params.search);
+
+  const url = `${API_BASE_URL}/resident/services?${query.toString()}`;
+  try {
+    const res = await fetchWithAuth(url);
+    if (res.ok) {
+      const json = await res.json();
+      return (json.data || []) as AdminServiceItem[];
+    }
+  } catch (err) {
+    console.warn('Network issue fetching admin services:', err);
+  }
+  return [];
+}
+
+export async function createAdminService(serviceData: {
+  name: string;
+  category: string;
+  serviceType: 'VENDOR' | 'UTILITY' | 'STAFF';
+  providerName?: string;
+  phone: string;
+  alternatePhone?: string;
+  address?: string;
+  description?: string;
+  timing?: string;
+  rating?: number;
+  isVerified?: boolean;
+}) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/resident/services`, {
+    method: 'POST',
+    body: JSON.stringify(serviceData),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.error?.message || 'Failed to create service');
+  }
+  return json.data as AdminServiceItem;
+}
+
+export async function deleteAdminService(id: string) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/resident/services/${id}`, {
+    method: 'DELETE',
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.error?.message || 'Failed to delete service');
+  }
+  return true;
+}
+
+// =============================================================
+// COMMUNITY: EVENTS (ADMIN)
+// =============================================================
+
+export interface AdminEventItem {
+  id: string;
+  societyId: string;
+  createdBy: string;
+  title: string;
+  description: string;
+  category: string;
+  eventDate: string;
+  endDate?: string;
+  timeStr: string;
+  venue: string;
+  organizer: string;
+  coverImage?: string;
+  capacity: number;
+  registrationCount: number;
+  status: 'UPCOMING' | 'ONGOING' | 'COMPLETED' | 'CANCELLED';
+  createdAt: string;
+}
+
+export async function fetchAdminEvents(filter: 'upcoming' | 'past' | 'all' = 'all') {
+  const url = `${API_BASE_URL}/resident/community/events?filter=${filter}`;
+  try {
+    const res = await fetchWithAuth(url);
+    if (res.ok) {
+      const json = await res.json();
+      return (json.data || []) as AdminEventItem[];
+    }
+  } catch (err) {
+    console.warn('Network issue fetching admin events:', err);
+  }
+  return [];
+}
+
+export async function createAdminEvent(eventData: {
+  title: string;
+  description: string;
+  category: string;
+  eventDate: string;
+  endDate?: string;
+  timeStr: string;
+  venue: string;
+  organizer: string;
+  coverImage?: string;
+  capacity?: number;
+}) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/resident/community/events`, {
+    method: 'POST',
+    body: JSON.stringify(eventData),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.error?.message || 'Failed to create event');
+  }
+  return json.data as AdminEventItem;
+}
+
+export async function deleteAdminEvent(id: string) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/resident/community/events/${id}`, {
+    method: 'DELETE',
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.error?.message || 'Failed to delete event');
+  }
+  return true;
+}
+
+// =============================================================
+// COMMUNITY: LOST & FOUND (ADMIN)
+// =============================================================
+
+export interface AdminLostFoundItem {
+  id: string;
+  societyId: string;
+  authorId: string;
+  authorName: string;
+  authorFlat: string;
+  authorPhone?: string;
+  type: 'LOST' | 'FOUND';
+  title: string;
+  description: string;
+  category: string;
+  location: string;
+  incidentDate: string;
+  imageUrl?: string;
+  status: 'ACTIVE' | 'RESOLVED' | 'CLOSED';
+  createdAt: string;
+}
+
+export async function fetchAdminLostFound(params: { type?: string; status?: string; search?: string } = {}) {
+  const query = new URLSearchParams();
+  if (params.type) query.append('type', params.type);
+  if (params.status) query.append('status', params.status);
+  if (params.search) query.append('search', params.search);
+
+  const url = `${API_BASE_URL}/resident/community/lost-found?${query.toString()}`;
+  try {
+    const res = await fetchWithAuth(url);
+    if (res.ok) {
+      const json = await res.json();
+      return (json.data || []) as AdminLostFoundItem[];
+    }
+  } catch (err) {
+    console.warn('Network issue fetching admin lost & found:', err);
+  }
+  return [];
+}
+
+export async function updateAdminLostFoundStatus(id: string, status: 'ACTIVE' | 'RESOLVED' | 'CLOSED') {
+  const res = await fetchWithAuth(`${API_BASE_URL}/resident/community/lost-found/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.error?.message || 'Failed to update post status');
+  }
+  return true;
+}
+
+export async function deleteAdminLostFound(id: string) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/resident/community/lost-found/${id}`, {
+    method: 'DELETE',
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.error?.message || 'Failed to delete post');
+  }
+  return true;
+}

@@ -59,6 +59,23 @@ exports.findInvitesByResident = findInvitesByResident;
 exports.findInviteByCode = findInviteByCode;
 exports.markInviteAsUsed = markInviteAsUsed;
 exports.cancelVisitorInvite = cancelVisitorInvite;
+exports.ensureServicesAndCommunityTables = ensureServicesAndCommunityTables;
+exports.getSocietyServices = getSocietyServices;
+exports.getSocietyServiceById = getSocietyServiceById;
+exports.createSocietyService = createSocietyService;
+exports.deleteSocietyService = deleteSocietyService;
+exports.getLostFoundItems = getLostFoundItems;
+exports.getLostFoundItemById = getLostFoundItemById;
+exports.createLostFoundItem = createLostFoundItem;
+exports.updateLostFoundStatus = updateLostFoundStatus;
+exports.deleteLostFoundItem = deleteLostFoundItem;
+exports.getSocietyEvents = getSocietyEvents;
+exports.getSocietyEventById = getSocietyEventById;
+exports.registerForEvent = registerForEvent;
+exports.cancelEventRegistration = cancelEventRegistration;
+exports.createSocietyEvent = createSocietyEvent;
+exports.updateSocietyEvent = updateSocietyEvent;
+exports.deleteSocietyEvent = deleteSocietyEvent;
 const uuid_1 = require("uuid");
 const mysql_1 = require("./mysql");
 async function initDb() {
@@ -1784,4 +1801,994 @@ async function cancelVisitorInvite(inviteId, residentId) {
      SET status = 'CANCELLED' 
      WHERE id = ? AND resident_id = ? AND status = 'ACTIVE'`, [inviteId, residentId]);
     return result.affectedRows > 0;
+}
+// =============================================================
+// SERVICES & COMMUNITY DATA LAYER
+// =============================================================
+// In-Memory Seed Data for Fallback / Sandbox Execution
+const defaultServicesSeed = [
+    {
+        id: 'srv_1',
+        societyId: 'soc_01',
+        name: 'Shri Ganesh Electricals',
+        category: 'Electrician',
+        serviceType: 'VENDOR',
+        providerName: 'Ganesh Shinde',
+        phone: '+91 98201 12345',
+        alternatePhone: '+91 22 2847 1100',
+        address: 'Shop 12, Chandivali Farm Road',
+        description: 'Expert residential wiring, inverter repairs, MCB trippings & appliance installations.',
+        rating: 4.7,
+        reviewCount: 34,
+        isVerified: true,
+        timing: '8:00 AM – 9:00 PM',
+        createdAt: new Date().toISOString(),
+    },
+    {
+        id: 'srv_2',
+        societyId: 'soc_01',
+        name: 'Rahul Plumbing Works',
+        category: 'Plumber',
+        serviceType: 'VENDOR',
+        providerName: 'Rahul Patil',
+        phone: '+91 98334 56789',
+        address: 'Opp. Andheri Sports Complex',
+        description: 'Pipe leakages, bathroom fittings, flush tanks, water pressure pumps & water heaters.',
+        rating: 4.5,
+        reviewCount: 28,
+        isVerified: true,
+        timing: '9:00 AM – 8:00 PM',
+        createdAt: new Date().toISOString(),
+    },
+    {
+        id: 'srv_3',
+        societyId: 'soc_01',
+        name: 'Kone Lift Services',
+        category: 'Lift AMC',
+        serviceType: 'VENDOR',
+        providerName: 'Kone Service Center',
+        phone: '+91 22 6677 8899',
+        address: 'Andheri East Service Centre',
+        description: 'Official society elevator AMC, emergency breakdown assistance and bi-weekly inspections.',
+        rating: 4.8,
+        reviewCount: 12,
+        isVerified: true,
+        timing: '24/7 Emergency Support',
+        createdAt: new Date().toISOString(),
+    },
+    {
+        id: 'srv_4',
+        societyId: 'soc_01',
+        name: 'Mumbai AC Experts',
+        category: 'AC Repair',
+        serviceType: 'VENDOR',
+        providerName: 'Mohammed Ansari',
+        phone: '+91 98190 23456',
+        address: 'Marol Naka, Andheri East',
+        description: 'Split & window AC servicing, jet wash cleaning, copper pipe laying, gas refilling.',
+        rating: 4.3,
+        reviewCount: 45,
+        isVerified: true,
+        timing: '9:00 AM – 8:00 PM',
+        createdAt: new Date().toISOString(),
+    },
+    {
+        id: 'srv_5',
+        societyId: 'soc_01',
+        name: 'Cleanify Home Services',
+        category: 'Deep Cleaning',
+        serviceType: 'VENDOR',
+        providerName: 'Sanjay Rawat',
+        phone: '+91 98205 67890',
+        address: 'Powai Plaza, Hiranandani',
+        description: 'Full house deep cleaning, sofa shampooing, kitchen chimney cleaning & balcony pressure wash.',
+        rating: 4.6,
+        reviewCount: 22,
+        isVerified: true,
+        timing: '9:00 AM – 7:00 PM',
+        createdAt: new Date().toISOString(),
+    },
+    {
+        id: 'srv_6',
+        societyId: 'soc_01',
+        name: 'Bisleri & Kinley 20L Water Can',
+        category: 'Water Can',
+        serviceType: 'UTILITY',
+        providerName: 'Shree Krishna Water Supplies',
+        phone: '+91 98212 34567',
+        address: 'Gate 2 Delivery Counter',
+        description: 'Daily morning delivery of 20L sealed drinking water jars to doorstep before 8 AM.',
+        rating: 4.9,
+        reviewCount: 88,
+        isVerified: true,
+        timing: '6:00 AM – 10:00 AM',
+        createdAt: new Date().toISOString(),
+    },
+    {
+        id: 'srv_7',
+        societyId: 'soc_01',
+        name: 'Country Delight Milk Delivery',
+        category: 'Milk Delivery',
+        serviceType: 'UTILITY',
+        providerName: 'Customer Desk',
+        phone: '+91 96540 12345',
+        address: 'Society Main Gate Drop Box',
+        description: 'Fresh cow & buffalo milk, breads, curd, and organic eggs delivered daily by 7 AM.',
+        rating: 4.8,
+        reviewCount: 64,
+        isVerified: true,
+        timing: '5:30 AM – 7:30 AM',
+        createdAt: new Date().toISOString(),
+    },
+    {
+        id: 'srv_8',
+        societyId: 'soc_01',
+        name: 'Daily Society Housekeeping Staff',
+        category: 'Maid & Housekeeping',
+        serviceType: 'STAFF',
+        providerName: 'Society Admin Helpdesk',
+        phone: '+91 22 2847 0001',
+        address: 'Estate Manager Office, Tower A',
+        description: 'Police verified, RFID badged daily domestic helpers, cooks, and babysitters available for hire.',
+        rating: 4.7,
+        reviewCount: 40,
+        isVerified: true,
+        timing: '8:00 AM – 6:00 PM',
+        createdAt: new Date().toISOString(),
+    }
+];
+const defaultLostFoundSeed = [
+    {
+        id: 'lf_1',
+        societyId: 'soc_01',
+        authorId: 'usr_resident_1',
+        authorName: 'Rohit Patil',
+        authorFlat: 'Flat A-402',
+        authorPhone: '+91 98200 11111',
+        type: 'LOST',
+        title: 'Brown leather wallet',
+        description: 'Lost near the swimming pool area on Aug 3 evening. Contains Aadhaar card and driving license inside. Reward on return.',
+        category: 'Wallet & Cards',
+        location: 'Near Clubhouse / Pool area',
+        incidentDate: '2026-08-03T18:30:00.000Z',
+        imageUrl: 'https://images.unsplash.com/photo-1627123424574-724758594e93?w=500&auto=format&fit=crop&q=60',
+        status: 'ACTIVE',
+        createdAt: '2026-08-03T19:00:00.000Z',
+    },
+    {
+        id: 'lf_2',
+        societyId: 'soc_01',
+        authorId: 'usr_guard_1',
+        authorName: 'Ganesh Kale (Security)',
+        authorFlat: 'Main Security Gate',
+        authorPhone: '+91 98200 22222',
+        type: 'FOUND',
+        title: 'Car keys (Honda logo)',
+        description: 'Found near Wing X basement parking entrance on Aug 2 morning. Has red keychain. Contact security cabin to claim with proof.',
+        category: 'Keys',
+        location: 'Wing X Basement Parking',
+        incidentDate: '2026-08-02T08:15:00.000Z',
+        imageUrl: 'https://images.unsplash.com/photo-1589148938909-4d241c91ee52?w=500&auto=format&fit=crop&q=60',
+        status: 'ACTIVE',
+        createdAt: '2026-08-02T09:00:00.000Z',
+    },
+    {
+        id: 'lf_3',
+        societyId: 'soc_01',
+        authorId: 'usr_resident_2',
+        authorName: 'Deepa Nair',
+        authorFlat: 'Flat Y-301',
+        authorPhone: '+91 98200 33333',
+        type: 'LOST',
+        title: 'Airpods Pro (white case)',
+        description: 'Lost somewhere between Wing Y lobby and passenger lift 2 on Aug 1. Case has a blue silicone protective ring.',
+        category: 'Electronics',
+        location: 'Wing Y Lobby / Lift',
+        incidentDate: '2026-08-01T17:45:00.000Z',
+        imageUrl: 'https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=500&auto=format&fit=crop&q=60',
+        status: 'ACTIVE',
+        createdAt: '2026-08-01T18:20:00.000Z',
+    },
+    {
+        id: 'lf_4',
+        societyId: 'soc_01',
+        authorId: 'usr_staff_1',
+        authorName: 'Surekha Mane (Housekeeping)',
+        authorFlat: 'Estate Management',
+        authorPhone: '+91 98200 44444',
+        type: 'FOUND',
+        title: "Child's school bag (blue Chhota Bheem)",
+        description: 'Found in Wing Z terrace recreation area. Kept at society management office for collection.',
+        category: 'Bags & Luggage',
+        location: 'Wing Z Terrace Garden',
+        incidentDate: '2026-07-31T16:00:00.000Z',
+        status: 'RESOLVED',
+        createdAt: '2026-07-31T17:00:00.000Z',
+        updatedAt: '2026-08-01T11:00:00.000Z',
+    }
+];
+const defaultEventsSeed = [
+    {
+        id: 'evt_1',
+        societyId: 'soc_01',
+        createdBy: 'usr_admin_1',
+        title: 'Annual Independence Day & Flag Hoisting',
+        description: 'Join us for the 80th Independence Day celebration. Flag hoisting at 8:30 AM sharp followed by national anthem, patriotic cultural performances by children and sweet distribution.',
+        category: 'Celebration',
+        eventDate: new Date(Date.now() + 5 * 86400000).toISOString(),
+        endDate: new Date(Date.now() + 5 * 86400000 + 3 * 3600000).toISOString(),
+        timeStr: '8:30 AM – 11:30 AM',
+        venue: 'Central Amphitheater & Flagpole Lawn',
+        organizer: 'NexGate Managing Committee',
+        coverImage: 'https://images.unsplash.com/photo-1532375810709-75b1da00537c?w=800&auto=format&fit=crop&q=80',
+        capacity: 250,
+        registrationCount: 68,
+        status: 'UPCOMING',
+        createdAt: new Date().toISOString(),
+    },
+    {
+        id: 'evt_2',
+        societyId: 'soc_01',
+        createdBy: 'usr_admin_1',
+        title: 'Monsoon Tree Plantation & Green Campus Drive',
+        description: 'Annual environmental plantation drive across boundary walls. Free plant saplings provided for all children and flats. Bring gardening gloves if available.',
+        category: 'Community Work',
+        eventDate: new Date(Date.now() + 12 * 86400000).toISOString(),
+        endDate: new Date(Date.now() + 12 * 86400000 + 3 * 3600000).toISOString(),
+        timeStr: '9:00 AM – 12:00 PM',
+        venue: 'Society East Boundary Garden',
+        organizer: 'Eco Residency Green Committee',
+        coverImage: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=800&auto=format&fit=crop&q=80',
+        capacity: 100,
+        registrationCount: 42,
+        status: 'UPCOMING',
+        createdAt: new Date().toISOString(),
+    },
+    {
+        id: 'evt_3',
+        societyId: 'soc_01',
+        createdBy: 'usr_admin_1',
+        title: 'Society Annual General Body Meeting (AGM)',
+        description: 'Review of audited annual accounts, lift modernization proposal, CCTV security upgrades, and election of new committee members.',
+        category: 'Meeting',
+        eventDate: new Date(Date.now() + 25 * 86400000).toISOString(),
+        endDate: new Date(Date.now() + 25 * 86400000 + 3 * 3600000).toISOString(),
+        timeStr: '5:00 PM – 8:00 PM',
+        venue: 'Main Clubhouse Conference Hall',
+        organizer: 'Society Secretary & Treasurer',
+        coverImage: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&auto=format&fit=crop&q=80',
+        capacity: 150,
+        registrationCount: 94,
+        status: 'UPCOMING',
+        createdAt: new Date().toISOString(),
+    },
+    {
+        id: 'evt_4',
+        societyId: 'soc_01',
+        createdBy: 'usr_admin_1',
+        title: 'Summer Badminton & Table Tennis Tournament',
+        description: 'Inter-tower sports championship across juniors, open and seniors categories. Trophies and certificates for all finalists.',
+        category: 'Sports',
+        eventDate: '2026-06-14T10:00:00.000Z',
+        endDate: '2026-06-14T19:00:00.000Z',
+        timeStr: '10:00 AM – 7:00 PM',
+        venue: 'Indoor Sports Arena',
+        organizer: 'Youth & Sports Club',
+        coverImage: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&auto=format&fit=crop&q=80',
+        capacity: 80,
+        registrationCount: 76,
+        status: 'COMPLETED',
+        createdAt: '2026-06-01T10:00:00.000Z',
+    }
+];
+let inMemoryServices = [...defaultServicesSeed];
+let inMemoryLostFound = [...defaultLostFoundSeed];
+let inMemoryEvents = [...defaultEventsSeed];
+let inMemoryEventRegistrations = [];
+async function ensureServicesAndCommunityTables() {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return;
+    try {
+        await pool.query(`
+      CREATE TABLE IF NOT EXISTS \`society_services\` (
+        \`id\` VARCHAR(64) NOT NULL PRIMARY KEY,
+        \`society_id\` VARCHAR(64) NOT NULL,
+        \`name\` VARCHAR(255) NOT NULL,
+        \`category\` VARCHAR(64) NOT NULL,
+        \`service_type\` VARCHAR(32) NOT NULL DEFAULT 'VENDOR',
+        \`provider_name\` VARCHAR(255) DEFAULT NULL,
+        \`phone\` VARCHAR(32) NOT NULL,
+        \`alternate_phone\` VARCHAR(32) DEFAULT NULL,
+        \`address\` TEXT DEFAULT NULL,
+        \`description\` TEXT DEFAULT NULL,
+        \`rating\` DECIMAL(3,1) NOT NULL DEFAULT 4.5,
+        \`review_count\` INT NOT NULL DEFAULT 0,
+        \`is_verified\` TINYINT(1) NOT NULL DEFAULT 1,
+        \`timing\` VARCHAR(128) DEFAULT '9:00 AM – 8:00 PM',
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+        await pool.query(`
+      CREATE TABLE IF NOT EXISTS \`lost_found_items\` (
+        \`id\` VARCHAR(64) NOT NULL PRIMARY KEY,
+        \`society_id\` VARCHAR(64) NOT NULL,
+        \`author_id\` VARCHAR(64) NOT NULL,
+        \`author_name\` VARCHAR(255) NOT NULL,
+        \`author_flat\` VARCHAR(64) NOT NULL,
+        \`author_phone\` VARCHAR(32) DEFAULT NULL,
+        \`type\` ENUM('LOST', 'FOUND') NOT NULL,
+        \`title\` VARCHAR(255) NOT NULL,
+        \`description\` TEXT NOT NULL,
+        \`category\` VARCHAR(64) NOT NULL,
+        \`location\` VARCHAR(255) NOT NULL,
+        \`incident_date\` DATETIME NOT NULL,
+        \`image_url\` TEXT DEFAULT NULL,
+        \`status\` ENUM('ACTIVE', 'RESOLVED', 'CLOSED') NOT NULL DEFAULT 'ACTIVE',
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        \`updated_at\` DATETIME NULL DEFAULT NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+        await pool.query(`
+      CREATE TABLE IF NOT EXISTS \`society_events\` (
+        \`id\` VARCHAR(64) NOT NULL PRIMARY KEY,
+        \`society_id\` VARCHAR(64) NOT NULL,
+        \`created_by\` VARCHAR(64) NOT NULL,
+        \`title\` VARCHAR(255) NOT NULL,
+        \`description\` TEXT NOT NULL,
+        \`category\` VARCHAR(64) NOT NULL DEFAULT 'Celebration',
+        \`event_date\` DATETIME NOT NULL,
+        \`end_date\` DATETIME NULL DEFAULT NULL,
+        \`time_str\` VARCHAR(64) NOT NULL,
+        \`venue\` VARCHAR(255) NOT NULL,
+        \`organizer\` VARCHAR(255) NOT NULL DEFAULT 'Society Committee',
+        \`cover_image\` TEXT DEFAULT NULL,
+        \`capacity\` INT NOT NULL DEFAULT 0,
+        \`registration_count\` INT NOT NULL DEFAULT 0,
+        \`status\` ENUM('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED') NOT NULL DEFAULT 'UPCOMING',
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+        await pool.query(`
+      CREATE TABLE IF NOT EXISTS \`event_registrations\` (
+        \`id\` VARCHAR(64) NOT NULL PRIMARY KEY,
+        \`event_id\` VARCHAR(64) NOT NULL,
+        \`user_id\` VARCHAR(64) NOT NULL,
+        \`user_name\` VARCHAR(255) NOT NULL,
+        \`user_flat\` VARCHAR(64) NOT NULL,
+        \`user_phone\` VARCHAR(32) DEFAULT NULL,
+        \`guest_count\` INT NOT NULL DEFAULT 1,
+        \`status\` ENUM('REGISTERED', 'CANCELLED') NOT NULL DEFAULT 'REGISTERED',
+        \`registered_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY \`uk_event_user\` (\`event_id\`, \`user_id\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+        // Check if society_services has initial rows; if empty, seed defaults
+        const [existingServices] = await pool.query('SELECT COUNT(*) as count FROM society_services');
+        if (existingServices && existingServices[0]?.count === 0) {
+            console.log('[DB] Seeding initial verified society services...');
+            for (const s of defaultServicesSeed) {
+                await pool.query(`INSERT INTO society_services 
+           (id, society_id, name, category, service_type, provider_name, phone, alternate_phone, address, description, rating, review_count, is_verified, timing)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [s.id, s.societyId, s.name, s.category, s.serviceType, s.providerName || null, s.phone, s.alternatePhone || null, s.address || null, s.description || null, s.rating, s.reviewCount, s.isVerified ? 1 : 0, s.timing || null]);
+            }
+        }
+        // Check if lost_found_items has initial rows; if empty, seed defaults
+        const [existingLF] = await pool.query('SELECT COUNT(*) as count FROM lost_found_items');
+        if (existingLF && existingLF[0]?.count === 0) {
+            console.log('[DB] Seeding initial lost & found items...');
+            for (const lf of defaultLostFoundSeed) {
+                await pool.query(`INSERT INTO lost_found_items 
+           (id, society_id, author_id, author_name, author_flat, author_phone, type, title, description, category, location, incident_date, image_url, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [lf.id, lf.societyId, lf.authorId, lf.authorName, lf.authorFlat, lf.authorPhone || null, lf.type, lf.title, lf.description, lf.category, lf.location, new Date(lf.incidentDate), lf.imageUrl || null, lf.status]);
+            }
+        }
+        // Check if society_events has initial rows; if empty, seed defaults
+        const [existingEvents] = await pool.query('SELECT COUNT(*) as count FROM society_events');
+        if (existingEvents && existingEvents[0]?.count === 0) {
+            console.log('[DB] Seeding initial society events...');
+            for (const e of defaultEventsSeed) {
+                await pool.query(`INSERT INTO society_events 
+           (id, society_id, created_by, title, description, category, event_date, end_date, time_str, venue, organizer, cover_image, capacity, registration_count, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [e.id, e.societyId, e.createdBy, e.title, e.description, e.category, new Date(e.eventDate), e.endDate ? new Date(e.endDate) : null, e.timeStr, e.venue, e.organizer, e.coverImage || null, e.capacity, e.registrationCount, e.status]);
+            }
+        }
+    }
+    catch (err) {
+        console.error('[DB] Error ensuring services & community tables:', err.message);
+    }
+}
+// -------------------------------------------------------------
+// 1. SERVICES CRUD
+// -------------------------------------------------------------
+async function getSocietyServices(societyId, params = {}) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool) {
+        let list = inMemoryServices.filter(s => s.societyId === societyId || s.societyId === 'soc_01');
+        if (params.type && params.type.toUpperCase() !== 'ALL') {
+            const targetType = params.type.toUpperCase();
+            list = list.filter(s => s.serviceType === targetType || (targetType === 'VENDORS' && s.serviceType === 'VENDOR') || (targetType === 'UTILITIES' && s.serviceType === 'UTILITY') || (targetType === 'STAFF' && s.serviceType === 'STAFF'));
+        }
+        if (params.category && params.category !== 'All') {
+            list = list.filter(s => s.category.toLowerCase() === params.category.toLowerCase());
+        }
+        if (params.search && params.search.trim()) {
+            const q = params.search.toLowerCase();
+            list = list.filter(s => s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q) || (s.description && s.description.toLowerCase().includes(q)));
+        }
+        return list;
+    }
+    await ensureServicesAndCommunityTables();
+    let sql = 'SELECT * FROM society_services WHERE (society_id = ? OR society_id = ?) ';
+    const values = [societyId, 'soc_01'];
+    if (params.type && params.type.toUpperCase() !== 'ALL') {
+        let t = params.type.toUpperCase();
+        if (t === 'VENDORS')
+            t = 'VENDOR';
+        if (t === 'UTILITIES')
+            t = 'UTILITY';
+        sql += 'AND service_type = ? ';
+        values.push(t);
+    }
+    if (params.category && params.category !== 'All') {
+        sql += 'AND category = ? ';
+        values.push(params.category);
+    }
+    if (params.search && params.search.trim()) {
+        sql += 'AND (name LIKE ? OR category LIKE ? OR description LIKE ?) ';
+        const wildcard = `%${params.search.trim()}%`;
+        values.push(wildcard, wildcard, wildcard);
+    }
+    sql += 'ORDER BY is_verified DESC, rating DESC';
+    const [rows] = await pool.query(sql, values);
+    return (rows || []).map((r) => ({
+        id: r.id,
+        societyId: r.society_id,
+        name: r.name,
+        category: r.category,
+        serviceType: r.service_type,
+        providerName: r.provider_name,
+        phone: r.phone,
+        alternatePhone: r.alternate_phone,
+        address: r.address,
+        description: r.description,
+        rating: parseFloat(r.rating) || 4.5,
+        reviewCount: r.review_count || 0,
+        isVerified: Boolean(r.is_verified),
+        timing: r.timing,
+        createdAt: r.created_at,
+    }));
+}
+async function getSocietyServiceById(id, societyId) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool) {
+        return inMemoryServices.find(s => s.id === id) || null;
+    }
+    await ensureServicesAndCommunityTables();
+    const [rows] = await pool.query('SELECT * FROM society_services WHERE id = ? LIMIT 1', [id]);
+    if (!rows || rows.length === 0)
+        return null;
+    const r = rows[0];
+    return {
+        id: r.id,
+        societyId: r.society_id,
+        name: r.name,
+        category: r.category,
+        serviceType: r.service_type,
+        providerName: r.provider_name,
+        phone: r.phone,
+        alternatePhone: r.alternate_phone,
+        address: r.address,
+        description: r.description,
+        rating: parseFloat(r.rating) || 4.5,
+        reviewCount: r.review_count || 0,
+        isVerified: Boolean(r.is_verified),
+        timing: r.timing,
+        createdAt: r.created_at,
+    };
+}
+async function createSocietyService(data) {
+    const id = `srv_${(0, uuid_1.v4)().replace(/-/g, '').slice(0, 16)}`;
+    const row = {
+        id,
+        societyId: data.societyId,
+        name: data.name.trim(),
+        category: data.category.trim(),
+        serviceType: data.serviceType || 'VENDOR',
+        providerName: data.providerName?.trim(),
+        phone: data.phone.trim(),
+        alternatePhone: data.alternatePhone?.trim(),
+        address: data.address?.trim(),
+        description: data.description?.trim(),
+        rating: data.rating ?? 4.5,
+        reviewCount: 0,
+        isVerified: data.isVerified ?? true,
+        timing: data.timing?.trim() || '9:00 AM – 8:00 PM',
+        createdAt: new Date().toISOString(),
+    };
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool) {
+        inMemoryServices.unshift(row);
+        return row;
+    }
+    await ensureServicesAndCommunityTables();
+    await pool.query(`INSERT INTO society_services 
+     (id, society_id, name, category, service_type, provider_name, phone, alternate_phone, address, description, rating, review_count, is_verified, timing)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [row.id, row.societyId, row.name, row.category, row.serviceType, row.providerName || null, row.phone, row.alternatePhone || null, row.address || null, row.description || null, row.rating, row.reviewCount, row.isVerified ? 1 : 0, row.timing || null]);
+    return row;
+}
+async function deleteSocietyService(id, societyId) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool) {
+        const idx = inMemoryServices.findIndex(s => s.id === id);
+        if (idx === -1)
+            return false;
+        inMemoryServices.splice(idx, 1);
+        return true;
+    }
+    await ensureServicesAndCommunityTables();
+    const [res] = await pool.query('DELETE FROM society_services WHERE id = ? AND society_id = ?', [id, societyId]);
+    return res.affectedRows > 0;
+}
+// -------------------------------------------------------------
+// 2. LOST & FOUND CRUD
+// -------------------------------------------------------------
+async function getLostFoundItems(societyId, params = {}) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool) {
+        let list = inMemoryLostFound.filter(i => i.societyId === societyId || i.societyId === 'soc_01');
+        if (params.type && params.type !== 'ALL') {
+            list = list.filter(i => i.type.toUpperCase() === params.type.toUpperCase());
+        }
+        if (params.status && params.status !== 'ALL') {
+            list = list.filter(i => i.status.toUpperCase() === params.status.toUpperCase());
+        }
+        if (params.search && params.search.trim()) {
+            const q = params.search.toLowerCase();
+            list = list.filter(i => i.title.toLowerCase().includes(q) || i.description.toLowerCase().includes(q) || i.location.toLowerCase().includes(q));
+        }
+        return list;
+    }
+    await ensureServicesAndCommunityTables();
+    let sql = 'SELECT * FROM lost_found_items WHERE (society_id = ? OR society_id = ?) ';
+    const values = [societyId, 'soc_01'];
+    if (params.type && params.type !== 'ALL') {
+        sql += 'AND type = ? ';
+        values.push(params.type.toUpperCase());
+    }
+    if (params.status && params.status !== 'ALL') {
+        sql += 'AND status = ? ';
+        values.push(params.status.toUpperCase());
+    }
+    if (params.search && params.search.trim()) {
+        sql += 'AND (title LIKE ? OR description LIKE ? OR location LIKE ?) ';
+        const wildcard = `%${params.search.trim()}%`;
+        values.push(wildcard, wildcard, wildcard);
+    }
+    sql += 'ORDER BY incident_date DESC, created_at DESC';
+    const [rows] = await pool.query(sql, values);
+    return (rows || []).map((r) => ({
+        id: r.id,
+        societyId: r.society_id,
+        authorId: r.author_id,
+        authorName: r.author_name,
+        authorFlat: r.author_flat,
+        authorPhone: r.author_phone,
+        type: r.type,
+        title: r.title,
+        description: r.description,
+        category: r.category,
+        location: r.location,
+        incidentDate: r.incident_date,
+        imageUrl: r.image_url,
+        status: r.status,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+    }));
+}
+async function getLostFoundItemById(id, societyId) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool) {
+        return inMemoryLostFound.find(i => i.id === id) || null;
+    }
+    await ensureServicesAndCommunityTables();
+    const [rows] = await pool.query('SELECT * FROM lost_found_items WHERE id = ? LIMIT 1', [id]);
+    if (!rows || rows.length === 0)
+        return null;
+    const r = rows[0];
+    return {
+        id: r.id,
+        societyId: r.society_id,
+        authorId: r.author_id,
+        authorName: r.author_name,
+        authorFlat: r.author_flat,
+        authorPhone: r.author_phone,
+        type: r.type,
+        title: r.title,
+        description: r.description,
+        category: r.category,
+        location: r.location,
+        incidentDate: r.incident_date,
+        imageUrl: r.image_url,
+        status: r.status,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+    };
+}
+async function createLostFoundItem(data) {
+    const id = `lf_${(0, uuid_1.v4)().replace(/-/g, '').slice(0, 16)}`;
+    const incidentDate = data.incidentDate ? new Date(data.incidentDate).toISOString() : new Date().toISOString();
+    const row = {
+        id,
+        societyId: data.societyId,
+        authorId: data.authorId,
+        authorName: data.authorName,
+        authorFlat: data.authorFlat,
+        authorPhone: data.authorPhone,
+        type: data.type,
+        title: data.title.trim(),
+        description: data.description.trim(),
+        category: data.category.trim(),
+        location: data.location.trim(),
+        incidentDate,
+        imageUrl: data.imageUrl,
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+    };
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool) {
+        inMemoryLostFound.unshift(row);
+        return row;
+    }
+    await ensureServicesAndCommunityTables();
+    await pool.query(`INSERT INTO lost_found_items 
+     (id, society_id, author_id, author_name, author_flat, author_phone, type, title, description, category, location, incident_date, image_url, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE')`, [row.id, row.societyId, row.authorId, row.authorName, row.authorFlat, row.authorPhone || null, row.type, row.title, row.description, row.category, row.location, new Date(row.incidentDate), row.imageUrl || null]);
+    return row;
+}
+async function updateLostFoundStatus(id, societyId, authorId, status, isAdmin = false) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool) {
+        const item = inMemoryLostFound.find(i => i.id === id);
+        if (!item)
+            return false;
+        if (!isAdmin && item.authorId !== authorId)
+            return false;
+        item.status = status;
+        item.updatedAt = new Date().toISOString();
+        return true;
+    }
+    await ensureServicesAndCommunityTables();
+    const sql = isAdmin
+        ? `UPDATE lost_found_items SET status = ?, updated_at = NOW() WHERE id = ?`
+        : `UPDATE lost_found_items SET status = ?, updated_at = NOW() WHERE id = ? AND author_id = ?`;
+    const params = isAdmin ? [status, id] : [status, id, authorId];
+    const [result] = await pool.query(sql, params);
+    return result.affectedRows > 0;
+}
+async function deleteLostFoundItem(id, societyId, authorId, isAdmin = false) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool) {
+        const idx = inMemoryLostFound.findIndex(i => i.id === id);
+        if (idx === -1)
+            return false;
+        if (!isAdmin && inMemoryLostFound[idx].authorId !== authorId)
+            return false;
+        inMemoryLostFound.splice(idx, 1);
+        return true;
+    }
+    await ensureServicesAndCommunityTables();
+    const sql = isAdmin
+        ? `DELETE FROM lost_found_items WHERE id = ?`
+        : `DELETE FROM lost_found_items WHERE id = ? AND author_id = ?`;
+    const params = isAdmin ? [id] : [id, authorId];
+    const [result] = await pool.query(sql, params);
+    return result.affectedRows > 0;
+}
+// -------------------------------------------------------------
+// 3. SOCIETY EVENTS & REGISTRATIONS CRUD
+// -------------------------------------------------------------
+async function getSocietyEvents(societyId, filter = 'upcoming', userId) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool) {
+        const now = new Date();
+        let list = inMemoryEvents.filter(e => e.societyId === societyId || e.societyId === 'soc_01');
+        if (filter === 'upcoming') {
+            list = list.filter(e => new Date(e.eventDate) >= now && e.status !== 'CANCELLED');
+        }
+        else if (filter === 'past') {
+            list = list.filter(e => new Date(e.eventDate) < now || e.status === 'COMPLETED');
+        }
+        if (userId) {
+            list = list.map(e => {
+                const reg = inMemoryEventRegistrations.find(r => r.eventId === e.id && r.userId === userId && r.status === 'REGISTERED');
+                return {
+                    ...e,
+                    isRegistered: Boolean(reg),
+                    guestCount: reg?.guestCount,
+                };
+            });
+        }
+        return list;
+    }
+    await ensureServicesAndCommunityTables();
+    let sql = `
+    SELECT e.*, 
+           (CASE WHEN r.id IS NOT NULL THEN 1 ELSE 0 END) as is_user_registered,
+           r.guest_count as user_guest_count
+    FROM society_events e
+    LEFT JOIN event_registrations r ON e.id = r.event_id AND r.user_id = ? AND r.status = 'REGISTERED'
+    WHERE (e.society_id = ? OR e.society_id = ?)
+  `;
+    const params = [userId || 'none', societyId, 'soc_01'];
+    if (filter === 'upcoming') {
+        sql += " AND e.event_date >= NOW() AND e.status != 'CANCELLED' ORDER BY e.event_date ASC";
+    }
+    else if (filter === 'past') {
+        sql += " AND (e.event_date < NOW() OR e.status = 'COMPLETED') ORDER BY e.event_date DESC";
+    }
+    else {
+        sql += " ORDER BY e.event_date DESC";
+    }
+    const [rows] = await pool.query(sql, params);
+    return (rows || []).map((r) => ({
+        id: r.id,
+        societyId: r.society_id,
+        createdBy: r.created_by,
+        title: r.title,
+        description: r.description,
+        category: r.category,
+        eventDate: r.event_date,
+        endDate: r.end_date,
+        timeStr: r.time_str,
+        venue: r.venue,
+        organizer: r.organizer,
+        coverImage: r.cover_image,
+        capacity: r.capacity || 0,
+        registrationCount: r.registration_count || 0,
+        status: r.status,
+        createdAt: r.created_at,
+        isRegistered: Boolean(r.is_user_registered),
+        guestCount: r.user_guest_count,
+    }));
+}
+async function getSocietyEventById(id, societyId, userId) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool) {
+        const e = inMemoryEvents.find(ev => ev.id === id);
+        if (!e)
+            return null;
+        const reg = userId ? inMemoryEventRegistrations.find(r => r.eventId === id && r.userId === userId && r.status === 'REGISTERED') : undefined;
+        return {
+            ...e,
+            isRegistered: Boolean(reg),
+            guestCount: reg?.guestCount,
+        };
+    }
+    await ensureServicesAndCommunityTables();
+    const [rows] = await pool.query(`
+    SELECT e.*, 
+           (CASE WHEN r.id IS NOT NULL THEN 1 ELSE 0 END) as is_user_registered,
+           r.guest_count as user_guest_count
+    FROM society_events e
+    LEFT JOIN event_registrations r ON e.id = r.event_id AND r.user_id = ? AND r.status = 'REGISTERED'
+    WHERE e.id = ? LIMIT 1
+  `, [userId || 'none', id]);
+    if (!rows || rows.length === 0)
+        return null;
+    const r = rows[0];
+    return {
+        id: r.id,
+        societyId: r.society_id,
+        createdBy: r.created_by,
+        title: r.title,
+        description: r.description,
+        category: r.category,
+        eventDate: r.event_date,
+        endDate: r.end_date,
+        timeStr: r.time_str,
+        venue: r.venue,
+        organizer: r.organizer,
+        coverImage: r.cover_image,
+        capacity: r.capacity || 0,
+        registrationCount: r.registration_count || 0,
+        status: r.status,
+        createdAt: r.created_at,
+        isRegistered: Boolean(r.is_user_registered),
+        guestCount: r.user_guest_count,
+    };
+}
+async function registerForEvent(eventId, user, guestCount = 1) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool) {
+        const event = inMemoryEvents.find(e => e.id === eventId);
+        if (!event)
+            return { success: false, error: 'Event not found' };
+        if (event.status === 'CANCELLED' || event.status === 'COMPLETED') {
+            return { success: false, error: 'Event is no longer accepting registrations' };
+        }
+        const existing = inMemoryEventRegistrations.find(r => r.eventId === eventId && r.userId === user.id && r.status === 'REGISTERED');
+        if (existing) {
+            return { success: false, error: 'You are already registered for this event' };
+        }
+        if (event.capacity > 0 && event.registrationCount + guestCount > event.capacity) {
+            return { success: false, error: 'Event has reached maximum capacity' };
+        }
+        const regId = `reg_${(0, uuid_1.v4)().replace(/-/g, '').slice(0, 16)}`;
+        const newReg = {
+            id: regId,
+            eventId,
+            userId: user.id,
+            userName: user.name,
+            userFlat: user.flat,
+            userPhone: user.phone,
+            guestCount,
+            status: 'REGISTERED',
+            registeredAt: new Date().toISOString(),
+        };
+        inMemoryEventRegistrations.push(newReg);
+        event.registrationCount += guestCount;
+        return { success: true, registration: newReg };
+    }
+    await ensureServicesAndCommunityTables();
+    // Check event exists & capacity
+    const [eventRows] = await pool.query('SELECT * FROM society_events WHERE id = ? LIMIT 1', [eventId]);
+    if (!eventRows || eventRows.length === 0) {
+        return { success: false, error: 'Event not found' };
+    }
+    const event = eventRows[0];
+    if (event.status === 'CANCELLED' || event.status === 'COMPLETED') {
+        return { success: false, error: 'Event is no longer accepting registrations' };
+    }
+    if (event.capacity > 0 && event.registration_count + guestCount > event.capacity) {
+        return { success: false, error: 'Event has reached maximum capacity' };
+    }
+    // Check duplicate registration
+    const [existing] = await pool.query('SELECT * FROM event_registrations WHERE event_id = ? AND user_id = ? AND status = "REGISTERED" LIMIT 1', [eventId, user.id]);
+    if (existing && existing.length > 0) {
+        return { success: false, error: 'You are already registered for this event' };
+    }
+    const regId = `reg_${(0, uuid_1.v4)().replace(/-/g, '').slice(0, 16)}`;
+    await pool.query(`INSERT INTO event_registrations (id, event_id, user_id, user_name, user_flat, user_phone, guest_count, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'REGISTERED')
+     ON DUPLICATE KEY UPDATE status = 'REGISTERED', guest_count = VALUES(guest_count), registered_at = CURRENT_TIMESTAMP`, [regId, eventId, user.id, user.name, user.flat, user.phone || null, guestCount]);
+    // Increment count
+    await pool.query('UPDATE society_events SET registration_count = registration_count + ? WHERE id = ?', [guestCount, eventId]);
+    return {
+        success: true,
+        registration: {
+            id: regId,
+            eventId,
+            userId: user.id,
+            userName: user.name,
+            userFlat: user.flat,
+            userPhone: user.phone,
+            guestCount,
+            status: 'REGISTERED',
+            registeredAt: new Date().toISOString(),
+        }
+    };
+}
+async function cancelEventRegistration(eventId, userId) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool) {
+        const reg = inMemoryEventRegistrations.find(r => r.eventId === eventId && r.userId === userId && r.status === 'REGISTERED');
+        if (!reg)
+            return false;
+        reg.status = 'CANCELLED';
+        const event = inMemoryEvents.find(e => e.id === eventId);
+        if (event) {
+            event.registrationCount = Math.max(0, event.registrationCount - reg.guestCount);
+        }
+        return true;
+    }
+    await ensureServicesAndCommunityTables();
+    const [regRows] = await pool.query('SELECT * FROM event_registrations WHERE event_id = ? AND user_id = ? AND status = "REGISTERED" LIMIT 1', [eventId, userId]);
+    if (!regRows || regRows.length === 0)
+        return false;
+    const guestCount = regRows[0].guest_count || 1;
+    const [res] = await pool.query('UPDATE event_registrations SET status = "CANCELLED" WHERE event_id = ? AND user_id = ?', [eventId, userId]);
+    if (res.affectedRows > 0) {
+        await pool.query('UPDATE society_events SET registration_count = GREATEST(0, registration_count - ?) WHERE id = ?', [guestCount, eventId]);
+        return true;
+    }
+    return false;
+}
+async function createSocietyEvent(data) {
+    const id = `evt_${(0, uuid_1.v4)().replace(/-/g, '').slice(0, 16)}`;
+    const row = {
+        id,
+        societyId: data.societyId,
+        createdBy: data.createdBy,
+        title: data.title.trim(),
+        description: data.description.trim(),
+        category: data.category.trim(),
+        eventDate: new Date(data.eventDate).toISOString(),
+        endDate: data.endDate ? new Date(data.endDate).toISOString() : undefined,
+        timeStr: data.timeStr.trim(),
+        venue: data.venue.trim(),
+        organizer: data.organizer.trim(),
+        coverImage: data.coverImage,
+        capacity: data.capacity || 0,
+        registrationCount: 0,
+        status: 'UPCOMING',
+        createdAt: new Date().toISOString(),
+    };
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool) {
+        inMemoryEvents.unshift(row);
+        return row;
+    }
+    await ensureServicesAndCommunityTables();
+    await pool.query(`INSERT INTO society_events 
+     (id, society_id, created_by, title, description, category, event_date, end_date, time_str, venue, organizer, cover_image, capacity, registration_count, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'UPCOMING')`, [row.id, row.societyId, row.createdBy, row.title, row.description, row.category, new Date(row.eventDate), row.endDate ? new Date(row.endDate) : null, row.timeStr, row.venue, row.organizer, row.coverImage || null, row.capacity]);
+    return row;
+}
+async function updateSocietyEvent(id, societyId, data) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool) {
+        const idx = inMemoryEvents.findIndex(e => e.id === id);
+        if (idx === -1)
+            return false;
+        inMemoryEvents[idx] = { ...inMemoryEvents[idx], ...data };
+        return true;
+    }
+    await ensureServicesAndCommunityTables();
+    const updates = [];
+    const values = [];
+    if (data.title) {
+        updates.push('title = ?');
+        values.push(data.title.trim());
+    }
+    if (data.description) {
+        updates.push('description = ?');
+        values.push(data.description.trim());
+    }
+    if (data.category) {
+        updates.push('category = ?');
+        values.push(data.category.trim());
+    }
+    if (data.timeStr) {
+        updates.push('time_str = ?');
+        values.push(data.timeStr.trim());
+    }
+    if (data.venue) {
+        updates.push('venue = ?');
+        values.push(data.venue.trim());
+    }
+    if (data.organizer) {
+        updates.push('organizer = ?');
+        values.push(data.organizer.trim());
+    }
+    if (data.coverImage !== undefined) {
+        updates.push('cover_image = ?');
+        values.push(data.coverImage);
+    }
+    if (data.capacity !== undefined) {
+        updates.push('capacity = ?');
+        values.push(data.capacity);
+    }
+    if (data.status) {
+        updates.push('status = ?');
+        values.push(data.status);
+    }
+    if (updates.length === 0)
+        return true;
+    values.push(id, societyId);
+    const [res] = await pool.query(`UPDATE society_events SET ${updates.join(', ')} WHERE id = ? AND society_id = ?`, values);
+    return res.affectedRows > 0;
+}
+async function deleteSocietyEvent(id, societyId) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool) {
+        const idx = inMemoryEvents.findIndex(e => e.id === id);
+        if (idx === -1)
+            return false;
+        inMemoryEvents.splice(idx, 1);
+        return true;
+    }
+    await ensureServicesAndCommunityTables();
+    const [res] = await pool.query('DELETE FROM society_events WHERE id = ? AND society_id = ?', [id, societyId]);
+    return res.affectedRows > 0;
 }

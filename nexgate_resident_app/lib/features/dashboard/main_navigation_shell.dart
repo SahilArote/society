@@ -6,8 +6,9 @@ import '../../models/visitor_model.dart';
 import '../../services/api_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/socket_service.dart';
-import '../notifications/notifications_screen.dart';
+import '../community/community_screen.dart';
 import '../profile/profile_screen.dart';
+import '../services/services_screen.dart';
 import '../visitors/visitors_hub_screen.dart';
 import '../visitors/widgets/visitor_decision_bottom_sheet.dart';
 import 'home_dashboard_screen.dart';
@@ -149,8 +150,9 @@ class _MainNavigationShellState extends State<MainNavigationShell> with WidgetsB
   Widget build(BuildContext context) {
     final screens = [
       HomeDashboardScreen(onNavigateTab: _onTabSelected),
+      const ServicesScreen(),
+      const CommunityScreen(),
       const VisitorsHubScreen(),
-      const NotificationsScreen(),
       const ProfileScreen(),
     ];
 
@@ -192,14 +194,19 @@ class _MainNavigationShellState extends State<MainNavigationShell> with WidgetsB
                 label: 'Home',
               ),
               NavigationDestination(
+                icon: Icon(Icons.build_circle_outlined, color: AppColors.secondaryText),
+                selectedIcon: Icon(Icons.build_circle_rounded, color: AppColors.primaryBlue),
+                label: 'Services',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.groups_outlined, color: AppColors.secondaryText),
+                selectedIcon: Icon(Icons.groups_rounded, color: AppColors.primaryBlue),
+                label: 'Community',
+              ),
+              NavigationDestination(
                 icon: Icon(Icons.people_outline_rounded, color: AppColors.secondaryText),
                 selectedIcon: Icon(Icons.people_rounded, color: AppColors.primaryBlue),
                 label: 'Visitors',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.notifications_none_rounded, color: AppColors.secondaryText),
-                selectedIcon: Icon(Icons.notifications_rounded, color: AppColors.primaryBlue),
-                label: 'Alerts',
               ),
               NavigationDestination(
                 icon: Icon(Icons.person_outline_rounded, color: AppColors.secondaryText),

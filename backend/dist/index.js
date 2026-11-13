@@ -19,6 +19,8 @@ const admin_1 = __importDefault(require("./routes/admin"));
 const notifications_1 = __importDefault(require("./routes/notifications"));
 const resident_1 = __importDefault(require("./routes/resident"));
 const invites_1 = __importDefault(require("./routes/invites"));
+const services_1 = __importDefault(require("./routes/services"));
+const community_1 = __importDefault(require("./routes/community"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const server = http_1.default.createServer(app);
@@ -68,6 +70,10 @@ app.use('/api/admin', admin_1.default);
 app.use('/api/notifications', notifications_1.default);
 app.use('/api/resident', resident_1.default);
 app.use('/api/invites', invites_1.default);
+app.use('/api/resident/services', services_1.default);
+app.use('/api/resident/community', community_1.default);
+app.use('/api/services', services_1.default);
+app.use('/api/community', community_1.default);
 // Serve Static Files (Landing Page, Assets, Privacy Policy)
 const getPublicDir = () => {
     const candidates = [

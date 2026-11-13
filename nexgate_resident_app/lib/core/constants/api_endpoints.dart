@@ -36,6 +36,19 @@ class ApiEndpoints {
   static String get invites => '$baseUrl/invites/resident';
   static String cancelInvite(String id) => '$baseUrl/invites/resident/$id';
 
+  // Society Services (Vendors, Utilities, Staff)
+  static String get services => '$baseUrl/resident/services';
+  static String serviceDetail(String id) => '$baseUrl/resident/services/$id';
+
+  // Community (Lost & Found, Events)
+  static String get lostFound => '$baseUrl/resident/community/lost-found';
+  static String lostFoundDetail(String id) => '$baseUrl/resident/community/lost-found/$id';
+  static String lostFoundStatus(String id) => '$baseUrl/resident/community/lost-found/$id/status';
+  static String get events => '$baseUrl/resident/community/events';
+  static String eventDetail(String id) => '$baseUrl/resident/community/events/$id';
+  static String eventRegister(String id) => '$baseUrl/resident/community/events/$id/register';
+  static String eventCancel(String id) => '$baseUrl/resident/community/events/$id/cancel';
+
   // Notifications
   static String get notifications => '$baseUrl/notifications';
   static String get health => '$baseUrl/health';

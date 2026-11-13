@@ -13,6 +13,7 @@ import '../household/family_members_screen.dart';
 import '../household/vehicles_screen.dart';
 import '../visitors/invite_visitor_screen.dart';
 import '../visitors/visitor_detail_screen.dart';
+import '../notifications/notifications_screen.dart';
 import 'widgets/quick_actions_grid.dart';
 import 'widgets/recent_visitors_section.dart';
 import 'widgets/security_status_card.dart';
@@ -179,9 +180,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> with WidgetsB
           IconButton(
             icon: const Icon(Icons.notifications_none_rounded, color: AppColors.primaryText),
             onPressed: () {
-              if (widget.onNavigateTab != null) {
-                widget.onNavigateTab!(2); // Navigate to Notifications Tab
-              }
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+              );
             },
           ),
         ],
@@ -223,7 +224,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> with WidgetsB
                 },
                 onVisitors: () {
                   if (widget.onNavigateTab != null) {
-                    widget.onNavigateTab!(1); // Visitors Tab
+                    widget.onNavigateTab!(3); // Visitors Tab
                   }
                 },
                 onFamily: () {
@@ -236,6 +237,104 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> with WidgetsB
                     MaterialPageRoute(builder: (_) => const VehiclesScreen()),
                   );
                 },
+              ),
+
+              const SizedBox(height: 20),
+
+              // Society Services & Community Quick Cards
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: AppDimensions.roundedLarge,
+                  boxShadow: AppDimensions.subtleShadow,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.hub_rounded, color: Colors.amberAccent, size: 18),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Society Life & Services',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              HapticHelper.lightImpact();
+                              if (widget.onNavigateTab != null) widget.onNavigateTab!(1);
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                              ),
+                              child: const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(Icons.build_circle_rounded, color: Colors.lightBlueAccent, size: 24),
+                                  SizedBox(height: 8),
+                                  Text('Services', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+                                  SizedBox(height: 2),
+                                  Text('Vendors & Staff', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              HapticHelper.lightImpact();
+                              if (widget.onNavigateTab != null) widget.onNavigateTab!(2);
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                              ),
+                              child: const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(Icons.groups_rounded, color: Color(0xFF34D399), size: 24),
+                                  SizedBox(height: 8),
+                                  Text('Community', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+                                  SizedBox(height: 2),
+                                  Text('Lost & Events', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
 
               const SizedBox(height: 20),
@@ -265,7 +364,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> with WidgetsB
                   visitors: _recentVisitors,
                   onViewAll: () {
                     if (widget.onNavigateTab != null) {
-                      widget.onNavigateTab!(1); // Visitors Tab
+                      widget.onNavigateTab!(3); // Visitors Tab
                     }
                   },
                   onRefresh: () => _loadDashboardData(silent: true),

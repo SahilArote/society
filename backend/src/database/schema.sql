@@ -243,3 +243,97 @@ CREATE INDEX idx_invite_code ON visitor_invites(society_id, pass_code, status);
 CREATE INDEX idx_invite_resident ON visitor_invites(resident_id, status);
 CREATE INDEX idx_invite_flat ON visitor_invites(flat_id);
 
+-- 15. Society Services Table (Vendors, Utilities, Staff)
+CREATE TABLE IF NOT EXISTS `society_services` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `society_id` VARCHAR(64) NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
+  `category` VARCHAR(64) NOT NULL,
+  `service_type` VARCHAR(32) NOT NULL DEFAULT 'VENDOR', -- 'VENDOR', 'UTILITY', 'STAFF'
+  `provider_name` VARCHAR(255) DEFAULT NULL,
+  `phone` VARCHAR(32) NOT NULL,
+  `alternate_phone` VARCHAR(32) DEFAULT NULL,
+  `address` TEXT DEFAULT NULL,
+  `description` TEXT DEFAULT NULL,
+  `rating` DECIMAL(3,1) NOT NULL DEFAULT 4.5,
+  `review_count` INT NOT NULL DEFAULT 0,
+  `is_verified` TINYINT(1) NOT NULL DEFAULT 1,
+  `timing` VARCHAR(128) DEFAULT '9:00 AM – 8:00 PM',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`society_id`) REFERENCES `societies`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX idx_services_society_type ON society_services(society_id, service_type);
+CREATE INDEX idx_services_category ON society_services(society_id, category);
+
+-- 16. Lost & Found Items Table (Community Module)
+CREATE TABLE IF NOT EXISTS `lost_found_items` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `society_id` VARCHAR(64) NOT NULL,
+  `author_id` VARCHAR(64) NOT NULL,
+  `author_name` VARCHAR(255) NOT NULL,
+  `author_flat` VARCHAR(64) NOT NULL,
+  `author_phone` VARCHAR(32) DEFAULT NULL,
+  `type` ENUM('LOST', 'FOUND') NOT NULL,
+  `title` VARCHAR(255) NOT NULL,
+  `description` TEXT NOT NULL,
+  `category` VARCHAR(64) NOT NULL,
+  `location` VARCHAR(255) NOT NULL,
+  `incident_date` DATETIME NOT NULL,
+  `image_url` TEXT DEFAULT NULL,
+  `status` ENUM('ACTIVE', 'RESOLVED', 'CLOSED') NOT NULL DEFAULT 'ACTIVE',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NULL DEFAULT NULL,
+  FOREIGN KEY (`society_id`) REFERENCES `societies`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX idx_lost_found_society_status ON lost_found_items(society_id, status);
+CREATE INDEX idx_lost_found_author ON lost_found_items(author_id);
+CREATE INDEX idx_lost_found_type ON lost_found_items(society_id, type);
+
+-- 17. Society Events Table (Community Module)
+CREATE TABLE IF NOT EXISTS `society_events` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `society_id` VARCHAR(64) NOT NULL,
+  `created_by` VARCHAR(64) NOT NULL,
+  `title` VARCHAR(255) NOT NULL,
+  `description` TEXT NOT NULL,
+  `category` VARCHAR(64) NOT NULL DEFAULT 'Celebration',
+  `event_date` DATETIME NOT NULL,
+  `end_date` DATETIME NULL DEFAULT NULL,
+  `time_str` VARCHAR(64) NOT NULL,
+  `venue` VARCHAR(255) NOT NULL,
+  `organizer` VARCHAR(255) NOT NULL DEFAULT 'Society Committee',
+  `cover_image` TEXT DEFAULT NULL,
+  `capacity` INT NOT NULL DEFAULT 0, -- 0 = Unlimited
+  `registration_count` INT NOT NULL DEFAULT 0,
+  `status` ENUM('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED') NOT NULL DEFAULT 'UPCOMING',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`society_id`) REFERENCES `societies`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX idx_events_society_status ON society_events(society_id, status);
+CREATE INDEX idx_events_date ON society_events(society_id, event_date);
+
+-- 18. Event Registrations Table
+CREATE TABLE IF NOT EXISTS `event_registrations` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `event_id` VARCHAR(64) NOT NULL,
+  `user_id` VARCHAR(64) NOT NULL,
+  `user_name` VARCHAR(255) NOT NULL,
+  `user_flat` VARCHAR(64) NOT NULL,
+  `user_phone` VARCHAR(32) DEFAULT NULL,
+  `guest_count` INT NOT NULL DEFAULT 1,
+  `status` ENUM('REGISTERED', 'CANCELLED') NOT NULL DEFAULT 'REGISTERED',
+  `registered_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`event_id`) REFERENCES `society_events`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+  UNIQUE KEY `uk_event_user` (`event_id`, `user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX idx_event_reg_user ON event_registrations(user_id);
+CREATE INDEX idx_event_reg_event ON event_registrations(event_id, status);
+
+
