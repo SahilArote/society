@@ -3,11 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Phone, Mail, Car, Users, Home,
   Building2, AlertCircle, CheckCircle2, X, Download,
-  UserPlus, MessageSquare, CreditCard, ShieldCheck, Plus, UserCheck, Loader2, Trash2,
+  UserPlus, UserCheck, Loader2, Trash2,
   UploadCloud, FileSpreadsheet, Check, RefreshCw
 } from 'lucide-react';
 import type { Flat, FlatResident as Resident } from '../types';
-import StatCard, { CircularGauge } from '../components/StatCard';
+import StatCard from '../components/StatCard';
 import { RegistrationRequestsSection } from '../components/RegistrationRequestsSection';
 import { fetchAdminFlats, createAdminFlat, deleteAdminFlat, deleteAdminResident, downloadCsvTemplate, bulkImportFlats, mergeDuplicateFlats, type BulkImportResponse } from '../services/api';
 
@@ -270,7 +270,7 @@ function parseClientCsv(text: string): Array<{
 
 export default function Residents() {
   const [flats, setFlats] = useState<Flat[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [wing, setWing] = useState('all');
   const [status, setStatus] = useState('all');
@@ -278,7 +278,7 @@ export default function Residents() {
   const [selected, setSelected] = useState<Flat | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showAddFlat, setShowAddFlat] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [_isSubmitting, setIsSubmitting] = useState(false);
   const [mainTab, setMainTab] = useState<'directory' | 'registrations'>('directory');
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [flatToDelete, setFlatToDelete] = useState<Flat | null>(null);
@@ -530,13 +530,6 @@ export default function Residents() {
       (status === 'all' || f.status === status) &&
       (maint === 'all' || f.maintenanceStatus === maint);
   });
-
-  const stats = [
-    { label: 'Total Flats',     val: flats.length,                                         icon: Building2,   color: 'var(--accent-light)', bg: 'var(--accent-bg)', pill: 'Society Total', sub: '120 planned units', progress: 100 },
-    { label: 'Occupied',        val: flats.filter(f => f.status === 'occupied').length,     icon: Home,        color: 'var(--green)',        bg: 'var(--green-bg)', pill: `${Math.round((flats.filter(f => f.status === 'occupied').length/flats.length)*100)}% Occupancy`, sub: 'Active resident members', progress: Math.round((flats.filter(f => f.status === 'occupied').length/flats.length)*100) },
-    { label: 'Vacant',          val: flats.filter(f => f.status === 'vacant').length,       icon: Home,        color: 'var(--text-secondary)', bg: 'var(--bg-elevated)', pill: 'Available', sub: 'Ready for possession', progress: Math.round((flats.filter(f => f.status === 'vacant').length/flats.length)*100) },
-    { label: 'Maintenance Due', val: flats.filter(f => f.maintenanceStatus !== 'paid').length, icon: AlertCircle, color: 'var(--red)',         bg: 'var(--red-bg)', pill: 'Action Req.', sub: 'Overdue notices queued', progress: Math.round((flats.filter(f => f.maintenanceStatus !== 'paid').length/flats.length)*100) },
-  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>

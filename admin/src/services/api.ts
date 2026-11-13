@@ -1,5 +1,8 @@
 function resolveApiBaseUrl(): string {
-  let url = (import.meta.env.VITE_API_URL || 'https://nexgate.co.in/api').trim();
+  const envUrl = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL)
+    || (typeof globalThis !== 'undefined' && (globalThis as any).process?.env?.VITE_API_URL)
+    || 'https://nexgate.co.in/api';
+  let url = String(envUrl).trim();
   if (url.endsWith('/')) {
     url = url.slice(0, -1);
   }

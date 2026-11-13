@@ -4,9 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bell, Search, RefreshCw, CheckCircle2, Shield,
   Users, UserCheck, DoorOpen, Megaphone, Settings,
-  AlertTriangle, Clock, ArrowRight, X, Sparkles, ExternalLink
+  ArrowRight, X, Sparkles
 } from 'lucide-react';
-import { mockFlats, mockVisitors, mockGuards, mockAnnouncements } from '../../data/mockData';
+import { mockFlats, mockVisitors, mockGuards } from '../../data/mockData';
 import { ThemeToggle } from '../ThemeToggle';
 
 const PAGE_META: Record<string, { title: string; sub: string }> = {

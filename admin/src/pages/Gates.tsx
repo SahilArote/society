@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  DoorOpen, Shield, Sun, Moon, Phone, Plus, Settings,
-  Video, Radio, AlertCircle, CheckCircle2, Lock, Unlock,
-  X, UserCheck, Eye, RefreshCw, Loader2
+  DoorOpen, Shield, Sun, Moon, Phone, Plus,
+  Video, Radio, CheckCircle2, Lock, Unlock,
+  X, UserCheck
 } from 'lucide-react';
 import type { GuardShift, GuardStatus, Gate, Guard } from '../types';
 import {
@@ -38,7 +38,7 @@ const gateCCTV: Record<string, { camId: string; detection: string; resolution: s
 export default function Gates() {
   const [gates, setGates] = useState<Gate[]>([]);
   const [guards, setGuards] = useState<Guard[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [shiftFilter, setShiftFilter] = useState<GuardShift | 'all'>('all');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showAddGuard, setShowAddGuard] = useState(false);

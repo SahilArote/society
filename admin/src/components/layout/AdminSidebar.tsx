@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  Shield, LayoutDashboard, Users, UserCheck,
+  LayoutDashboard, Users, UserCheck,
   DoorOpen, Megaphone, Bell, BarChart3,
   Settings, LogOut, Building2, ChevronRight
 } from 'lucide-react';
 import { mockAdminUser } from '../../data/mockData';
+import { clearAdminSession } from '../../services/api';
 
 const NAV = [
   { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard', section: 'Management' },
@@ -44,6 +45,24 @@ export function AdminSidebar() {
     window.addEventListener('nexgate_society_updated', handleUpdate);
     return () => window.removeEventListener('nexgate_society_updated', handleUpdate);
   }, []);
+
+  // Dynamic logged in admin user
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('gg_admin_user');
+      if (stored) return JSON.parse(stored);
+    } catch (_) {}
+    return mockAdminUser;
+  });
+
+  const displayName = currentUser?.name || 'Admin';
+  const displayRole = (currentUser?.role || 'ADMIN').replace('_', ' ');
+  const avatarInitials = displayName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'A';
+
+  const handleLogout = () => {
+    clearAdminSession();
+    navigate('/admin/login');
+  };
 
   return (
     <aside className="sidebar">
@@ -126,18 +145,18 @@ export function AdminSidebar() {
       <div className="sidebar-user">
         <div className="sidebar-user-card">
           <div className="sidebar-avatar">
-            {mockAdminUser.name.split(' ').map(n => n[0]).join('')}
+            {avatarInitials}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {mockAdminUser.name}
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={displayName}>
+              {displayName}
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'capitalize', marginTop: 1 }}>
-              {mockAdminUser.role.replace('_', ' ')}
+              {displayRole}
             </div>
           </div>
           <button
-            onClick={() => { localStorage.removeItem('gg_admin_auth'); navigate('/admin/login'); }}
+            onClick={handleLogout}
             id="sidebar-logout-btn"
             className="btn-icon"
             title="Logout"

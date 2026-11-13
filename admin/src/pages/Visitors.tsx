@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, AlertTriangle, Users, Package, Wrench, Car, Eye,
-  CheckCircle2, XCircle, Clock, Download, QrCode, Phone, ShieldCheck,
-  Building, LogOut, X, Share2, Printer, Loader2, Trash2
+  CheckCircle2, XCircle, Clock, Download, QrCode, ShieldCheck,
+  LogOut, X, Share2, Loader2, Trash2
 } from 'lucide-react';
 import type { AdminVisitor } from '../types';
-import StatCard, { CircularGauge } from '../components/StatCard';
+import StatCard from '../components/StatCard';
 import {
   fetchAdminVisitors,
   approveAdminVisitor,
@@ -48,7 +48,7 @@ function fmt(d: Date | string | undefined) {
 
 export default function Visitors() {
   const [visitors, setVisitors] = useState<AdminVisitor[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('today');
   const [search, setSearch] = useState('');
   const [gate, setGate] = useState('all');
@@ -206,13 +206,6 @@ export default function Visitors() {
   const insideCount = visitors.filter(v => v.status === 'inside').length;
   const pendingCount = visitors.filter(v => v.status === 'pending').length;
   const deniedCount = visitors.filter(v => v.status === 'denied').length;
-
-  const stats = [
-    { label: 'Total Today',      val: visitors.length, icon: Users,         color: 'var(--accent-light)', bg: 'var(--accent-bg)' },
-    { label: 'Currently Inside', val: insideCount,      icon: CheckCircle2,  color: 'var(--green)',        bg: 'var(--green-bg)' },
-    { label: 'Pending Approval', val: pendingCount,     icon: Clock,         color: 'var(--amber)',        bg: 'var(--amber-bg)' },
-    { label: 'Denied Entries',   val: deniedCount,      icon: XCircle,       color: 'var(--red)',          bg: 'var(--red-bg)' },
-  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>

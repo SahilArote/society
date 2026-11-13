@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  UserCheck, Clock, CheckCircle2, XCircle, AlertCircle,
-  RefreshCw, Filter, Shield, Phone, Home, Layers, Building2,
+  UserCheck, Clock, CheckCircle2, XCircle,
+  RefreshCw, Phone, Home,
   X, Check, AlertTriangle
 } from 'lucide-react';
 import {
