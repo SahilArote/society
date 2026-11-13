@@ -8,8 +8,8 @@ import { adminLogin } from '../services/api';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('admin@nexgate.co.in');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -22,7 +22,7 @@ export default function AdminLogin() {
       await adminLogin(email, password);
       navigate('/admin/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Invalid email or password. Try admin@nexgate.co.in / admin123');
+      setError(err.message || 'Invalid email or password.');
     } finally {
       setLoading(false);
     }
@@ -148,20 +148,6 @@ export default function AdminLogin() {
                 : 'Sign In to Dashboard'}
             </button>
           </form>
-
-          {/* Demo credentials */}
-          <div style={{
-            marginTop: 20, padding: '12px 14px', borderRadius: 'var(--r-md)',
-            background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-            textAlign: 'center',
-          }}>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 600 }}>
-              DEMO CREDENTIALS
-            </p>
-            <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-              admin@nexgate.co.in · admin123
-            </p>
-          </div>
         </div>
 
         {/* Footer */}
