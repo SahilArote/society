@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:http_parser/http_parser.dart';
 import 'dart:async';
 
 import 'dart:convert';
@@ -1002,8 +1004,49 @@ class ApiService {
     required String category,
     required String location,
     DateTime? incidentDate,
+    String? imageFilePath,
     String? imageUrl,
   }) async {
+    // 1. If physical photo path is provided, upload as multipart/form-data to Cloudinary
+    if (imageFilePath != null && imageFilePath.isNotEmpty && File(imageFilePath).existsSync()) {
+      final uri = Uri.parse(ApiEndpoints.lostFound);
+      final request = http.MultipartRequest('POST', uri);
+
+      final headers = _headers();
+      headers.forEach((key, val) {
+        if (key.toLowerCase() != 'content-type') {
+          request.headers[key] = val;
+        }
+      });
+
+      request.fields['type'] = type.toUpperCase();
+      request.fields['title'] = title.trim();
+      request.fields['description'] = description.trim();
+      request.fields['category'] = category.trim();
+      request.fields['location'] = location.trim();
+      request.fields['incidentDate'] = (incidentDate ?? DateTime.now()).toIso8601String();
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        request.fields['imageUrl'] = imageUrl;
+      }
+
+      final ext = imageFilePath.split('.').last.toLowerCase();
+      final subType = ext == 'png' ? 'png' : ext == 'webp' ? 'webp' : 'jpeg';
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'image',
+          imageFilePath,
+          contentType: MediaType('image', subType),
+        ),
+      );
+
+      final streamed = await request.send().timeout(timeoutDuration);
+      final response = await http.Response.fromStream(streamed);
+      final json = _handleResponse(response);
+      return LostFoundModel.fromJson(json['data'] as Map<String, dynamic>);
+    }
+
+    // 2. Fallback to standard JSON post
     final response = await _post(
       Uri.parse(ApiEndpoints.lostFound),
       headers: _headers(),

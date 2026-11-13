@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/haptic_helper.dart';
 import '../../core/widgets/custom_app_bar.dart';
@@ -19,11 +21,13 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _imageController = TextEditingController();
 
   String _selectedCategory = 'Wallet & Cards';
   DateTime _incidentDate = DateTime.now();
+  File? _capturedImage;
   bool _isSubmitting = false;
+
+  final ImagePicker _picker = ImagePicker();
 
   static const List<String> _categories = [
     'Wallet & Cards',
@@ -42,8 +46,41 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
     _titleController.dispose();
     _locationController.dispose();
     _descriptionController.dispose();
-    _imageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    HapticHelper.lightImpact();
+    try {
+      final XFile? file = await _picker.pickImage(
+        source: source,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 85,
+      );
+
+      if (file != null) {
+        setState(() {
+          _capturedImage = File(file.path);
+        });
+        HapticHelper.selectionClick();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not access camera/gallery: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  void _removeCapturedImage() {
+    HapticHelper.lightImpact();
+    setState(() {
+      _capturedImage = null;
+    });
   }
 
   Future<void> _pickDate() async {
@@ -81,7 +118,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
         category: _selectedCategory,
         location: _locationController.text.trim(),
         incidentDate: _incidentDate,
-        imageUrl: _imageController.text.trim().isNotEmpty ? _imageController.text.trim() : null,
+        imageFilePath: _capturedImage?.path,
       );
 
       if (!mounted) return;
@@ -98,7 +135,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
       HapticHelper.error();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to submit report: $e'),
+          content: Text('Failed to submit post: $e'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -106,7 +143,6 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
     }
   }
 
-  
   Widget _buildFormField({
     required TextEditingController controller,
     required String label,
@@ -232,6 +268,7 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
                   ],
                 ),
               ),
+
               const SizedBox(height: 24),
 
               // Title
@@ -332,15 +369,141 @@ class _ReportItemScreenState extends State<ReportItemScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-              // Optional Image URL
-              _buildFormField(
-                controller: _imageController,
-                label: 'Photo Image URL (Optional)',
-                hintText: 'https://...',
-                prefixIcon: Icons.image_outlined,
+              // ========================================================
+              // PHOTO UPLOAD / CAMERA CAPTURE SECTION (Cloudinary)
+              // ========================================================
+              const Text(
+                'Item Photograph',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primaryText),
               ),
+              const SizedBox(height: 4),
+              const Text(
+                'Click a photo using camera or choose from gallery. Uploads directly to Cloudinary.',
+                style: TextStyle(fontSize: 11, color: AppColors.secondaryText),
+              ),
+              const SizedBox(height: 10),
+
+              if (_capturedImage != null) ...[
+                // Photo Preview Card with Retake & Delete Actions
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFF10B981), width: 1.5),
+                  ),
+                  child: Column(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.file(
+                          _capturedImage!,
+                          height: 190,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDCFCE7),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.cloud_done_rounded, size: 14, color: Color(0xFF16A34A)),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Photo Ready',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF16A34A)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton.icon(
+                            onPressed: () => _pickImage(ImageSource.camera),
+                            icon: const Icon(Icons.refresh_rounded, size: 14, color: AppColors.primaryBlue),
+                            label: const Text('Retake', style: TextStyle(fontSize: 12, color: AppColors.primaryBlue)),
+                          ),
+                          TextButton.icon(
+                            onPressed: _removeCapturedImage,
+                            icon: const Icon(Icons.delete_outline_rounded, size: 14, color: AppColors.error),
+                            label: const Text('Remove', style: TextStyle(fontSize: 12, color: AppColors.error)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                // Photo Picker Options (Camera / Gallery)
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.border, width: 1.2),
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: AppColors.lightBlue,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.add_a_photo_rounded, color: AppColors.primaryBlue, size: 24),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'No photo attached yet',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primaryText),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Adding a clear photo helps residents quickly recognize the item',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 11, color: AppColors.mutedText),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () => _pickImage(ImageSource.camera),
+                            icon: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
+                            label: const Text('Camera', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryBlue,
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          OutlinedButton.icon(
+                            onPressed: () => _pickImage(ImageSource.gallery),
+                            icon: const Icon(Icons.photo_library_outlined, size: 16, color: AppColors.primaryBlue),
+                            label: const Text('Gallery', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryBlue)),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                              side: const BorderSide(color: AppColors.border),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 32),
 
               // Submit Button
