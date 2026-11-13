@@ -62,16 +62,14 @@ export default function AdminLogin() {
         <div style={{ padding: '36px 32px 32px' }}>
           {/* Logo & Header */}
           <div style={{ textAlign: 'center', marginBottom: 30 }}>
-            <div
+            <img
+              src="/assets/images/nexgate_icon_rounded.svg"
+              alt="NexGate Logo"
               style={{
-                width: 48, height: 48, borderRadius: 'var(--r-md)', margin: '0 auto 14px',
-                background: 'var(--accent)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: 'var(--shadow-sm)',
+                width: 56, height: 56, borderRadius: 'var(--r-md)', margin: '0 auto 14px',
+                display: 'block', objectFit: 'contain',
               }}
-            >
-              <Shield size={22} color="white" />
-            </div>
+            />
 
             <h1 style={{
               fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700,

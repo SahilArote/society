@@ -489,7 +489,7 @@ export default function Residents() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `GreenGate_Residents_Directory_${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `NexGate_Residents_Directory_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     showToast('Downloaded residents directory CSV');

@@ -11,7 +11,7 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'greengate_admin_theme';
+const STORAGE_KEY = 'nexgate_admin_theme';
 
 function getSystemTheme(): ResolvedTheme {
   if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {

@@ -30,9 +30,9 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace "com.greengate.guard.greengate_guard_app"
+    namespace "com.nexgate.resident"
     compileSdkVersion flutter.compileSdkVersion
-    ndkVersion "27.1.12297006"
+    ndkVersion "28.2.13676358"
 
     compileOptions {
         coreLibraryDesugaringEnabled true
@@ -49,7 +49,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.greengate.guard.greengate_guard_app"
+        applicationId "com.nexgate.resident"
         minSdkVersion flutter.minSdkVersion
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()

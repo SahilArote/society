@@ -180,7 +180,7 @@ export default function Visitors() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `GreenGate_Visitors_${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `NexGate_Visitors_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     showToast('Downloaded visitors export CSV');
@@ -594,7 +594,7 @@ export default function Visitors() {
                     </div>
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--accent-light)', textTransform: 'uppercase' }}>
-                        GreenGate Security
+                        NexGate Security
                       </div>
                       <div style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>Digital Gate Pass</div>
                     </div>

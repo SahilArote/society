@@ -41,17 +41,19 @@ export function AdminSidebar() {
         if (cached) setSocietyInfo(JSON.parse(cached));
       } catch (_) {}
     };
-    window.addEventListener('greengate_society_updated', handleUpdate);
-    return () => window.removeEventListener('greengate_society_updated', handleUpdate);
+    window.addEventListener('nexgate_society_updated', handleUpdate);
+    return () => window.removeEventListener('nexgate_society_updated', handleUpdate);
   }, []);
 
   return (
     <aside className="sidebar">
       {/* Logo */}
       <div className="sidebar-logo">
-        <div className="sidebar-logo-icon">
-          <Shield size={18} color="white" />
-        </div>
+        <img
+          src="/assets/images/nexgate_icon_rounded.svg"
+          alt="NexGate Logo"
+          style={{ width: 36, height: 36, borderRadius: 'var(--r-md)', objectFit: 'contain', flexShrink: 0 }}
+        />
         <div>
           <div className="sidebar-logo-title">NexGate</div>
           <div className="sidebar-logo-sub">ADMIN PORTAL</div>

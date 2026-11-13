@@ -59,10 +59,10 @@ export async function adminLogin(email: string, password: string) {
     console.warn('Network issue calling live admin login, checking credentials locally:', err);
   }
 
-  // Backup fallback for admin login: admin@greengate.in / admin123
-  if ((email.trim().toLowerCase() === 'admin@greengate.in' || email.trim().toLowerCase() === 'admin@nexgate.co.in') && password === 'admin123') {
+  // Backup fallback for admin login: admin@nexgate.co.in / admin123
+  if (email.trim().toLowerCase() === 'admin@nexgate.co.in' && password === 'admin123') {
     const fallbackToken = 'backup_admin_token_' + Date.now();
-    const fallbackAdmin = { id: 'admin_user', email: 'admin@greengate.in', name: 'Admin', role: 'ADMIN' };
+    const fallbackAdmin = { id: 'admin_user', email: 'admin@nexgate.co.in', name: 'Admin', role: 'ADMIN' };
     setAdminSession(fallbackToken, fallbackAdmin);
     return { success: true, token: fallbackToken, admin: fallbackAdmin };
   }
@@ -236,7 +236,7 @@ export async function downloadCsvTemplate(): Promise<void> {
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'greengate_flats_template.csv';
+  a.download = 'nexgate_flats_template.csv';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -501,7 +501,7 @@ export async function updateAdminSettings(data: {
       const json = await res.json();
       if (json.data) {
         localStorage.setItem('gg_admin_society_settings', JSON.stringify(json.data));
-        window.dispatchEvent(new CustomEvent('greengate_society_updated', { detail: json.data }));
+        window.dispatchEvent(new CustomEvent('nexgate_society_updated', { detail: json.data }));
         return json.data;
       }
     }
@@ -513,7 +513,7 @@ export async function updateAdminSettings(data: {
   const current = await fetchAdminSettings();
   const updated = { ...current, ...data };
   localStorage.setItem('gg_admin_society_settings', JSON.stringify(updated));
-  window.dispatchEvent(new CustomEvent('greengate_society_updated', { detail: updated }));
+  window.dispatchEvent(new CustomEvent('nexgate_society_updated', { detail: updated }));
   return updated;
 }
 

@@ -24,7 +24,7 @@ export default function Settings() {
   const [socFlats, setSocFlats] = useState(String(mockSociety.totalFlats));
   const [maintAmount, setMaintAmount] = useState(String(mockSociety.maintenanceAmount));
   const [maintDueDay, setMaintDueDay] = useState(String(mockSociety.maintenanceDueDay));
-  const [upiId, setUpiId] = useState('greengate.society@hdfcbank');
+  const [upiId, setUpiId] = useState('nexgate.society@hdfcbank');
 
   // Admin users state
   const [admins, setAdmins] = useState([
@@ -96,7 +96,7 @@ export default function Settings() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `GreenGate_Backup_${new Date().toISOString().slice(0,10)}.json`;
+    a.download = `NexGate_Backup_${new Date().toISOString().slice(0,10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
     showToast('Downloaded full system backup JSON');
