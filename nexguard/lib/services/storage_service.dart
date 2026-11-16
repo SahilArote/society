@@ -16,6 +16,7 @@ class StorageService {
   static const String _keyOnboardingDone = 'guard_onboarding_completed';
   static const String _keyServerUrl = 'server_base_url';
   static const String _keyAuthToken = 'guard_auth_token';
+  static const String _keyAppLanguage = 'guard_app_language';
 
   final SharedPreferences _prefs;
   final FlutterSecureStorage _secureStorage;
@@ -178,10 +179,18 @@ class StorageService {
     await _prefs.setBool(_keyOnboardingDone, value);
   }
 
+  String getLanguage() {
+    return _prefs.getString(_keyAppLanguage) ?? 'en';
+  }
+
+  Future<void> setLanguage(String code) async {
+    await _prefs.setString(_keyAppLanguage, code);
+  }
+
   Future<void> clearSession() async {
     await setLoggedIn(false);
     await removeToken();
-    await _prefs.remove(_keyGuardData);
+    // Keep guard data and guard PIN intact so guard can re-authenticate dynamically even offline
     // Gate visitor requests are NOT wiped on guard logout.
     // They belong to the gate terminal station and society logs,
     // ensuring the queue persists across guard shifts and re-logins.

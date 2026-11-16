@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../repositories/guard_repository.dart';
+import '../../services/language_service.dart';
+import '../../services/storage_service.dart';
 import '../auth/login_screen.dart';
 
 /// Guard App - Profile Screen
@@ -322,7 +324,7 @@ class ProfileScreen extends StatelessWidget {
       backgroundColor: AppColors.pageBackground, // #F5F7FB
       body: SafeArea(
         child: AnimatedBuilder(
-          animation: guardRepo,
+          animation: Listenable.merge([guardRepo, LanguageService.instance]),
           builder: (context, _) {
             final guard = guardRepo.currentGuard;
             if (guard == null) {
@@ -341,19 +343,22 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. TITLE ROW (padding 20 16 12, space-between, center)
+                  // 1. TITLE ROW
                   _buildTitleRow(),
 
-                  // 2. OFFICER CARD (margin 0 16, bg #2B2F8F, radius 24, padding 18, column gap 16)
+                  // 2. OFFICER CARD
                   _buildOfficerCard(guardName, guardId, gate),
 
-                  // 3. STATION ASSIGNMENT CARD (margin 12 16 0, white, 1px border #E4E8F0, radius 20, padding 16, column gap 12)
+                  // 3. APP LANGUAGE SELECTOR CARD (English / Hindi / Marathi)
+                  _buildLanguageCard(context),
+
+                  // 4. STATION ASSIGNMENT CARD
                   _buildStationAssignmentCard(society, gate, shift),
 
-                  // 4. SECURITY & TERMINAL CARD (margin 12 16 0, same card style)
+                  // 5. SECURITY & TERMINAL CARD
                   _buildSecurityTerminalCard(context),
 
-                  // 5. LOGOUT BUTTON
+                  // 6. LOGOUT BUTTON
                   _buildLogoutButton(context),
                 ],
               ),
@@ -373,9 +378,9 @@ class ProfileScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // "Profile"
-          const Text(
-            'Profile',
-            style: TextStyle(
+          Text(
+            tr('navProfile'),
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
@@ -384,7 +389,7 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
 
-          // "ON DUTY" pill (height 28, padding 0 12, radius 14, bg #E7F6EC, text #0B6B38, 12px bold, 8px green dot #16A34A)
+          // "ON DUTY" pill
           Container(
             height: 28,
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -405,9 +410,9 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 6),
-                const Text(
-                  'ON DUTY',
-                  style: TextStyle(
+                Text(
+                  tr('onDuty'),
+                  style: const TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                     color: AppColors.dutyPillText,
@@ -419,6 +424,113 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // APP LANGUAGE CARD (English / Hindi / Marathi)
+  Widget _buildLanguageCard(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border, width: 1.0),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.indigoTint,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(Icons.language_rounded,
+                    color: AppColors.primary, size: 21),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr('appLanguage'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.6,
+                        color: Color(0xFF64748B),
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      tr('languageDesc'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _buildLangChip(AppLang.en, '🇬🇧 English'),
+              const SizedBox(width: 8),
+              _buildLangChip(AppLang.hi, '🇮🇳 हिंदी'),
+              const SizedBox(width: 8),
+              _buildLangChip(AppLang.mr, '🇮🇳 मराठी'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLangChip(AppLang lang, String label) {
+    final isSelected = LanguageService.instance.currentLang == lang;
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () async {
+            final storage = await StorageService.init();
+            await LanguageService.instance.setLanguage(lang, storage);
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            height: 46,
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.primary : AppColors.fieldBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isSelected ? AppColors.primary : AppColors.border,
+                width: isSelected ? 1.5 : 1.0,
+              ),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                color: isSelected ? Colors.white : AppColors.textPrimary,
+                fontFamily: 'Inter',
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -471,7 +583,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'Security Officer · $gate',
+                      '${tr("securityOfficer")} · $gate',
                       style: const TextStyle(
                         fontSize: 14,
                         color: AppColors.heroSubText, // #C7CBFF
@@ -506,9 +618,9 @@ class ProfileScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'BADGE ID',
-                    style: TextStyle(
+                  Text(
+                    tr('badgeId'),
+                    style: const TextStyle(
                       fontSize: 11.5,
                       color: AppColors.heroSubText, // #C7CBFF
                       fontFamily: 'Inter',
@@ -537,18 +649,18 @@ class ProfileScreen extends StatelessWidget {
                   color: AppColors.verifiedPillBg, // #D6F5E3
                   borderRadius: BorderRadius.circular(18),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.check_rounded,
                       size: 16,
                       color: AppColors.verifiedPillText, // #0B5B30
                     ),
-                    SizedBox(width: 5),
+                    const SizedBox(width: 5),
                     Text(
-                      'Verified',
-                      style: TextStyle(
+                      tr('verified'),
+                      style: const TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w600,
                         color: AppColors.verifiedPillText, // #0B5B30
@@ -583,9 +695,9 @@ class ProfileScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Label "STATION ASSIGNMENT"
-          const Text(
-            'STATION ASSIGNMENT',
-            style: TextStyle(
+          Text(
+            tr('stationAssignment'),
+            style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.6,
@@ -595,32 +707,32 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // a) Building icon: "Society complex" / "Green Gate Residency"
+          // a) Building icon
           _buildStationRow(
             icon: Icons.apartment_rounded,
             iconBg: AppColors.indigoTint,
             iconColor: AppColors.primary,
-            label: 'Society complex',
+            label: tr('societyComplex'),
             value: society,
           ),
           const SizedBox(height: 12),
 
-          // b) Door icon: "Gate checkpoint" / "Main Gate"
+          // b) Door icon
           _buildStationRow(
             icon: Icons.meeting_room_outlined,
             iconBg: AppColors.dutyPillBg,
             iconColor: AppColors.dutyPillText,
-            label: 'Gate checkpoint',
+            label: tr('gateCheckpoint'),
             value: gate,
           ),
           const SizedBox(height: 12),
 
-          // c) Clock icon: "Shift hours" / "Morning · 07:00 AM – 07:00 PM"
+          // c) Clock icon
           _buildStationRow(
             icon: Icons.access_time_rounded,
             iconBg: AppColors.pillWaitingBg,
             iconColor: AppColors.pillWaitingText,
-            label: 'Shift hours',
+            label: tr('shiftHours'),
             value: shift,
             isShift: true,
           ),
@@ -737,14 +849,14 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Change security PIN',
-                          style: TextStyle(
+                          tr('changePin'),
+                          style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF1E293B),
@@ -753,8 +865,8 @@ class ProfileScreen extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        SizedBox(height: 2),
-                        Text(
+                        const SizedBox(height: 2),
+                        const Text(
                           'Update 4-digit gate access PIN',
                           style: TextStyle(
                             fontSize: 13,
@@ -798,14 +910,14 @@ class ProfileScreen extends StatelessWidget {
           ),
           backgroundColor: const Color(0xFFFFF1F2),
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.logout_rounded, size: 18, color: Color(0xFFDC2626)),
-            SizedBox(width: 8),
+            const Icon(Icons.logout_rounded, size: 18, color: Color(0xFFDC2626)),
+            const SizedBox(width: 8),
             Text(
-              'Logout from Terminal',
-              style: TextStyle(
+              tr('logout'),
+              style: const TextStyle(
                 fontSize: 14.5,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFFDC2626),

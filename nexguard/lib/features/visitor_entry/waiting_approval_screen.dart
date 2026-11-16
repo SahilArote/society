@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
@@ -10,6 +10,7 @@ import '../../repositories/guard_repository.dart';
 import '../../repositories/visitor_repository.dart';
 import 'entry_approved_screen.dart';
 import 'entry_rejected_screen.dart';
+import '../../services/phone_service.dart';
 
 class WaitingApprovalScreen extends StatefulWidget {
   final VisitorRequest request;
@@ -156,14 +157,7 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen>
   }
 
   void _callResident(String phone) {
-    Clipboard.setData(ClipboardData(text: phone));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Resident phone: $phone (Copied to clipboard)'),
-        backgroundColor: const Color(0xFF1E293B),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    PhoneService.call(phone);
   }
 
   void _navigateBackToDashboard() {
@@ -566,63 +560,93 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen>
                       const SizedBox(height: 12),
                       const Divider(height: 1, color: Color(0xFFE2E8F0)),
                       const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFDCFCE7),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            alignment: Alignment.center,
-                            child: const Icon(Icons.person_rounded,
-                                size: 20, color: Color(0xFF16A34A)),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _liveRequest.residentPhone.isNotEmpty
+                              ? () => _callResident(_liveRequest.residentPhone)
+                              : null,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
                               children: [
-                                Text(
-                                  _liveRequest.residentName,
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF0F172A),
+                                Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFDCFCE7),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: const Icon(Icons.person_rounded,
+                                      size: 20, color: Color(0xFF16A34A)),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _liveRequest.residentName,
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      if (_liveRequest.residentPhone.isNotEmpty) ...[
+                                        const SizedBox(height: 2),
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.phone_rounded,
+                                                size: 13, color: Color(0xFF16A34A)),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              _liveRequest.residentPhone,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w700,
+                                                color: Color(0xFF16A34A),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
-                                if (_liveRequest.residentPhone.isNotEmpty) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    _liveRequest.residentPhone,
-                                    style: const TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF64748B),
+                                if (_liveRequest.residentPhone.isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFDCFCE7),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color: const Color(0xFF86EFAC)),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.call_rounded,
+                                            size: 15, color: Color(0xFF16A34A)),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Call',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF16A34A),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ],
                               ],
                             ),
                           ),
-                          if (_liveRequest.residentPhone.isNotEmpty)
-                            IconButton(
-                              onPressed: () =>
-                                  _callResident(_liveRequest.residentPhone),
-                              icon: Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFDCFCE7),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                alignment: Alignment.center,
-                                child: const Icon(Icons.call_rounded,
-                                    size: 18, color: Color(0xFF16A34A)),
-                              ),
-                            ),
-                        ],
+                        ),
                       ),
                     ],
                   ),
@@ -671,7 +695,7 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen>
                                 icon: const Icon(Icons.close_rounded,
                                     size: 18, color: Color(0xFFDC2626)),
                                 label: const Text(
-                                  'Deny Entry',
+                                  'Reject',
                                   style: TextStyle(
                                     fontSize: 13.5,
                                     fontWeight: FontWeight.w700,
@@ -700,7 +724,7 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen>
                                 icon: const Icon(Icons.check_circle_rounded,
                                     size: 18, color: Colors.white),
                                 label: const Text(
-                                  'Approve at Gate',
+                                  'Approve',
                                   style: TextStyle(
                                     fontSize: 13.5,
                                     fontWeight: FontWeight.w700,

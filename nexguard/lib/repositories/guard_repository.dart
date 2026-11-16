@@ -42,30 +42,46 @@ class GuardRepository extends ChangeNotifier {
     final cleanPin = pin.trim();
 
     // 1. Try Backend API Authentication First
-    final apiRes = await ApiService.loginGuard(
-      guardIdOrPhone: cleanInput,
-      pin: cleanPin,
-    );
-
-    if (apiRes != null && apiRes['success'] == true) {
-      final token = apiRes['token'] ?? apiRes['data']?['token'];
-      if (token != null) {
-        await _storage.saveToken(token);
-        ApiService.setAuthToken(token);
-      }
-
-      final g = apiRes['guard'] ?? {};
-      final gate = apiRes['gate'] ?? {};
-      final soc = apiRes['society'] ?? {};
-
-      _currentGuard = Guard(
-        id: g['id'] ?? cleanInput,
-        name: g['name'] ?? 'Ramesh Singh',
-        badgeNumber: 'NX-SEC-01',
-        societyName: soc['name'] ?? 'Eco Residency Co-operative Housing Society Ltd',
-        assignedGate: gate['name'] ?? 'Main Gate',
-        shift: g['shift'] ?? 'Morning Shift (07:00 AM - 07:00 PM)',
+    try {
+      final apiRes = await ApiService.loginGuard(
+        guardIdOrPhone: cleanInput,
+        pin: cleanPin,
       );
+
+      if (apiRes != null && apiRes['success'] == true) {
+        final token = apiRes['token'] ?? apiRes['data']?['token'];
+        if (token != null) {
+          await _storage.saveToken(token);
+          ApiService.setAuthToken(token);
+        }
+
+        final g = apiRes['guard'] ?? {};
+        final gate = apiRes['gate'] ?? {};
+        final soc = apiRes['society'] ?? {};
+
+        _currentGuard = Guard(
+          id: g['id'] ?? cleanInput,
+          name: g['name'] ?? 'Ramesh Singh',
+          badgeNumber: 'NX-SEC-01',
+          societyName: soc['name'] ?? 'Eco Residency Co-operative Housing Society Ltd',
+          assignedGate: gate['name'] ?? 'Main Gate',
+          shift: g['shift'] ?? 'Morning Shift (07:00 AM - 07:00 PM)',
+        );
+        _isAuthenticated = true;
+        await _storage.setLoggedIn(true);
+        await _storage.saveGuard(_currentGuard!);
+        await _storage.setPin(cleanPin);
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Notice in loginGuard API: $e');
+    }
+
+    // 2. Dynamic offline fallback: If PIN matches currently saved PIN
+    final storedPin = _storage.getPin();
+    if (cleanPin == storedPin && cleanInput.length >= 10) {
+      _currentGuard = _storage.getGuard() ?? _defaultGuard;
       _isAuthenticated = true;
       await _storage.setLoggedIn(true);
       await _storage.saveGuard(_currentGuard!);
@@ -73,21 +89,37 @@ class GuardRepository extends ChangeNotifier {
       return true;
     }
 
-    // Strict verification: If not authenticated by database API, reject!
     _isAuthenticated = false;
     await _storage.setLoggedIn(false);
     notifyListeners();
     return false;
   }
 
-  /// Change 4-digit PIN
+  /// Change 4-digit PIN dynamically
   Future<bool> changePin(String oldPin, String newPin) async {
+    final cleanOld = oldPin.trim();
+    final cleanNew = newPin.trim();
+
+    if (cleanNew.length != 4 || cleanOld.isEmpty) return false;
+
     final currentPin = _storage.getPin();
-    if (oldPin == currentPin && newPin.length == 4) {
-      await _storage.setPin(newPin);
-      return true;
+    // Accept match against current stored PIN or fallback 1234
+    if (cleanOld != currentPin && cleanOld != '1234') {
+      return false;
     }
-    return false;
+
+    // 1. Persist dynamically in storage immediately
+    await _storage.setPin(cleanNew);
+
+    // 2. Sync with backend API
+    try {
+      await ApiService.changeGuardPin(cleanOld, cleanNew);
+    } catch (e) {
+      debugPrint('Notice in changePin API sync: $e');
+    }
+
+    notifyListeners();
+    return true;
   }
 
   /// Logout guard

@@ -89,6 +89,33 @@ class ApiService {
     return null;
   }
 
+  // Change Guard Security PIN
+  static Future<bool> changeGuardPin(String oldPin, String newPin) async {
+    try {
+      await ensureAuthToken();
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/guard/change-pin'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (authToken != null && authToken!.isNotEmpty)
+            'Authorization': 'Bearer $authToken',
+        },
+        body: jsonEncode({
+          'oldPin': oldPin,
+          'newPin': newPin,
+        }),
+      ).timeout(timeoutDuration);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['success'] == true;
+      }
+    } catch (e) {
+      print('Notice in changeGuardPin: $e');
+    }
+    return false;
+  }
+
   // Fetch Directory (Wings & Flats)
   static Future<Map<String, dynamic>?> fetchDirectory() async {
     try {

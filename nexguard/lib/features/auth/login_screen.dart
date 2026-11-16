@@ -323,17 +323,6 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() {});
   }
 
-  void _onDemoLoginTap(String mobile, String pin) {
-    _clearError();
-    _mobileController.text = mobile;
-    for (int i = 0; i < 4 && i < pin.length; i++) {
-      _pinControllers[i].text = pin[i];
-    }
-    FocusScope.of(context).unfocus();
-    setState(() {});
-    _handleLogin();
-  }
-
   // ===========================================================================
   // 1. LIVE CLOUD CHIP (top right)
   // ===========================================================================
@@ -791,115 +780,6 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   // ===========================================================================
-  // 5d. DEMO SECTION
-  // ===========================================================================
-  Widget _buildDemoSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding:
-              const EdgeInsets.only(top: LoginTokens.demoDividerPaddingTop),
-          child: Container(
-            height: 1.0,
-            color: LoginTokens.divider,
-          ),
-        ),
-        const SizedBox(height: 18),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Quick demo login',
-              style: LoginTokens.font(
-                size: 12,
-                weight: FontWeight.w600,
-                color: LoginTokens.muted,
-              ),
-            ),
-            Text(
-              'PIN 1234',
-              style: LoginTokens.font(
-                size: 12,
-                weight: FontWeight.w600,
-                color: LoginTokens.primaryDark,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: LoginTokens.demoRowGap),
-        Row(
-          children: [
-            Expanded(
-              child: _buildDemoChip(
-                name: 'Ramesh',
-                mobile: '98000 11122',
-              ),
-            ),
-            const SizedBox(width: LoginTokens.demoChipGap),
-            Expanded(
-              child: _buildDemoChip(
-                name: 'Suresh',
-                mobile: '98000 11123',
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDemoChip({
-    required String name,
-    required String mobile,
-  }) {
-    return Semantics(
-      button: true,
-      label: 'Quick demo login for $name, mobile $mobile, PIN 1234',
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _onDemoLoginTap(mobile, '1234'),
-          borderRadius: BorderRadius.circular(LoginTokens.demoChipRadius),
-          child: Container(
-            height: LoginTokens.demoChipHeight,
-            padding: const EdgeInsets.symmetric(
-              horizontal: LoginTokens.demoChipPaddingHorizontal,
-            ),
-            decoration: BoxDecoration(
-              color: LoginTokens.card,
-              borderRadius: BorderRadius.circular(LoginTokens.demoChipRadius),
-              border: Border.all(
-                color: LoginTokens.borderSoft,
-                width: 1.0,
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.shield_rounded,
-                  size: 20,
-                  color: LoginTokens.ink,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  name,
-                  style: LoginTokens.font(
-                    size: 15,
-                    weight: FontWeight.w700,
-                    color: LoginTokens.ink,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ===========================================================================
   // MAIN BUILD
   // ===========================================================================
   @override
@@ -993,7 +873,6 @@ class _LoginScreenState extends State<LoginScreen>
                                     const SizedBox(
                                         height: LoginTokens.cardSectionGap),
                                     _buildPrimaryButton(),
-                                    _buildDemoSection(),
                                   ],
                                 ),
                               ),

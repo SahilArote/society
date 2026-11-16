@@ -6,6 +6,8 @@ import '../../models/visitor.dart';
 import '../../models/visitor_request.dart';
 import '../../repositories/guard_repository.dart';
 import '../../repositories/visitor_repository.dart';
+import '../../services/language_service.dart';
+import '../../services/phone_service.dart';
 
 class VisitorsScreen extends StatefulWidget {
   final VisitorRepository visitorRepo;
@@ -105,6 +107,26 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
         setState(() => _processingEntryIds.remove(req.id));
       }
     }
+  }
+
+  String _resolveResidentPhone(VisitorRequest req) {
+    if (req.residentPhone.trim().isNotEmpty) {
+      return req.residentPhone.trim();
+    }
+    for (final flatList in widget.visitorRepo.wingFlats.values) {
+      for (final flat in flatList) {
+        if (flat.flatNumber.trim().toLowerCase() == req.flatNumber.trim().toLowerCase() &&
+            (req.buildingWing.isEmpty ||
+                flat.buildingWing.trim().toLowerCase() ==
+                    req.buildingWing.trim().toLowerCase())) {
+          final phone = flat.primaryResident?.phoneNumber;
+          if (phone != null && phone.trim().isNotEmpty) {
+            return phone.trim();
+          }
+        }
+      }
+    }
+    return '';
   }
 
   List<VisitorRequest> _filterList(List<VisitorRequest> source) {
@@ -345,39 +367,83 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                     const Divider(color: Color(0xFFE2E8F0), height: 1),
                     const SizedBox(height: 12),
                     _buildModalRow(
-                        'Flat & Wing:', '${req.flatNumber} (${req.buildingWing})'),
+                        '${tr("flatAndWing")}:', '${req.flatNumber} (${req.buildingWing})'),
                     const SizedBox(height: 8),
-                    _buildModalRow(
-                        'Resident:', '${req.residentName} (${req.residentPhone})'),
+                    if (req.residentPhone.isNotEmpty)
+                      InkWell(
+                        onTap: () => PhoneService.call(req.residentPhone),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                width: 110,
+                                child: Text(
+                                  '${tr("resident")}:',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        '${req.residentName} (${req.residentPhone})',
+                                        style: const TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF16A34A),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    const Icon(Icons.call_rounded,
+                                        size: 16, color: Color(0xFF16A34A)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      _buildModalRow(
+                          '${tr("resident")}:', req.residentName),
                     const SizedBox(height: 8),
-                    _buildModalRow('Purpose:', req.purpose),
+                    _buildModalRow('${tr("purpose")}:', req.purpose),
                     if (req.visitor.deliveryCompany != null &&
                         req.visitor.deliveryCompany!.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      _buildModalRow('Company:', req.visitor.deliveryCompany!),
+                      _buildModalRow('${tr("company")}:', req.visitor.deliveryCompany!),
                     ],
                     if (req.visitor.vehicleNumber != null &&
                         req.visitor.vehicleNumber!.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      _buildModalRow('Vehicle Number:', req.visitor.vehicleNumber!),
+                      _buildModalRow('${tr("vehicle")}:', req.visitor.vehicleNumber!),
                     ],
                     const SizedBox(height: 8),
-                    _buildModalRow('Request Time:', timeFormatted),
+                    _buildModalRow('${tr("requestTime")}:', timeFormatted),
                     if (decisionTimeFormatted != null) ...[
                       const SizedBox(height: 8),
-                      _buildModalRow('Decision Time:', decisionTimeFormatted),
+                      _buildModalRow('${tr("decisionTime")}:', decisionTimeFormatted),
                     ],
                     if (entryTimeFormatted != null) ...[
                       const SizedBox(height: 8),
-                      _buildModalRow('Entry Time:', entryTimeFormatted),
+                      _buildModalRow('${tr("entryTime")}:', entryTimeFormatted),
                     ],
                     if (exitTimeFormatted != null) ...[
                       const SizedBox(height: 8),
-                      _buildModalRow('Exit Time:', exitTimeFormatted),
+                      _buildModalRow('${tr("exitTime")}:', exitTimeFormatted),
                     ],
                     if (req.decisionBy != null && req.decisionBy!.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      _buildModalRow('Action By:', req.decisionBy!),
+                      _buildModalRow('${tr("actionBy")}:', req.decisionBy!),
                     ],
                     if (req.rejectionReason != null &&
                         req.rejectionReason!.isNotEmpty) ...[
@@ -391,7 +457,7 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                           border: Border.all(color: const Color(0xFFFECDD3)),
                         ),
                         child: Text(
-                          'Rejection Reason: ${req.rejectionReason!}',
+                          '${tr("rejectionReason")}: ${req.rejectionReason!}',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -405,6 +471,45 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
 
                     // Actions Inside Modal
                     if (req.status == VisitorStatus.pending) ...[
+                      Builder(builder: (context) {
+                        final modalPhone = _resolveResidentPhone(req);
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: ElevatedButton.icon(
+                                onPressed: modalPhone.isNotEmpty
+                                    ? () => PhoneService.call(modalPhone)
+                                    : null,
+                                icon: const Icon(Icons.phone_in_talk_rounded,
+                                    size: 20, color: Colors.white),
+                                label: Text(
+                                  modalPhone.isNotEmpty
+                                      ? 'CALL RESIDENT ($modalPhone)'
+                                      : 'CALL RESIDENT',
+                                  style: const TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF16A34A),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                        );
+                      }),
                       Row(
                         children: [
                           Expanded(
@@ -419,9 +524,9 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                                       },
                                 icon: const Icon(Icons.close_rounded,
                                     size: 18, color: Color(0xFFDC2626)),
-                                label: const Text(
-                                  'Reject',
-                                  style: TextStyle(
+                                label: Text(
+                                  tr('reject'),
+                                  style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
                                     color: Color(0xFFDC2626),
@@ -450,9 +555,9 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                                       },
                                 icon: const Icon(Icons.check_rounded,
                                     size: 18, color: Colors.white),
-                                label: const Text(
-                                  'Approve',
-                                  style: TextStyle(
+                                label: Text(
+                                  tr('approve'),
+                                  style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
                                     color: Colors.white,
@@ -485,9 +590,9 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                                 },
                           icon: const Icon(Icons.door_sliding_rounded,
                               size: 20, color: Colors.white),
-                          label: const Text(
-                            'Allow Gate Entry',
-                            style: TextStyle(
+                          label: Text(
+                            tr('allowGateEntry'),
+                            style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
                               color: Colors.white,
@@ -518,9 +623,9 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                                 },
                           icon: const Icon(Icons.logout_rounded,
                               size: 18, color: Colors.white),
-                          label: const Text(
-                            'Log Visitor Exit',
-                            style: TextStyle(
+                          label: Text(
+                            tr('logVisitorExit'),
+                            style: const TextStyle(
                               fontSize: 14.5,
                               fontWeight: FontWeight.w800,
                               color: Colors.white,
@@ -550,9 +655,9 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
-                          'Close',
-                          style: TextStyle(
+                        child: Text(
+                          tr('close'),
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
                             color: Color(0xFF475569),
@@ -577,7 +682,7 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
       backgroundColor: AppColors.pageBackground, // #F5F7FB
       body: SafeArea(
         child: AnimatedBuilder(
-          animation: widget.visitorRepo,
+          animation: Listenable.merge([widget.visitorRepo, LanguageService.instance]),
           builder: (context, _) {
             final pending = widget.visitorRepo.pendingRequests;
             final approved = widget.visitorRepo.approvedRequests;
@@ -635,9 +740,9 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Text(
-                                  'Gate Visitors',
-                                  style: TextStyle(
+                                Text(
+                                  tr('visitorsTitle'),
+                                  style: const TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.w800,
                                     color: Color(0xFF0F172A),
@@ -656,9 +761,9 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                                       ),
                                     ),
                                     const SizedBox(width: 6),
-                                    const Text(
-                                      'Live queue · Updated just now',
-                                      style: TextStyle(
+                                    Text(
+                                      tr('visitorsSubtitle'),
+                                      style: const TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.normal,
                                         color: Color(0xFF64748B),
@@ -723,7 +828,7 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                             color: Color(0xFF0F172A),
                           ),
                           decoration: InputDecoration(
-                            hintText: 'Search name, flat or phone',
+                            hintText: tr('searchPlaceholder'),
                             hintStyle: const TextStyle(
                               fontSize: 15,
                               color: Color(0xFF94A3B8),
@@ -764,7 +869,7 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                           children: [
                             _buildSegmentedTab(
                               index: 0,
-                              label: 'Pending',
+                              label: tr('tabPending'),
                               count: pendingCount,
                               selectedBadgeBg: const Color(0xFFFEF3C7),
                               selectedBadgeText: const Color(0xFFB45309),
@@ -774,7 +879,7 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                             ),
                             _buildSegmentedTab(
                               index: 1,
-                              label: 'At Gate',
+                              label: tr('tabAtGate'),
                               count: approvedCount,
                               selectedBadgeBg: const Color(0xFFDCFCE7),
                               selectedBadgeText: const Color(0xFF15803D),
@@ -784,7 +889,7 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                             ),
                             _buildSegmentedTab(
                               index: 2,
-                              label: 'Inside',
+                              label: tr('tabInside'),
                               count: insideCount,
                               selectedBadgeBg: const Color(0xFFDBEAFE),
                               selectedBadgeText: const Color(0xFF1D4ED8),
@@ -910,16 +1015,16 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
 
     if (_selectedTabIndex == 0) {
       emptyIcon = Icons.hourglass_empty_rounded;
-      emptyTitle = 'No Pending Requests';
-      emptySubtitle = 'All visitor requests have been addressed.';
+      emptyTitle = tr('noPendingVisitors');
+      emptySubtitle = tr('allClearDesc');
     } else if (_selectedTabIndex == 1) {
       emptyIcon = Icons.meeting_room_rounded;
-      emptyTitle = 'Gate Barrier Clear';
-      emptySubtitle = 'No approved visitors waiting at the gate barrier.';
+      emptyTitle = tr('noVisitorsAtGate');
+      emptySubtitle = tr('allClearDesc');
     } else {
       emptyIcon = Icons.domain_rounded;
-      emptyTitle = 'No Visitors Inside';
-      emptySubtitle = 'All checked-in visitors have logged out of the campus.';
+      emptyTitle = tr('noVisitorsInside');
+      emptySubtitle = tr('allClearDesc');
     }
 
     return ListView(
@@ -1134,14 +1239,14 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                     Expanded(
                       child: Text(
                         isApproved
-                            ? 'Approved by resident · Ready for gate entry'
+                            ? tr('approvedByResidentReady')
                             : (isPending
-                                ? 'Waiting for resident approval'
+                                ? tr('waitingForResidentApproval')
                                 : (isRejected
-                                    ? 'Denied at gate'
+                                    ? tr('deniedAtGate')
                                     : (isExited
-                                        ? 'Checked out from society'
-                                        : 'Currently inside · Entered at ${DateFormat('hh:mm a').format(req.decisionTime ?? req.requestTime)}'))),
+                                        ? tr('checkedOutSociety')
+                                        : '${tr("statusEntered")} · ${DateFormat('hh:mm a').format(req.decisionTime ?? req.requestTime)}'))),
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.normal,
@@ -1158,6 +1263,107 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
 
                 // Row 3: Action Buttons or Status
                 if (isPending) ...[
+                  Builder(builder: (context) {
+                    final residentPhone = _resolveResidentPhone(req);
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: residentPhone.isNotEmpty
+                            ? () => PhoneService.call(residentPhone)
+                            : null,
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0FDF4),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                                color: const Color(0xFF86EFAC), width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF16A34A).withOpacity(0.08),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF16A34A),
+                                  shape: BoxShape.circle,
+                                ),
+                                alignment: Alignment.center,
+                                child: const Icon(Icons.phone_in_talk_rounded,
+                                    size: 18, color: Colors.white),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Resident: ${req.residentName}',
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF166534),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      residentPhone.isNotEmpty
+                                          ? residentPhone
+                                          : 'Tap to call resident',
+                                      style: const TextStyle(
+                                        fontSize: 14.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF15803D),
+                                        letterSpacing: 0.3,
+                                        fontFamily: 'Inter',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF16A34A),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.call_rounded,
+                                        size: 14, color: Colors.white),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'CALL',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
                   Row(
                     children: [
                       Expanded(
@@ -1169,9 +1375,9 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                                 : () => _handleGuardReject(req),
                             icon: const Icon(Icons.close_rounded,
                                 size: 18, color: Color(0xFFDC2626)),
-                            label: const Text(
-                              'Reject',
-                              style: TextStyle(
+                            label: Text(
+                              tr('reject'),
+                              style: const TextStyle(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w700,
                                 color: Color(0xFFDC2626),
@@ -1197,9 +1403,9 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                                 : () => _handleGuardApprove(req),
                             icon: const Icon(Icons.check_rounded,
                                 size: 18, color: Colors.white),
-                            label: const Text(
-                              'Approve',
-                              style: TextStyle(
+                            label: Text(
+                              tr('approve'),
+                              style: const TextStyle(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
@@ -1243,18 +1449,18 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                                     AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             )
-                          : const Row(
+                          : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.door_sliding_rounded,
                                   size: 19,
                                   color: Colors.white,
                                 ),
-                                SizedBox(width: 8),
+                                const SizedBox(width: 8),
                                 Text(
-                                  'Allow Gate Entry',
-                                  style: TextStyle(
+                                  tr('allowGateEntry'),
+                                  style: const TextStyle(
                                     fontSize: 14.5,
                                     fontWeight: FontWeight.w800,
                                     color: Colors.white,
@@ -1274,9 +1480,9 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                           isProcessing ? null : () => _handleMarkExit(req),
                       icon: const Icon(Icons.logout_rounded,
                           size: 18, color: Colors.white),
-                      label: const Text(
-                        'Log Visitor Exit',
-                        style: TextStyle(
+                      label: Text(
+                        tr('logVisitorExit'),
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
@@ -1309,7 +1515,7 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                             size: 15, color: Color(0xFF64748B)),
                         const SizedBox(width: 6),
                         Text(
-                          'Exited at ${DateFormat('hh:mm a').format(req.exitTime ?? DateTime.now())}',
+                          '${tr("exitedAt")} ${DateFormat('hh:mm a').format(req.exitTime ?? DateTime.now())}',
                           style: const TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w700,
@@ -1329,14 +1535,14 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFFFECDD3)),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.cancel_rounded,
+                        const Icon(Icons.cancel_rounded,
                             size: 15, color: Color(0xFFDC2626)),
-                        SizedBox(width: 6),
+                        const SizedBox(width: 6),
                         Text(
-                          'Entry denied at gate',
-                          style: TextStyle(
+                          tr('entryDeniedAtGate'),
+                          style: const TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFFBE123C),
@@ -1382,7 +1588,7 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
             ),
             const SizedBox(width: 4),
             Text(
-              isCompleted ? 'Inside' : 'Approved',
+              isCompleted ? tr('statusInside') : tr('statusApproved'),
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
@@ -1403,18 +1609,18 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
           borderRadius: BorderRadius.circular(13),
           border: Border.all(color: const Color(0xFFCBD5E1)),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.logout_rounded,
               size: 13,
               color: Color(0xFF475569),
             ),
-            SizedBox(width: 4),
+            const SizedBox(width: 4),
             Text(
-              'Exited',
-              style: TextStyle(
+              tr('statusExited'),
+              style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFF475569),
@@ -1432,18 +1638,18 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
           borderRadius: BorderRadius.circular(13),
           border: Border.all(color: const Color(0xFFFECACA)),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.cancel_rounded,
               size: 14,
               color: Color(0xFFB91C1C),
             ),
-            SizedBox(width: 4),
+            const SizedBox(width: 4),
             Text(
-              'Rejected',
-              style: TextStyle(
+              tr('statusRejected'),
+              style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFFB91C1C),
@@ -1462,9 +1668,9 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
           border: Border.all(color: const Color(0xFFFDE68A)),
         ),
         alignment: Alignment.center,
-        child: const Text(
-          'Waiting',
-          style: TextStyle(
+        child: Text(
+          tr('waiting'),
+          style: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
             color: Color(0xFFB45309),

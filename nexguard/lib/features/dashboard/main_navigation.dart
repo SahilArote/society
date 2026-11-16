@@ -4,6 +4,7 @@ import '../../core/constants/app_colors.dart';
 import '../../repositories/guard_repository.dart';
 import '../../repositories/visitor_repository.dart';
 import '../../services/storage_service.dart';
+import '../../services/language_service.dart';
 import 'dashboard_screen.dart';
 import '../visitors/visitors_screen.dart';
 import '../history/history_screen.dart';
@@ -90,22 +91,22 @@ class _MainNavigationState extends State<MainNavigation> {
                 _buildNavItem(
                   index: 0,
                   icon: Icons.shield_outlined,
-                  label: 'Home',
+                  label: tr('navHome'),
                 ),
                 _buildNavItem(
                   index: 1,
                   icon: Icons.badge_outlined,
-                  label: 'Visitors',
+                  label: tr('navVisitors'),
                 ),
                 _buildNavItem(
                   index: 2,
                   icon: Icons.history_rounded,
-                  label: 'History',
+                  label: tr('navLogs'),
                 ),
                 _buildNavItem(
                   index: 3,
                   icon: Icons.person_outline_rounded,
-                  label: 'Profile',
+                  label: tr('navProfile'),
                 ),
               ],
             ),

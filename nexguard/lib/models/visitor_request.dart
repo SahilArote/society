@@ -108,8 +108,14 @@ class VisitorRequest {
       flatNumber: (json['flatNumber'] ?? '').toString(),
       buildingWing: (json['buildingWing'] ?? '').toString(),
       residentName: (json['residentName'] ?? '').toString(),
-      residentPhone:
-          (json['residentPhone'] ?? json['residentMobile'] ?? '').toString(),
+      residentPhone: (json['residentPhone'] ??
+              json['residentMobile'] ??
+              json['phone'] ??
+              json['mobile'] ??
+              (json['resident'] is Map ? json['resident']['phoneNumber'] ?? json['resident']['mobile'] : null) ??
+              (json['flat'] is Map ? json['flat']['residentPhone'] ?? json['flat']['residentMobile'] : null) ??
+              '')
+          .toString(),
       purpose: purpose,
       status: VisitorStatus.fromString(json['status']?.toString()),
       requestTime: (json['requestTime'] != null

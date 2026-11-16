@@ -53,8 +53,8 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.greengate.guard.greengate_guard_app"
-        minSdkVersion 21
+        applicationId "com.nexbuild.nexguard"
+        minSdkVersion 24
         targetSdkVersion 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

@@ -4,9 +4,14 @@ import '../../core/constants/app_colors.dart';
 import '../../core/widgets/visitor_photo_avatar.dart';
 import '../../models/visitor_request.dart';
 import '../../repositories/visitor_repository.dart';
+import '../../services/language_service.dart';
 
 /// Guard App - Visitor Logs / History Screen
-/// Matches the reference design pixel-by-pixel.
+/// Senior UI/UX Architect Implementation:
+/// - Top header features the dedicated Calendar Picker button.
+/// - Horizontal quick date strip: [ Today ] [ Yesterday ] [ All Dates ].
+/// - Clean language reactivity across all labels.
+/// - Designed for maximum legibility and comfort for 50+ year old security guards.
 class HistoryScreen extends StatefulWidget {
   final VisitorRepository visitorRepo;
 
@@ -19,10 +24,22 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   final TextEditingController _searchController = TextEditingController();
   VisitorStatus? _selectedStatusFilter;
+
+  // Date Filter: Defaults to Today for immediate relevant shift logs
+  // null means "All Dates"
   DateTime? _selectedDateFilter;
-  DateTime _displayedDate = DateTime.now();
+  bool _isAllDates = false;
+
   String _searchQuery = '';
   bool _isRefreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Default to Today so the guard immediately sees today's active shift logs
+    _selectedDateFilter = DateTime.now();
+    _isAllDates = false;
+  }
 
   @override
   void dispose() {
@@ -38,10 +55,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  bool _isSameDay(DateTime a, DateTime b) {
+    final la = a.toLocal();
+    final lb = b.toLocal();
+    return la.year == lb.year && la.month == lb.month && la.day == lb.day;
+  }
+
+  bool _matchesDate(VisitorRequest r, DateTime target) {
+    // A visitor record belongs to this day if:
+    // 1. Requested on this day, OR
+    // 2. Responded / Entered on this day (decisionTime), OR
+    // 3. Exited on this day (exitTime)
+    if (_isSameDay(r.requestTime, target)) return true;
+    if (r.decisionTime != null && _isSameDay(r.decisionTime!, target)) return true;
+    if (r.exitTime != null && _isSameDay(r.exitTime!, target)) return true;
+    return false;
+  }
+
   Future<void> _pickDate() async {
+    final initial = _selectedDateFilter ?? DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDateFilter ?? _displayedDate,
+      initialDate: initial,
       firstDate: DateTime(2023),
       lastDate: DateTime(2030),
       builder: (context, child) {
@@ -55,6 +90,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primary,
+                textStyle: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -66,9 +102,30 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (picked != null) {
       setState(() {
         _selectedDateFilter = picked;
-        _displayedDate = picked;
+        _isAllDates = false;
       });
     }
+  }
+
+  void _selectToday() {
+    setState(() {
+      _selectedDateFilter = DateTime.now();
+      _isAllDates = false;
+    });
+  }
+
+  void _selectYesterday() {
+    setState(() {
+      _selectedDateFilter = DateTime.now().subtract(const Duration(days: 1));
+      _isAllDates = false;
+    });
+  }
+
+  void _selectAllDates() {
+    setState(() {
+      _selectedDateFilter = null;
+      _isAllDates = true;
+    });
   }
 
   void _resetFilters() {
@@ -76,7 +133,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
     setState(() {
       _searchQuery = '';
       _selectedStatusFilter = null;
-      _selectedDateFilter = null;
+      _selectedDateFilter = DateTime.now();
+      _isAllDates = false;
     });
   }
 
@@ -86,48 +144,64 @@ class _HistoryScreenState extends State<HistoryScreen> {
       backgroundColor: AppColors.pageBackground, // #F5F7FB
       body: SafeArea(
         child: AnimatedBuilder(
-          animation: widget.visitorRepo,
+          animation: Listenable.merge([widget.visitorRepo, LanguageService.instance]),
           builder: (context, _) {
-            // Apply filtering: query, status, and optional date
-            var filteredList = widget.visitorRepo.filterHistory(
-              query: _searchQuery,
-              status: _selectedStatusFilter,
-            );
+            // 1. Start with all requests from repository
+            List<VisitorRequest> list = List.from(widget.visitorRepo.allRequests);
 
-            // Additional phone query filter if not caught by repo
+            // 2. Filter by Date (Flawless All-Status Day Match)
+            if (!_isAllDates && _selectedDateFilter != null) {
+              list = list.where((r) => _matchesDate(r, _selectedDateFilter!)).toList();
+            }
+
+            // 3. Filter by Status (If a specific status is chosen)
+            if (_selectedStatusFilter != null) {
+              list = list.where((r) => r.status == _selectedStatusFilter).toList();
+            }
+
+            // 4. Filter by Search Query (Name, Flat, Phone, Vehicle, Resident)
             if (_searchQuery.isNotEmpty) {
               final q = _searchQuery.toLowerCase();
-              filteredList = filteredList.where((r) {
+              list = list.where((r) {
                 final matchName = r.visitor.name.toLowerCase().contains(q);
                 final matchFlat = r.flatNumber.toLowerCase().contains(q);
                 final matchPhone = r.visitor.phoneNumber != null &&
                     r.visitor.phoneNumber!.toLowerCase().contains(q);
-                return matchName || matchFlat || matchPhone;
+                final matchResident =
+                    r.residentName.toLowerCase().contains(q);
+                final matchVehicle = r.visitor.vehicleNumber != null &&
+                    r.visitor.vehicleNumber!.toLowerCase().contains(q);
+                final matchCompany = r.visitor.deliveryCompany != null &&
+                    r.visitor.deliveryCompany!.toLowerCase().contains(q);
+
+                return matchName ||
+                    matchFlat ||
+                    matchPhone ||
+                    matchResident ||
+                    matchVehicle ||
+                    matchCompany;
               }).toList();
             }
 
-            // Date filtering if guard selected a date
-            if (_selectedDateFilter != null) {
-              filteredList = filteredList.where((r) {
-                return r.requestTime.year == _selectedDateFilter!.year &&
-                    r.requestTime.month == _selectedDateFilter!.month &&
-                    r.requestTime.day == _selectedDateFilter!.day;
-              }).toList();
-            }
-
-            // Always sort newest requests first
-            filteredList.sort((a, b) => b.requestTime.compareTo(a.requestTime));
+            // 5. Always sort newest requests first
+            list.sort((a, b) => b.requestTime.compareTo(a.requestTime));
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. TOP BLOCK (padding 16 16 12, column gap 12, 1px bottom border #E4E8F0)
+                // 1. TOP HEADER WITH CALENDAR BUTTON
                 _buildTopBlock(),
 
-                // 2. COUNT ROW (padding 14 16 10, space-between, 14px, muted)
-                _buildCountRow(filteredList.length),
+                // 2. QUICK DATE BAR (Today / Yesterday / All Dates)
+                _buildDateSelectorStrip(),
 
-                // 3. LIST (padding 0 16, column gap 10, scrollable)
+                // 3. STATUS FILTER PILLS (All, Entered, Exited, Approved, Pending, Rejected)
+                _buildStatusFilterRow(),
+
+                // 4. COUNT ROW
+                _buildCountRow(list.length),
+
+                // 5. LIST OF LOGS
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _handleRefresh,
@@ -135,17 +209,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     backgroundColor: Colors.white,
                     child: _isRefreshing
                         ? _buildLoadingSkeletons()
-                        : filteredList.isEmpty
+                        : list.isEmpty
                             ? _buildEmptyState()
                             : ListView.separated(
                                 physics: const AlwaysScrollableScrollPhysics(),
                                 padding:
-                                    const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                                itemCount: filteredList.length,
+                                    const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                                itemCount: list.length,
                                 separatorBuilder: (_, __) =>
                                     const SizedBox(height: 10),
                                 itemBuilder: (context, index) {
-                                  return _buildLogCard(filteredList[index]);
+                                  return _buildLogCard(list[index]);
                                 },
                               ),
                   ),
@@ -158,23 +232,35 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  // 1. TOP BLOCK
+  // 1. TOP HEADER & SEARCH (Calendar Button placed on top right)
   Widget _buildTopBlock() {
+    final isToday = !_isAllDates &&
+        _selectedDateFilter != null &&
+        _isSameDay(_selectedDateFilter!, DateTime.now());
+
+    final isYesterday = !_isAllDates &&
+        _selectedDateFilter != null &&
+        _isSameDay(_selectedDateFilter!,
+            DateTime.now().subtract(const Duration(days: 1)));
+
+    final isCustomDate = !_isAllDates &&
+        _selectedDateFilter != null &&
+        !isToday &&
+        !isYesterday;
+
+    final calendarBtnLabel = isCustomDate
+        ? DateFormat('dd MMM').format(_selectedDateFilter!)
+        : tr('selectDate');
+
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.pageBackground,
-        border: Border(
-          bottom: BorderSide(color: AppColors.border, width: 1.0),
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Row (gap 12): 44x44 icon box / title + subtitle / right: date button
+          // Header Row: Icon + Title + Calendar Action Button
           Row(
             children: [
-              // 44x44 icon box (radius 14, bg #EEF0FF, indigo history icon 22px)
               Container(
                 width: 44,
                 height: 44,
@@ -185,23 +271,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 alignment: Alignment.center,
                 child: const Icon(
                   Icons.history_rounded,
-                  size: 22,
+                  size: 24,
                   color: AppColors.primary,
                 ),
               ),
               const SizedBox(width: 12),
-
-              // Title and Subtitle (does not wrap / overlap)
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Visitor Logs',
-                      style: TextStyle(
+                      tr('logsTitle'),
+                      style: const TextStyle(
                         fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary,
                         letterSpacing: -0.3,
                         fontFamily: 'Inter',
@@ -209,12 +293,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
-                      'Gate checkpoint records',
-                      style: TextStyle(
+                      tr('logsSubtitle'),
+                      style: const TextStyle(
                         fontSize: 13,
-                        fontWeight: FontWeight.w400,
+                        fontWeight: FontWeight.w500,
                         color: AppColors.textMuted,
                         fontFamily: 'Inter',
                       ),
@@ -224,38 +308,51 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
 
-              // Date Button: height 38, padding 0 10, radius 12, white, 1px border #E4E8F0,
-              // calendar icon 16px #3A3FB5 + "05 Nov" 13.5px weight 600.
+              // Calendar Button (Replaces previous Language Button)
               Material(
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: _pickDate,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   child: Container(
                     height: 38,
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border, width: 1.0),
+                      color: isCustomDate ? AppColors.primary : AppColors.indigoTint,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isCustomDate
+                            ? AppColors.primary
+                            : AppColors.primary.withOpacity(0.35),
+                        width: 1.2,
+                      ),
+                      boxShadow: isCustomDate
+                          ? [
+                              BoxShadow(
+                                color: AppColors.primary.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              )
+                            ]
+                          : null,
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.calendar_today_outlined,
+                        Icon(
+                          Icons.calendar_month_rounded,
                           size: 16,
-                          color: AppColors.primary,
+                          color: isCustomDate ? Colors.white : AppColors.primary,
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          DateFormat('dd MMM').format(_selectedDateFilter ?? _displayedDate),
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
+                          calendarBtnLabel,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: isCustomDate ? Colors.white : AppColors.primary,
                             fontFamily: 'Inter',
                           ),
                         ),
@@ -269,18 +366,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
           const SizedBox(height: 12),
 
-          // Search Field: height 44, radius 14, bg #F2F4F8, no border, search icon 18px, placeholder "Search name, flat or phone"
+          // Search Field: 46px height, high-contrast, easy to tap
           Container(
-            height: 44,
+            height: 46,
             decoration: BoxDecoration(
-              color: AppColors.fieldBg, // #F2F4F8
+              color: AppColors.fieldBg,
               borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border, width: 1.0),
             ),
             child: TextField(
               controller: _searchController,
               style: const TextStyle(
-                fontSize: 14.5,
-                fontWeight: FontWeight.w500,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
                 fontFamily: 'Inter',
               ),
@@ -290,23 +388,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(vertical: 13),
                 prefixIcon: const Icon(
                   Icons.search_rounded,
-                  size: 18,
-                  color: Color(0xFF6B7280),
+                  size: 20,
+                  color: Color(0xFF64748B),
                 ),
-                hintText: 'Search name, flat or phone',
+                hintText: tr('searchPlaceholder'),
                 hintStyle: const TextStyle(
-                  fontSize: 14.5,
+                  fontSize: 14,
                   fontWeight: FontWeight.w400,
-                  color: Color(0xFF6B7280),
+                  color: Color(0xFF64748B),
                   fontFamily: 'Inter',
                 ),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.close_rounded,
-                            size: 18, color: Color(0xFF6B7280)),
+                            size: 20, color: Color(0xFF64748B)),
                         onPressed: () {
                           _searchController.clear();
                           setState(() => _searchQuery = '');
@@ -316,67 +414,79 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
             ),
           ),
-
-          const SizedBox(height: 12),
-
-          // Filter Chips: horizontal scroll, gap 8, no wrap, the last chip can be cut at the edge.
-          // Chips: All, Approved, Entered, Pending, Rejected.
-          // Height 36, padding 0 16, radius 18, 14px weight 600.
-          // Active (All): bg #3A3FB5, white text. Inactive: white, 1px border #D8DDE8, dark text.
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: [
-                _buildFilterChip(
-                  label: 'All',
-                  isSelected: _selectedStatusFilter == null,
-                  onTap: () => setState(() => _selectedStatusFilter = null),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  label: 'Approved',
-                  isSelected: _selectedStatusFilter == VisitorStatus.approved,
-                  onTap: () => setState(() =>
-                      _selectedStatusFilter = VisitorStatus.approved),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  label: 'Entered',
-                  isSelected: _selectedStatusFilter == VisitorStatus.completed,
-                  onTap: () => setState(() =>
-                      _selectedStatusFilter = VisitorStatus.completed),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  label: 'Exited',
-                  isSelected: _selectedStatusFilter == VisitorStatus.exited,
-                  onTap: () => setState(() =>
-                      _selectedStatusFilter = VisitorStatus.exited),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  label: 'Pending',
-                  isSelected: _selectedStatusFilter == VisitorStatus.pending,
-                  onTap: () => setState(() =>
-                      _selectedStatusFilter = VisitorStatus.pending),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  label: 'Rejected',
-                  isSelected: _selectedStatusFilter == VisitorStatus.rejected,
-                  onTap: () => setState(() =>
-                      _selectedStatusFilter = VisitorStatus.rejected),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildFilterChip({
+  // 2. QUICK DATE BAR (Today / Yesterday / All Dates - Calendar removed as requested)
+  Widget _buildDateSelectorStrip() {
+    final isToday = !_isAllDates &&
+        _selectedDateFilter != null &&
+        _isSameDay(_selectedDateFilter!, DateTime.now());
+
+    final isYesterday = !_isAllDates &&
+        _selectedDateFilter != null &&
+        _isSameDay(_selectedDateFilter!,
+            DateTime.now().subtract(const Duration(days: 1)));
+
+    final isCustomDate = !_isAllDates &&
+        _selectedDateFilter != null &&
+        !isToday &&
+        !isYesterday;
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: [
+            // Today Button
+            _buildDateChip(
+              icon: Icons.today_rounded,
+              label: tr('today'),
+              isSelected: isToday,
+              onTap: _selectToday,
+            ),
+            const SizedBox(width: 8),
+
+            // Yesterday Button
+            _buildDateChip(
+              icon: Icons.history_toggle_off_rounded,
+              label: tr('yesterday'),
+              isSelected: isYesterday,
+              onTap: _selectYesterday,
+            ),
+            const SizedBox(width: 8),
+
+            // All Dates Button
+            _buildDateChip(
+              icon: Icons.all_inclusive_rounded,
+              label: tr('allDates'),
+              isSelected: _isAllDates,
+              onTap: _selectAllDates,
+            ),
+
+            // If a custom date is selected from top calendar, display active indicator chip
+            if (isCustomDate) ...[
+              const SizedBox(width: 8),
+              _buildDateChip(
+                icon: Icons.calendar_month_rounded,
+                label: DateFormat('dd MMM yyyy').format(_selectedDateFilter!),
+                isSelected: true,
+                onTap: _pickDate,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateChip({
+    required IconData icon,
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
@@ -385,36 +495,177 @@ class _HistoryScreenState extends State<HistoryScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          height: 34,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.primary : Colors.white,
-            borderRadius: BorderRadius.circular(17),
-            border: isSelected
-                ? null
-                : Border.all(color: AppColors.chipBorderInactive, width: 1.0),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w600,
-              color: isSelected ? Colors.white : AppColors.textPrimary,
-              fontFamily: 'Inter',
+            color: isSelected ? AppColors.primary : AppColors.fieldBg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? AppColors.primary : AppColors.border,
+              width: 1.2,
             ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? Colors.white : AppColors.primary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  color: isSelected ? Colors.white : AppColors.textPrimary,
+                  fontFamily: 'Inter',
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  // 2. COUNT ROW
+  // 3. STATUS FILTER PILLS
+  Widget _buildStatusFilterRow() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: AppColors.border, width: 1.0),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: [
+            _buildStatusChip(
+              label: tr('statusAll'),
+              isSelected: _selectedStatusFilter == null,
+              onTap: () => setState(() => _selectedStatusFilter = null),
+            ),
+            const SizedBox(width: 8),
+            _buildStatusChip(
+              label: tr('statusEntered'),
+              dotColor: AppColors.dotApproved,
+              isSelected: _selectedStatusFilter == VisitorStatus.completed,
+              onTap: () => setState(
+                  () => _selectedStatusFilter = VisitorStatus.completed),
+            ),
+            const SizedBox(width: 8),
+            _buildStatusChip(
+              label: tr('statusExited'),
+              dotColor: const Color(0xFF64748B),
+              isSelected: _selectedStatusFilter == VisitorStatus.exited,
+              onTap: () => setState(
+                  () => _selectedStatusFilter = VisitorStatus.exited),
+            ),
+            const SizedBox(width: 8),
+            _buildStatusChip(
+              label: tr('statusApproved'),
+              dotColor: AppColors.dotApproved,
+              isSelected: _selectedStatusFilter == VisitorStatus.approved,
+              onTap: () => setState(
+                  () => _selectedStatusFilter = VisitorStatus.approved),
+            ),
+            const SizedBox(width: 8),
+            _buildStatusChip(
+              label: tr('statusPending'),
+              dotColor: AppColors.dotPending,
+              isSelected: _selectedStatusFilter == VisitorStatus.pending,
+              onTap: () => setState(
+                  () => _selectedStatusFilter = VisitorStatus.pending),
+            ),
+            const SizedBox(width: 8),
+            _buildStatusChip(
+              label: tr('statusRejected'),
+              dotColor: AppColors.dotRejected,
+              isSelected: _selectedStatusFilter == VisitorStatus.rejected,
+              onTap: () => setState(
+                  () => _selectedStatusFilter = VisitorStatus.rejected),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    Color? dotColor,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.navActive : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: isSelected
+                ? null
+                : Border.all(color: AppColors.chipBorderInactive, width: 1.0),
+          ),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (dotColor != null && !isSelected) ...[
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: dotColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? Colors.white : AppColors.textPrimary,
+                  fontFamily: 'Inter',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 4. COUNT ROW
   Widget _buildCountRow(int count) {
+    String dateLabel = '';
+    if (_isAllDates || _selectedDateFilter == null) {
+      dateLabel = tr('allDates');
+    } else if (_isSameDay(_selectedDateFilter!, DateTime.now())) {
+      dateLabel = tr('today');
+    } else if (_isSameDay(_selectedDateFilter!,
+        DateTime.now().subtract(const Duration(days: 1)))) {
+      dateLabel = tr('yesterday');
+    } else {
+      dateLabel = DateFormat('dd MMM yyyy').format(_selectedDateFilter!);
+    }
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -422,26 +673,36 @@ class _HistoryScreenState extends State<HistoryScreen> {
             text: TextSpan(
               style: const TextStyle(
                 fontSize: 13.5,
-                color: AppColors.textMuted,
+                color: Color(0xFF475569),
                 fontFamily: 'Inter',
               ),
               children: [
-                const TextSpan(text: 'Showing '),
+                TextSpan(text: '${tr("showing")} '),
                 TextSpan(
                   text: '$count',
                   style: const TextStyle(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
                     color: AppColors.textPrimary,
+                    fontSize: 14.5,
                   ),
                 ),
-                TextSpan(text: count == 1 ? ' entry' : ' entries'),
+                TextSpan(text: ' ${count == 1 ? tr("entry") : tr("entries")} ('),
+                TextSpan(
+                  text: dateLabel,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const TextSpan(text: ')'),
               ],
             ),
           ),
-          const Text(
-            'Newest first',
-            style: TextStyle(
-              fontSize: 13.5,
+          Text(
+            tr('newestFirst'),
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
               color: AppColors.textMuted,
               fontFamily: 'Inter',
             ),
@@ -451,8 +712,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  // 3. LOG CARD (white, 1px border #E4E8F0, radius 20, padding 14 12, row, gap 12, whole card tappable, no chevron)
+  // 5. VISITOR LOG CARD
   Widget _buildLogCard(VisitorRequest req) {
+    final entryTimeStr = req.decisionTime != null
+        ? DateFormat('hh:mm a').format(req.decisionTime!)
+        : DateFormat('hh:mm a').format(req.requestTime);
+
+    final exitTimeStr = req.exitTime != null
+        ? DateFormat('hh:mm a').format(req.exitTime!)
+        : null;
+
+    final dateStr = DateFormat('dd MMM').format(req.requestTime);
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -477,26 +748,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // a) Avatar 48x48, radius 14, bg #EEF0FF. Use photo if available.
-                _buildAvatar(req),
+                // a) 52x52 Photo Avatar
+                _buildAvatar(req, size: 52),
                 const SizedBox(width: 12),
 
-                // b) Middle (flex 1, min-width 0, column gap 4)
+                // b) Visitor Info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Row a: Name (15.5px weight 600) + "Guest" chip
+                      // Visitor Name & Type Chip
                       Row(
                         children: [
                           Flexible(
                             child: Text(
                               req.visitor.name,
                               style: const TextStyle(
-                                fontSize: 15.5,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF1E293B),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0F172A),
                                 fontFamily: 'Inter',
                               ),
                               maxLines: 1,
@@ -506,7 +777,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           const SizedBox(width: 6),
                           Container(
                             height: 20,
-                            padding: const EdgeInsets.symmetric(horizontal: 7),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
                             decoration: BoxDecoration(
                               color: AppColors.indigoTint,
                               borderRadius: BorderRadius.circular(10),
@@ -516,7 +787,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               req.visitor.type.displayName,
                               style: const TextStyle(
                                 fontSize: 11,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                                 color: AppColors.primary,
                                 fontFamily: 'Inter',
                               ),
@@ -524,50 +795,80 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 4),
 
-                      // Row b: "Flat A-202 · Host Raju" (13px, single line with ellipsis)
-                      Text(
-                        'Flat ${req.flatNumber} · Host ${req.residentName}',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w400,
-                          color: Color(0xFF4B5565),
-                          fontFamily: 'Inter',
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      // Flat & Host Row
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${tr("flat")} ${req.flatNumber}',
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1E293B),
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              '· ${tr("host")}: ${req.residentName}',
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF475569),
+                                fontFamily: 'Inter',
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 4),
 
-                      // Row c: Clock icon 13px + Date & Time (12.5px, muted)
+                      // Time & Activity Line
                       Row(
                         children: [
                           Icon(
                             req.status == VisitorStatus.exited
                                 ? Icons.logout_rounded
-                                : Icons.access_time_rounded,
+                                : (req.status == VisitorStatus.completed
+                                    ? Icons.check_circle_outline_rounded
+                                    : Icons.access_time_rounded),
                             size: 13,
                             color: req.status == VisitorStatus.exited
                                 ? const Color(0xFF475569)
                                 : const Color(0xFF64748B),
                           ),
                           const SizedBox(width: 5),
-                          Text(
-                            req.status == VisitorStatus.exited
-                                ? 'In: ${DateFormat('hh:mm a').format(req.decisionTime ?? req.requestTime)} · Out: ${DateFormat('hh:mm a').format(req.exitTime ?? req.requestTime)}'
-                                : (req.status == VisitorStatus.completed
-                                    ? 'Entered: ${DateFormat('dd MMM · hh:mm a').format(req.decisionTime ?? req.requestTime)}'
-                                    : DateFormat('dd MMM · hh:mm a').format(req.requestTime)),
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: req.status == VisitorStatus.exited
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                              color: req.status == VisitorStatus.exited
-                                  ? const Color(0xFF334155)
-                                  : const Color(0xFF64748B),
-                              fontFamily: 'Inter',
+                          Flexible(
+                            child: Text(
+                              req.status == VisitorStatus.exited
+                                  ? '${tr("inTime")}: $entryTimeStr · ${tr("outTime")}: $exitTimeStr ($dateStr)'
+                                  : (req.status == VisitorStatus.completed
+                                      ? '${tr("statusEntered")}: $entryTimeStr ($dateStr)'
+                                      : '$entryTimeStr · $dateStr'),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: req.status == VisitorStatus.exited
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                                color: req.status == VisitorStatus.exited
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFF64748B),
+                                fontFamily: 'Inter',
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -577,7 +878,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
                 const SizedBox(width: 8),
 
-                // c) Right: status pill (height 26, padding 0 8, radius 13, 11.5px weight 600, 5px colored dot)
+                // c) Status Pill
                 _buildStatusPill(req.status),
               ],
             ),
@@ -587,7 +888,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  // Avatar: 48x48, radius 14, bg #EEF0FF. Use photo if available.
+  // Avatar Widget with Zoom Tap
   Widget _buildAvatar(VisitorRequest req, {double size = 48}) {
     final hasPhoto = req.visitor.photoPath != null &&
         req.visitor.photoPath!.trim().isNotEmpty;
@@ -608,13 +909,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
           color: AppColors.indigoTint,
           alignment: Alignment.center,
           child: hasPhoto
-              ? VisitorPhotoAvatar.buildImageWidget(req.visitor.photoPath, size: size)
+              ? VisitorPhotoAvatar.buildImageWidget(req.visitor.photoPath,
+                  size: size)
               : Text(
                   req.visitor.name.isNotEmpty
                       ? req.visitor.name[0].toUpperCase()
                       : '?',
                   style: TextStyle(
-                    fontSize: size * 0.4,
+                    fontSize: size * 0.42,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
                     fontFamily: 'Inter',
@@ -683,11 +985,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Pinch to zoom in / out',
-              style: TextStyle(
+            Text(
+              tr('pinchToZoom'),
+              style: const TextStyle(
                 color: Colors.white70,
-                fontSize: 12,
+                fontSize: 12.5,
                 fontWeight: FontWeight.w500,
                 fontFamily: 'Inter',
               ),
@@ -698,7 +1000,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  // Status Pill: height 26, padding 0 8, radius 13, 11.5px weight 600, 5px colored dot + label
+  // Status Pill
   Widget _buildStatusPill(VisitorStatus status) {
     Color bg;
     Color text;
@@ -707,52 +1009,52 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     switch (status) {
       case VisitorStatus.rejected:
-        bg = AppColors.pillRejectedBg; // #FDE8E8
-        text = AppColors.pillRejectedText; // #A11A1A
-        dot = AppColors.dotRejected; // #DC2626
-        label = 'Rejected';
+        bg = AppColors.pillRejectedBg;
+        text = AppColors.pillRejectedText;
+        dot = AppColors.dotRejected;
+        label = tr('statusRejected');
         break;
       case VisitorStatus.approved:
-        bg = AppColors.pillApprovedBg; // #E7F6EC
-        text = AppColors.pillApprovedText; // #0B6B38
-        dot = AppColors.dotApproved; // #16A34A
-        label = 'Approved';
+        bg = AppColors.pillApprovedBg;
+        text = AppColors.pillApprovedText;
+        dot = AppColors.dotApproved;
+        label = tr('statusApproved');
         break;
       case VisitorStatus.completed:
-        bg = AppColors.pillApprovedBg; // #E7F6EC
-        text = AppColors.pillApprovedText; // #0B6B38
-        dot = AppColors.dotApproved; // #16A34A
-        label = 'Entered';
+        bg = AppColors.pillApprovedBg;
+        text = AppColors.pillApprovedText;
+        dot = AppColors.dotApproved;
+        label = tr('statusEntered');
         break;
       case VisitorStatus.exited:
         bg = const Color(0xFFF1F5F9);
         text = const Color(0xFF334155);
         dot = const Color(0xFF64748B);
-        label = 'Exited';
+        label = tr('statusExited');
         break;
       case VisitorStatus.pending:
       default:
-        bg = AppColors.pillWaitingBg; // #FDE7C3
-        text = AppColors.pillWaitingText; // #8A4B00
-        dot = AppColors.dotPending; // #D97706
-        label = 'Pending';
+        bg = AppColors.pillWaitingBg;
+        text = AppColors.pillWaitingText;
+        dot = AppColors.dotPending;
+        label = tr('statusPending');
         break;
     }
 
     return Container(
-      height: 26,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            width: 5,
-            height: 5,
+            width: 6,
+            height: 6,
             decoration: BoxDecoration(
               color: dot,
               shape: BoxShape.circle,
@@ -762,8 +1064,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
           Text(
             label,
             style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
               color: text,
               fontFamily: 'Inter',
             ),
@@ -777,25 +1079,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget _buildLoadingSkeletons() {
     return ListView.separated(
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
       itemCount: 4,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, __) => Container(
-        height: 84,
+        height: 88,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(color: AppColors.border, width: 1.0),
         ),
         child: Row(
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
                 color: const Color(0xFFF2F4F8),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
               ),
             ),
             const SizedBox(width: 12),
@@ -805,8 +1107,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    width: 120,
-                    height: 14,
+                    width: 130,
+                    height: 16,
                     decoration: BoxDecoration(
                       color: const Color(0xFFF2F4F8),
                       borderRadius: BorderRadius.circular(4),
@@ -814,8 +1116,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                   const SizedBox(height: 8),
                   Container(
-                    width: 160,
-                    height: 12,
+                    width: 170,
+                    height: 13,
                     decoration: BoxDecoration(
                       color: const Color(0xFFF2F4F8),
                       borderRadius: BorderRadius.circular(4),
@@ -838,11 +1140,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  // Empty State ("No records found")
+  // Empty State
   Widget _buildEmptyState() {
     final bool hasFilter = _searchQuery.isNotEmpty ||
         _selectedStatusFilter != null ||
-        _selectedDateFilter != null;
+        !_isAllDates;
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -853,8 +1155,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 64,
-                height: 64,
+                width: 68,
+                height: 68,
                 decoration: const BoxDecoration(
                   color: AppColors.indigoTint,
                   shape: BoxShape.circle,
@@ -862,14 +1164,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 alignment: Alignment.center,
                 child: const Icon(
                   Icons.history_toggle_off_rounded,
-                  size: 32,
+                  size: 36,
                   color: AppColors.primary,
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'No records found',
-                style: TextStyle(
+              Text(
+                tr('noRecordsTitle'),
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
@@ -878,11 +1180,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                hasFilter
-                    ? 'No visitors match the active filters or search criteria.'
-                    : 'Check-in and check-out logs for visitors will appear here.',
+                hasFilter ? tr('noRecordsDesc') : tr('logsSubtitle'),
                 style: const TextStyle(
-                  fontSize: 13,
+                  fontSize: 13.5,
                   fontWeight: FontWeight.w400,
                   color: AppColors.textMuted,
                   fontFamily: 'Inter',
@@ -891,23 +1191,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
               if (hasFilter) ...[
                 const SizedBox(height: 18),
-                ElevatedButton(
+                ElevatedButton.icon(
                   onPressed: _resetFilters,
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 12),
                   ),
-                  child: const Text(
-                    'Reset Filters',
-                    style: TextStyle(
+                  label: Text(
+                    tr('resetFilters'),
+                    style: const TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       fontFamily: 'Inter',
                     ),
                   ),
@@ -965,7 +1266,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    _buildAvatar(req, size: 54),
+                    _buildAvatar(req, size: 56),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
@@ -985,7 +1286,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             '${req.visitor.type.displayName}${req.visitor.phoneNumber != null ? " • ${req.visitor.phoneNumber!}" : ""}',
                             style: const TextStyle(
                               fontSize: 13,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                               color: AppColors.textMuted,
                               fontFamily: 'Inter',
                             ),
@@ -998,59 +1299,60 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
                 const SizedBox(height: 16),
                 const Divider(color: AppColors.border, height: 1),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
+
                 _buildModalRow(
-                    'Flat & Wing:', '${req.flatNumber} (${req.buildingWing})'),
-                const SizedBox(height: 8),
+                    '${tr("flatAndWing")}:', '${req.flatNumber} (${req.buildingWing})'),
+                const SizedBox(height: 10),
                 _buildModalRow(
-                    'Resident:', '${req.residentName} (${req.residentPhone})'),
-                const SizedBox(height: 8),
-                _buildModalRow('Purpose:', req.purpose),
+                    '${tr("resident")}:', '${req.residentName} (${req.residentPhone})'),
+                const SizedBox(height: 10),
+                _buildModalRow('${tr("purpose")}:', req.purpose),
                 if (req.visitor.deliveryCompany != null &&
                     req.visitor.deliveryCompany!.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  _buildModalRow('Company:', req.visitor.deliveryCompany!),
+                  const SizedBox(height: 10),
+                  _buildModalRow('${tr("company")}:', req.visitor.deliveryCompany!),
                 ],
                 if (req.visitor.vehicleNumber != null &&
                     req.visitor.vehicleNumber!.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  _buildModalRow('Vehicle:', req.visitor.vehicleNumber!),
+                  const SizedBox(height: 10),
+                  _buildModalRow('${tr("vehicle")}:', req.visitor.vehicleNumber!),
                 ],
-                const SizedBox(height: 8),
-                _buildModalRow('Request Time:', timeFormatted),
+                const SizedBox(height: 10),
+                _buildModalRow('${tr("requestTime")}:', timeFormatted),
                 if (decisionTimeFormatted != null) ...[
-                  const SizedBox(height: 8),
-                  _buildModalRow('Decision Time:', decisionTimeFormatted),
+                  const SizedBox(height: 10),
+                  _buildModalRow('${tr("decisionTime")}:', decisionTimeFormatted),
                 ],
                 if (entryTimeFormatted != null) ...[
-                  const SizedBox(height: 8),
-                  _buildModalRow('Entry Time:', entryTimeFormatted),
+                  const SizedBox(height: 10),
+                  _buildModalRow('${tr("entryTime")}:', entryTimeFormatted),
                 ],
                 if (exitTimeFormatted != null) ...[
-                  const SizedBox(height: 8),
-                  _buildModalRow('Exit Time:', exitTimeFormatted),
+                  const SizedBox(height: 10),
+                  _buildModalRow('${tr("exitTime")}:', exitTimeFormatted),
                 ],
                 if (req.decisionBy != null && req.decisionBy!.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  _buildModalRow('Action By:', req.decisionBy!),
+                  const SizedBox(height: 10),
+                  _buildModalRow('${tr("actionBy")}:', req.decisionBy!),
                 ],
                 if (req.status == VisitorStatus.rejected &&
                     req.rejectionReason != null &&
                     req.rejectionReason!.isNotEmpty) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: AppColors.pillRejectedBg,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: AppColors.statRejectedBorder),
                     ),
                     child: Text(
-                      'Rejection Reason: ${req.rejectionReason!}',
+                      '${tr("rejectionReason")}: ${req.rejectionReason!}',
                       style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.pillRejectedText,
                         fontFamily: 'Inter',
                       ),
@@ -1060,7 +1362,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
-                  height: 46,
+                  height: 48,
                   child: ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: ElevatedButton.styleFrom(
@@ -1068,14 +1370,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       foregroundColor: const Color(0xFF334155),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: const Text(
-                      'Close',
-                      style: TextStyle(
+                    child: Text(
+                      tr('close'),
+                      style: const TextStyle(
                         fontWeight: FontWeight.w700,
-                        fontSize: 14,
+                        fontSize: 15,
                         fontFamily: 'Inter',
                       ),
                     ),
@@ -1094,11 +1396,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 110,
+          width: 120,
           child: Text(
             label,
             style: const TextStyle(
-              fontSize: 13,
+              fontSize: 13.5,
               fontWeight: FontWeight.w600,
               color: AppColors.textMuted,
               fontFamily: 'Inter',
@@ -1109,8 +1411,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
           child: Text(
             value,
             style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
               fontFamily: 'Inter',
             ),

@@ -6,6 +6,7 @@ import 'features/auth/splash_screen.dart';
 import 'repositories/guard_repository.dart';
 import 'services/storage_service.dart';
 import 'services/api_service.dart';
+import 'services/language_service.dart';
 
 final GlobalKey<NavigatorState> guardNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -29,6 +30,7 @@ void main() async {
   );
 
   final storage = await StorageService.init();
+  LanguageService.instance.init(storage);
   ApiService.setBaseUrl(storage.getServerUrl());
   final guardRepo = GuardRepository(storage);
 
@@ -51,12 +53,17 @@ class NexGuardApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: guardNavigatorKey,
-      title: 'NexGuard',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      home: SplashScreen(guardRepo: guardRepo),
+    return AnimatedBuilder(
+      animation: LanguageService.instance,
+      builder: (context, _) {
+        return MaterialApp(
+          navigatorKey: guardNavigatorKey,
+          title: 'NexGuard',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          home: SplashScreen(guardRepo: guardRepo),
+        );
+      },
     );
   }
 }

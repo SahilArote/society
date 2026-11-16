@@ -230,6 +230,31 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
     super.dispose();
   }
 
+  String _cleanWingName(String raw) {
+    var w = raw.trim();
+    // Remove redundant "Tower", "Wing", "Building" repetitions, e.g. "Wing TOWER B" -> "B"
+    w = w.replaceAll(RegExp(r'\b(Tower|Wing|Building)\b', caseSensitive: false), '').trim();
+    // Collapse spaces
+    w = w.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (w.isEmpty) return raw.trim();
+    return 'Wing $w';
+  }
+
+  List<String> _getUniqueWings() {
+    final raw = widget.visitorRepo.wings;
+    final seen = <String>{};
+    final unique = <String>[];
+
+    for (final w in raw) {
+      final clean = _cleanWingName(w).toLowerCase();
+      if (!seen.contains(clean)) {
+        seen.add(clean);
+        unique.add(w);
+      }
+    }
+    return unique;
+  }
+
   void _onRepoUpdated() {
     if (!mounted) return;
     if (_selectedWing.isEmpty && widget.visitorRepo.wings.isNotEmpty) {
@@ -238,8 +263,9 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
   }
 
   void _applyFirstWing() {
-    if (widget.visitorRepo.wings.isEmpty) return;
-    final firstWing = widget.visitorRepo.wings.first;
+    final availableWings = _getUniqueWings();
+    if (availableWings.isEmpty) return;
+    final firstWing = availableWings.first;
     setState(() {
       _selectedWing = firstWing;
       _selectedFlat = '';
@@ -288,7 +314,7 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
           selectedWing: _selectedWing,
           selectedFlat: _selectedFlat,
           wingFlats: widget.visitorRepo.wingFlats,
-          wings: widget.visitorRepo.wings,
+          wings: _getUniqueWings(),
           onFlatSelected: (wing, flatNumber) {
             setState(() {
               if (_selectedWing != wing) {
@@ -577,38 +603,54 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
                       ),
                       const SizedBox(height: 12),
                       Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
+                        spacing: 8,
+                        runSpacing: 8,
                         children: VisitorType.values.map((type) {
                           final isSelected = _selectedType == type;
-                          return ChoiceChip(
-                            label: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 4, vertical: 4),
-                              child: Text(type.displayName),
-                            ),
-                            selected: isSelected,
-                            onSelected: (val) {
-                              if (val) setState(() => _selectedType = type);
-                            },
-                            selectedColor: AppColors.primary,
-                            labelStyle: TextStyle(
-                              color: isSelected
-                                  ? Colors.white
-                                  : AppColors.textPrimary,
-                              fontWeight: isSelected
-                                  ? FontWeight.w800
-                                  : FontWeight.w600,
-                              fontSize: 15,
-                            ),
-                            backgroundColor: AppColors.surfaceLow,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: AppDimensions.roundedMd,
-                              side: BorderSide(
-                                color: isSelected
-                                    ? AppColors.primaryDark
-                                    : AppColors.border,
-                                width: 1.5,
+                          return Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () => setState(() => _selectedType = type),
+                              borderRadius: BorderRadius.circular(10),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppColors.primaryDark
+                                        : const Color(0xFFCBD5E1),
+                                    width: isSelected ? 1.5 : 1.2,
+                                  ),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: AppColors.primary
+                                                .withOpacity(0.22),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: Text(
+                                  type.displayName,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w600,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : const Color(0xFF334155),
+                                    fontFamily: 'Inter',
+                                  ),
+                                ),
                               ),
                             ),
                           );
@@ -740,44 +782,63 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
                           ),
                         )
                       else
-                        Row(
-                          children: widget.visitorRepo.wings.map((wing) {
-                            final isSelected = _selectedWing == wing;
-                            return Expanded(
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 4),
-                                child: SizedBox(
-                                  height: 52, // 52px button height
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: isSelected
-                                          ? AppColors.primary
-                                          : AppColors.surfaceLow,
-                                      foregroundColor: isSelected
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: _getUniqueWings().map((wing) {
+                            final isSelected = _selectedWing == wing ||
+                                _cleanWingName(_selectedWing) ==
+                                    _cleanWingName(wing);
+                            final label = _cleanWingName(wing);
+
+                            return Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => _onWingChanged(wing),
+                                borderRadius: BorderRadius.circular(12),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 150),
+                                  constraints:
+                                      const BoxConstraints(minWidth: 84),
+                                  height: 44,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : const Color(0xFFF8FAFC),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? AppColors.primaryDark
+                                          : const Color(0xFFCBD5E1),
+                                      width: isSelected ? 1.5 : 1.2,
+                                    ),
+                                    boxShadow: isSelected
+                                        ? [
+                                            BoxShadow(
+                                              color: AppColors.primary
+                                                  .withOpacity(0.25),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    label,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w800
+                                          : FontWeight.w600,
+                                      color: isSelected
                                           ? Colors.white
                                           : AppColors.textPrimary,
-                                      elevation: isSelected ? 2 : 0,
-                                      side: BorderSide(
-                                        color: isSelected
-                                            ? AppColors.primaryDark
-                                            : AppColors.border,
-                                        width: 1.5,
-                                      ),
-                                      shape: const RoundedRectangleBorder(borderRadius: AppDimensions.roundedMd),
-                                      padding: EdgeInsets.zero,
+                                      fontFamily: 'Inter',
                                     ),
-                                    onPressed: () => _onWingChanged(wing),
-                                    child: Text(
-                                      wing.replaceFirst('Tower ', 'Wing '),
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w800,
-                                        color: isSelected
-                                            ? Colors.white
-                                            : AppColors.textPrimary,
-                                      ),
-                                    ),
+                                    maxLines: 1,
                                   ),
                                 ),
                               ),
@@ -1001,6 +1062,14 @@ class _SearchableFlatPickerSheetState extends State<_SearchableFlatPickerSheet> 
     }).toList();
   }
 
+  String _cleanTabWing(String raw) {
+    var w = raw.trim();
+    w = w.replaceAll(RegExp(r'\b(Tower|Wing|Building)\b', caseSensitive: false), '').trim();
+    w = w.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (w.isEmpty) return raw.trim();
+    return 'Wing $w';
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
@@ -1133,7 +1202,7 @@ class _SearchableFlatPickerSheetState extends State<_SearchableFlatPickerSheet> 
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: ChoiceChip(
-                        label: Text(wing),
+                        label: Text(_cleanTabWing(wing)),
                         selected: isSelected,
                         selectedColor: AppColors.primary,
                         backgroundColor: AppColors.surfaceLow,

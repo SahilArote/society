@@ -8,6 +8,7 @@ import '../../models/visitor_request.dart';
 import '../../repositories/guard_repository.dart';
 import '../../repositories/visitor_repository.dart';
 import '../../services/image_compress_service.dart';
+import '../../services/language_service.dart';
 import '../visitor_entry/camera_capture_screen.dart';
 import '../visitor_entry/visitor_details_screen.dart';
 import '../visitor_entry/waiting_approval_screen.dart';
@@ -54,9 +55,9 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 18),
-              const Text(
-                'Capture Visitor Photo',
-                style: TextStyle(
+              Text(
+                tr('captureVisitorPhoto'),
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF0F172A),
@@ -65,9 +66,9 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
-                'Take a photo with the camera or choose from gallery',
-                style: TextStyle(
+              Text(
+                tr('capturePhotoDesc'),
+                style: const TextStyle(
                   fontSize: 13,
                   color: Color(0xFF64748B),
                   fontFamily: 'Inter',
@@ -93,18 +94,18 @@ class DashboardScreen extends StatelessWidget {
                             width: 1.5,
                           ),
                         ),
-                        child: const Column(
+                        child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.camera_alt_rounded,
                               size: 36,
                               color: AppColors.primary,
                             ),
-                            SizedBox(height: 8),
+                            const SizedBox(height: 8),
                             Text(
-                              'Take Photo',
-                              style: TextStyle(
+                              tr('takePhoto'),
+                              style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.primary,
@@ -134,18 +135,18 @@ class DashboardScreen extends StatelessWidget {
                             width: 1.5,
                           ),
                         ),
-                        child: const Column(
+                        child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.photo_library_rounded,
                               size: 36,
                               color: Color(0xFF334155),
                             ),
-                            SizedBox(height: 8),
+                            const SizedBox(height: 8),
                             Text(
-                              'Gallery',
-                              style: TextStyle(
+                              tr('gallery'),
+                              style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
                                 color: Color(0xFF334155),
@@ -291,9 +292,9 @@ class DashboardScreen extends StatelessWidget {
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return tr('goodMorning');
+    if (hour < 17) return tr('goodAfternoon');
+    return tr('goodEvening');
   }
 
   String _getInitials(String name) {
@@ -322,7 +323,7 @@ class DashboardScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: AppColors.pageBackground,
         body: AnimatedBuilder(
-          animation: visitorRepo,
+          animation: Listenable.merge([visitorRepo, LanguageService.instance]),
           builder: (context, _) {
             final pendingCount = visitorRepo.pendingCount;
             final approvedCount = visitorRepo.approvedTodayCount;
@@ -331,9 +332,7 @@ class DashboardScreen extends StatelessWidget {
             final displayList = recentActivity.take(3).toList();
 
             return SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
+              physics: const ClampingScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -346,7 +345,7 @@ class DashboardScreen extends StatelessWidget {
                     children: [
                       // HERO CONTAINER
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 40),
+                        padding: const EdgeInsets.only(bottom: 36),
                         child: Container(
                           width: double.infinity,
                           decoration: const BoxDecoration(
@@ -356,10 +355,10 @@ class DashboardScreen extends StatelessWidget {
                             ),
                           ),
                           padding: EdgeInsets.only(
-                            top: statusBarHeight + 20,
+                            top: statusBarHeight + 16,
                             left: 16,
                             right: 16,
-                            bottom: 92,
+                            bottom: 52,
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -443,9 +442,9 @@ class DashboardScreen extends StatelessWidget {
                                           ),
                                         ),
                                         const SizedBox(width: 6),
-                                        const Text(
-                                          'ON DUTY',
-                                          style: TextStyle(
+                                        Text(
+                                          tr('onDuty'),
+                                          style: const TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold,
                                             color: AppColors
@@ -475,7 +474,7 @@ class DashboardScreen extends StatelessWidget {
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
-                                      '$gateName · $societyName',
+                                      '$societyName · $gateName',
                                       style: const TextStyle(
                                         fontSize: 12.5,
                                         fontWeight: FontWeight.w500,
@@ -515,7 +514,7 @@ class DashboardScreen extends StatelessWidget {
                             children: [
                               _buildStatTile(
                                 count: pendingCount,
-                                label: 'Pending',
+                                label: tr('tabPending'),
                                 bg: const Color(0xFFFFF7E8),
                                 border: AppColors.statPendingBorder,
                                 textColor: AppColors.statPendingText,
@@ -523,7 +522,7 @@ class DashboardScreen extends StatelessWidget {
                               const SizedBox(width: 10),
                               _buildStatTile(
                                 count: approvedCount,
-                                label: 'Approved',
+                                label: tr('statusApproved'),
                                 bg: AppColors.statApprovedBg,
                                 border: AppColors.statApprovedBorder,
                                 textColor: AppColors.statApprovedText,
@@ -531,7 +530,7 @@ class DashboardScreen extends StatelessWidget {
                               const SizedBox(width: 10),
                               _buildStatTile(
                                 count: rejectedCount,
-                                label: 'Rejected',
+                                label: tr('statusRejected'),
                                 bg: AppColors.statRejectedBg,
                                 border: AppColors.statRejectedBorder,
                                 textColor: AppColors.statRejectedText,
@@ -567,18 +566,18 @@ class DashboardScreen extends StatelessWidget {
                               ),
                               padding: EdgeInsets.zero,
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.person_add_alt_1_rounded,
                                   size: 22,
                                   color: Colors.white,
                                 ),
-                                SizedBox(width: 8),
+                                const SizedBox(width: 8),
                                 Text(
-                                  'New Visitor',
-                                  style: TextStyle(
+                                  tr('newVisitor'),
+                                  style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
                                     color: Colors.white,
@@ -617,18 +616,18 @@ class DashboardScreen extends StatelessWidget {
                               ),
                               padding: EdgeInsets.zero,
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.qr_code_2_rounded,
                                   size: 22,
                                   color: AppColors.statApprovedText,
                                 ),
-                                SizedBox(width: 8),
+                                const SizedBox(width: 8),
                                 Text(
-                                  'Verify Pass / QR',
-                                  style: TextStyle(
+                                  tr('verifyPass'),
+                                  style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.statApprovedText,
@@ -653,9 +652,9 @@ class DashboardScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        const Text(
-                          'Recent visitors',
-                          style: TextStyle(
+                        Text(
+                          tr('recentActivity'),
+                          style: const TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
                             color: Color(0xFF1E293B),
@@ -673,9 +672,9 @@ class DashboardScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(16),
                             ),
                             alignment: Alignment.center,
-                            child: const Text(
-                              'View all',
-                              style: TextStyle(
+                            child: Text(
+                              tr('viewAll'),
+                              style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.primary, // #3A3FB5
@@ -771,18 +770,18 @@ class DashboardScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border, width: 1.0),
       ),
-      child: const Column(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
+          const Icon(
             Icons.people_outline_rounded,
             size: 36,
             color: Color(0xFF94A3B8),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
-            'No visitors yet',
-            style: TextStyle(
+            tr('noVisitorsYet'),
+            style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: AppColors.textMuted, // #4B5565
