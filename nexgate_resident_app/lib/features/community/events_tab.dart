@@ -69,7 +69,7 @@ class _EventsTabState extends State<EventsTab> {
           // Filter Toggle: Upcoming vs Past Events
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
                 _buildToggleButton('Upcoming Events', 'upcoming'),
@@ -144,7 +144,7 @@ class _EventsTabState extends State<EventsTab> {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       itemCount: _events.length,
       separatorBuilder: (_, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {

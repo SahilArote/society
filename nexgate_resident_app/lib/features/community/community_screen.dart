@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_dimensions.dart';
 import '../../core/utils/haptic_helper.dart';
-import '../../core/widgets/custom_app_bar.dart';
 import 'events_tab.dart';
 import 'lost_found_tab.dart';
 
@@ -32,37 +31,78 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.mainBackground,
-      appBar: const CustomAppBar(
-        title: 'Community',
-        subtitle: 'Society notices, lost items & upcoming events',
-        showBack: false,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
       ),
-      body: Column(
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              // Header Section matching design
+              _buildHeader(),
+
+              // Tab Content: Strictly Lost & Found and Events (NO Marketplace)
+              Expanded(
+                child: IndexedStack(
+                  index: _activeTab,
+                  children: const [
+                    LostFoundTab(),
+                    EventsTab(),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      color: Colors.white,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Pill Tabs: Strictly Lost & Found and Events (NO Marketplace)
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              children: [
-                _buildTabButton('Lost & Found', 0),
-                const SizedBox(width: 8),
-                _buildTabButton('Events', 1),
-              ],
+          // Title
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 10),
+            child: Text(
+              'Community',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
+                letterSpacing: -0.4,
+              ),
             ),
           ),
-          const Divider(height: 1, color: AppColors.border),
 
-          // Tab Content
-          Expanded(
-            child: IndexedStack(
-              index: _activeTab,
-              children: const [
-                LostFoundTab(),
-                EventsTab(),
-              ],
+          // Thin Header Divider
+          const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+          const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+
+          // Segmented Pill Tabs: Lost & Found | Events
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+            child: Container(
+              height: 48,
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Row(
+                children: [
+                  _buildSegmentTab('Lost & Found', 0),
+                  _buildSegmentTab('Events', 1),
+                ],
+              ),
             ),
           ),
         ],
@@ -70,30 +110,35 @@ class _CommunityScreenState extends State<CommunityScreen> {
     );
   }
 
-  Widget _buildTabButton(String label, int index) {
+  Widget _buildSegmentTab(String label, int index) {
     final isSelected = _activeTab == index;
     return Expanded(
       child: GestureDetector(
         onTap: () => _onTabChanged(index),
+        behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 9),
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF0F172A) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected ? const Color(0xFF0F172A) : AppColors.border,
-              width: 1,
-            ),
-            boxShadow: isSelected ? AppDimensions.subtleShadow : null,
+            color: isSelected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1.5),
+                    ),
+                  ]
+                : null,
           ),
+          alignment: Alignment.center,
           child: Text(
             label,
-            textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected ? Colors.white : AppColors.secondaryText,
+              color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
             ),
           ),
         ),

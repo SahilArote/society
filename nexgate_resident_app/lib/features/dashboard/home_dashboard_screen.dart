@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/utils/haptic_helper.dart';
-import '../../core/widgets/custom_app_bar.dart';
 import '../../core/widgets/loading_skeleton.dart';
 import '../../models/visitor_model.dart';
 import '../../services/api_service.dart';
@@ -17,9 +17,11 @@ import '../notifications/notifications_screen.dart';
 import 'widgets/quick_actions_grid.dart';
 import 'widgets/recent_visitors_section.dart';
 import 'widgets/security_status_card.dart';
+import 'widgets/society_life_section.dart';
 import 'widgets/urgent_gate_alert_card.dart';
 
-/// Primary Resident Dashboard Screen.
+/// Redesigned Premium NexGate Resident Home Dashboard Screen.
+/// Pixel-matched to the official reference specification.
 class HomeDashboardScreen extends StatefulWidget {
   final Function(int tabIndex)? onNavigateTab;
 
@@ -61,11 +63,31 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> with WidgetsB
   }
 
   void _subscribeToSocketEvents() {
-    _visitorCreatedSub = SocketService.onVisitorCreated.listen((newVisitor) {
-      debugPrint('[STATE] Updating visitor requests');
-      HapticHelper.heavyImpact();
+    _visitorCreatedSub = SocketService.onVisitorCreated.listen((newVisitor) async {
+      debugPrint('[STATE] Received visitor created event: ${newVisitor.name} (${newVisitor.status})');
 
       if (!mounted) return;
+
+      // Condition: If visitor is already approved or not pending, do NOT show in pending gate alert!
+      if (!newVisitor.isPending) {
+        debugPrint('[Dashboard] Visitor already resolved (${newVisitor.status}), refreshing recent activity');
+        _loadDashboardData(silent: true);
+        return;
+      }
+
+      // Check with backend to verify if guard already approved it
+      try {
+        final latest = await ApiService.fetchVisitorRequestById(newVisitor.id);
+        if (latest != null && !latest.isPending) {
+          debugPrint('[Dashboard] Visitor verified non-pending from API: ${latest.status}');
+          if (mounted) _loadDashboardData(silent: true);
+          return;
+        }
+      } catch (_) {}
+
+      if (!mounted) return;
+      HapticHelper.heavyImpact();
+
       setState(() {
         final existingIdx = _pendingVisitors.indexWhere((v) => v.id == newVisitor.id);
         if (existingIdx >= 0) {
@@ -81,8 +103,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> with WidgetsB
     _visitorUpdatedSub = SocketService.onVisitorUpdated.listen((updatedData) {
       debugPrint('[Dashboard] Visitor updated via socket: $updatedData');
       if (!mounted) return;
-      final reqId = updatedData['requestId']?.toString();
-      final status = updatedData['status']?.toString();
+      final reqId = updatedData['requestId']?.toString() ?? updatedData['id']?.toString() ?? updatedData['_id']?.toString();
+      final status = updatedData['status']?.toString()?.toUpperCase();
 
       if (reqId != null && status != null && status != 'PENDING') {
         setState(() {
@@ -166,227 +188,426 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> with WidgetsB
     _loadDashboardData(silent: true);
   }
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = AuthService.currentUser.value;
+    final fullName = user?.name.trim() ?? 'Sahil';
+    final rawFirst = fullName.isNotEmpty ? fullName.split(' ').first : 'Resident';
+    final firstName = rawFirst.isNotEmpty
+        ? '${rawFirst[0].toUpperCase()}${rawFirst.substring(1)}'
+        : 'Resident';
+    final flatNumber = user?.flatNumber ?? 'A-101';
+    final societyName = user?.societyName ?? 'Eco Residency Co-operative Housing Society';
+    final greeting = _getGreeting();
 
-    return Scaffold(
-      backgroundColor: AppColors.mainBackground,
-      appBar: CustomAppBar(
-        isHome: true,
-        flatNumber: user != null ? 'Flat ${user.flatNumber}' : 'Resident',
-        societyName: user?.societyName ?? 'Eco Residency Co-operative Housing Society Ltd',
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded, color: AppColors.primaryText),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-              );
-            },
-          ),
-        ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
       ),
-      body: RefreshIndicator(
-        onRefresh: () => _loadDashboardData(silent: true),
-        color: AppColors.primaryBlue,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Urgent Pending Gate Approvals
-              if (_pendingVisitors.isNotEmpty) ...[
-                UrgentGateAlertCard(
-                  visitor: _pendingVisitors.first,
-                  onAllow: () => _handleAllow(_pendingVisitors.first.id),
-                  onDeny: () => _handleDeny(_pendingVisitors.first.id, 'Denied by resident'),
-                  onTapDetails: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => VisitorDetailScreen(
-                          visitorId: _pendingVisitors.first.id,
-                        ),
-                      ),
-                    ).then((_) => _loadDashboardData(silent: true));
-                  },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5F7FC), // Premium light background
+        body: RefreshIndicator(
+          onRefresh: () => _loadDashboardData(silent: true),
+          color: const Color(0xFF155EEF),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Hero Section with building photo & header
+                _buildHeroHeader(
+                  context: context,
+                  firstName: firstName,
+                  flatNumber: flatNumber,
+                  societyName: societyName,
+                  greeting: greeting,
                 ),
-                const SizedBox(height: 16),
+
+                // Main Dashboard Body
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Quick Actions Section (4 items)
+                      QuickActionsGrid(
+                        onInviteVisitor: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const InviteVisitorScreen()),
+                          ).then((_) => _loadDashboardData(silent: true));
+                        },
+                        onVisitors: () {
+                          if (widget.onNavigateTab != null) widget.onNavigateTab!(3);
+                        },
+                        onFamily: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const FamilyMembersScreen()),
+                          );
+                        },
+                        onVehicles: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const VehiclesScreen()),
+                          );
+                        },
+                      ),
+
+                      // Urgent Pending Gate Alert (only show if visitor is actually pending & not approved)
+                      if (_pendingVisitors.isNotEmpty && _pendingVisitors.first.isPending) ...[
+                        const SizedBox(height: 16),
+                        UrgentGateAlertCard(
+                          visitor: _pendingVisitors.first,
+                          onAllow: () => _handleAllow(_pendingVisitors.first.id),
+                          onDeny: () => _handleDeny(_pendingVisitors.first.id, 'Denied by resident'),
+                          onTapDetails: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => VisitorDetailScreen(
+                                  visitorId: _pendingVisitors.first.id,
+                                ),
+                              ),
+                            ).then((_) => _loadDashboardData(silent: true));
+                          },
+                        ),
+                      ],
+
+                      const SizedBox(height: 22),
+
+                      // Society Life & Services Section
+                      SocietyLifeSection(
+                        onServicesTap: () {
+                          if (widget.onNavigateTab != null) widget.onNavigateTab!(1);
+                        },
+                        onCommunityTap: () {
+                          if (widget.onNavigateTab != null) widget.onNavigateTab!(2);
+                        },
+                        onExploreAll: () {
+                          if (widget.onNavigateTab != null) widget.onNavigateTab!(1);
+                        },
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // Security Monitoring Card
+                      const SecurityStatusCard(
+                        isOnline: true,
+                        gateName: 'Main Gate',
+                      ),
+
+                      const SizedBox(height: 22),
+
+                      // Recent Gate Activity Section
+                      if (_isLoading)
+                        Column(
+                          children: List.generate(
+                            3,
+                            (i) => Padding(
+                              padding: const EdgeInsets.only(bottom: 10.0),
+                              child: LoadingSkeleton(
+                                width: double.infinity,
+                                height: 72,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        RecentVisitorsSection(
+                          visitors: _recentVisitors,
+                          onViewAll: () {
+                            if (widget.onNavigateTab != null) {
+                              widget.onNavigateTab!(3); // Visitors Tab
+                            }
+                          },
+                          onRefresh: () => _loadDashboardData(silent: true),
+                        ),
+
+                      // Extra spacing for bottom bar
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
               ],
-
-              // Quick Actions Grid
-              QuickActionsGrid(
-                onInviteVisitor: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const InviteVisitorScreen()),
-                  ).then((_) => _loadDashboardData(silent: true));
-                },
-                onVisitors: () {
-                  if (widget.onNavigateTab != null) {
-                    widget.onNavigateTab!(3); // Visitors Tab
-                  }
-                },
-                onFamily: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const FamilyMembersScreen()),
-                  );
-                },
-                onVehicles: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const VehiclesScreen()),
-                  );
-                },
-              ),
-
-              const SizedBox(height: 20),
-
-              // Society Services & Community Quick Cards
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: AppDimensions.roundedLarge,
-                  boxShadow: AppDimensions.subtleShadow,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.hub_rounded, color: Colors.amberAccent, size: 18),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Society Life & Services',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: () {
-                              HapticHelper.lightImpact();
-                              if (widget.onNavigateTab != null) widget.onNavigateTab!(1);
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                              ),
-                              child: const Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(Icons.build_circle_rounded, color: Colors.lightBlueAccent, size: 24),
-                                  SizedBox(height: 8),
-                                  Text('Services', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
-                                  SizedBox(height: 2),
-                                  Text('Vendors & Staff', style: TextStyle(color: Colors.white70, fontSize: 11)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: InkWell(
-                            onTap: () {
-                              HapticHelper.lightImpact();
-                              if (widget.onNavigateTab != null) widget.onNavigateTab!(2);
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                              ),
-                              child: const Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(Icons.groups_rounded, color: Color(0xFF34D399), size: 24),
-                                  SizedBox(height: 8),
-                                  Text('Community', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
-                                  SizedBox(height: 2),
-                                  Text('Lost & Events', style: TextStyle(color: Colors.white70, fontSize: 11)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Society Security Status Banner
-              const SecurityStatusCard(),
-
-              const SizedBox(height: 24),
-
-              // Recent Visitors Activity
-              if (_isLoading)
-                Column(
-                  children: List.generate(
-                    3,
-                    (i) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10.0),
-                      child: LoadingSkeleton(
-                        width: double.infinity,
-                        height: 72,
-                        borderRadius: AppDimensions.roundedLarge,
-                      ),
-                    ),
-                  ),
-                )
-              else
-                RecentVisitorsSection(
-                  visitors: _recentVisitors,
-                  onViewAll: () {
-                    if (widget.onNavigateTab != null) {
-                      widget.onNavigateTab!(3); // Visitors Tab
-                    }
-                  },
-                  onRefresh: () => _loadDashboardData(silent: true),
-                ),
-
-              const SizedBox(height: 80),
-            ],
+            ),
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColors.primaryBlue,
-        foregroundColor: Colors.white,
-        elevation: 4,
-        icon: const Icon(Icons.add_rounded, size: 22),
-        label: const Text('Invite Visitor', style: TextStyle(fontWeight: FontWeight.w700)),
-        onPressed: () {
-          HapticHelper.lightImpact();
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const InviteVisitorScreen()),
-          ).then((_) => _loadDashboardData(silent: true));
-        },
+    );
+  }
+
+  Widget _buildHeroHeader({
+    required BuildContext context,
+    required String firstName,
+    required String flatNumber,
+    required String societyName,
+    required String greeting,
+  }) {
+    final topPadding = MediaQuery.of(context).padding.top;
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    return SizedBox(
+      height: topPadding + 225,
+      child: Stack(
+        children: [
+          // Background soft sky-blue gradient
+          Container(
+            height: topPadding + 225,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFFE9F2FE), Color(0xFFF5F7FC)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+
+          // Residential Building Photograph on right with soft gradient fade
+          Positioned(
+            top: 0,
+            right: 0,
+            width: screenWidth * 0.72,
+            height: topPadding + 220,
+            child: ShaderMask(
+              shaderCallback: (rect) {
+                return const LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [Colors.transparent, Colors.white],
+                  stops: [0.0, 0.45],
+                ).createShader(rect);
+              },
+              blendMode: BlendMode.dstIn,
+              child: ShaderMask(
+                shaderCallback: (rect) {
+                  return const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.white, Colors.transparent],
+                    stops: [0.65, 1.0],
+                  ).createShader(rect);
+                },
+                blendMode: BlendMode.dstIn,
+                child: Image.asset(
+                  'assets/images/building_hero.jpg',
+                  fit: BoxFit.cover,
+                  alignment: Alignment.centerRight,
+                  errorBuilder: (ctx, err, stack) => const SizedBox(),
+                ),
+              ),
+            ),
+          ),
+
+          // Decorative soft curved light overlay
+          Positioned(
+            top: topPadding - 10,
+            right: 40,
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    Colors.white.withValues(alpha: 0.5),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Header Content
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top Row: Logo, NexGate, Society, Flat Badge, Notification Bell
+                  Row(
+                    children: [
+                      // NexGate Official Logo Box
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(13),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(13),
+                          child: Image.asset(
+                            'assets/images/logo.png',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+
+                      // NexGate & Society Name
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'NexGate',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    societyName,
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                                const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: 15,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // Flat Number Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE0EDFF),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          flatNumber,
+                          style: const TextStyle(
+                            color: Color(0xFF155EEF),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+
+                      // Notification Bell
+                      InkWell(
+                        onTap: () {
+                          HapticHelper.lightImpact();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              const Icon(
+                                Icons.notifications_none_rounded,
+                                color: Color(0xFF0F172A),
+                                size: 22,
+                              ),
+                              Positioned(
+                                top: 7,
+                                right: 7,
+                                child: Container(
+                                  width: 7.5,
+                                  height: 7.5,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEF4444),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 1.5),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Greeting Section: Greeting on first line, user name on next line
+                  Text(
+                    '$greeting,',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                      letterSpacing: -0.4,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$firstName 👋',
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Welcome to your community',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

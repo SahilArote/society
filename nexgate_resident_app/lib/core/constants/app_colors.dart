@@ -74,4 +74,11 @@ class AppColors {
     end: Alignment.bottomRight,
     colors: [Color(0xFF16A34A), Color(0xFF0D9488)],
   );
+
+  // Premium Redesign Tokens
+  static const Color royalBlue = Color(0xFF155EEF);
+  static const Color deepNavy = Color(0xFF14264A);
+  static const Color lavenderLight = Color(0xFFEEE9FF);
+  static const Color blueLight = Color(0xFFE8F0FF);
+  static const Color textPrimaryDark = Color(0xFF111C38);
 }

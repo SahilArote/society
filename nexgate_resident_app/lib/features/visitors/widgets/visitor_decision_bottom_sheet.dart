@@ -26,6 +26,12 @@ class VisitorDecisionBottomSheet extends StatefulWidget {
     required VoidCallback onAllow,
     required Function(String reason) onDeny,
   }) {
+    // Only show popup if visitor is actually pending (not already approved by guard)
+    if (!visitor.isPending) {
+      debugPrint('[POPUP] Visitor ${visitor.id} is already ${visitor.status}, skipping decision popup');
+      return Future.value();
+    }
+
     return showGeneralDialog(
       context: context,
       barrierDismissible: true,

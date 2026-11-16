@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_typography.dart';
@@ -128,110 +129,127 @@ class _ServicesScreenState extends State<ServicesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.mainBackground,
-      appBar: const CustomAppBar(
-        title: 'Services',
-        subtitle: 'Verified society vendors & daily utilities',
-        showBack: false,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
       ),
-      body: RefreshIndicator(
-        onRefresh: () => _loadServices(silent: true),
-        color: AppColors.primaryBlue,
-        child: Column(
-          children: [
-            // Top Filter Tabs (Vendors, Utilities, Staff Hire)
-            _buildTypeFilterTabs(),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              // Header Section matching reference design exactly
+              _buildHeader(),
 
-            // Search Bar & Horizontal Category Filter
-            _buildSearchAndCategories(),
-
-            // Main Services List
-            Expanded(child: _buildBody()),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTypeFilterTabs() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          _buildPillTab('Vendors', 'VENDORS'),
-          const SizedBox(width: 8),
-          _buildPillTab('Utilities', 'UTILITIES'),
-          const SizedBox(width: 8),
-          _buildPillTab('Staff Hire', 'STAFF'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPillTab(String label, String value) {
-    final isSelected = _selectedTab == value;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => _onTabChanged(value),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF0F172A) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected ? const Color(0xFF0F172A) : AppColors.border,
-              width: 1,
-            ),
-            boxShadow: isSelected ? AppDimensions.subtleShadow : null,
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected ? Colors.white : AppColors.secondaryText,
-            ),
+              // Main Services List
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: () => _loadServices(silent: true),
+                  color: AppColors.primaryBlue,
+                  child: _buildBody(),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildSearchAndCategories() {
+  Widget _buildHeader() {
     return Container(
       color: Colors.white,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Search Input
+          // Title & Subtitle
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Services',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'Verified society vendors & daily utilities',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Thin Header Divider
+          const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+
+          // Segmented Pill Tab Bar: Vendors | Utilities | Staff Hire
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
             child: Container(
-              height: 44,
+              height: 48,
+              padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Row(
+                children: [
+                  _buildSegmentTab('Vendors', 'VENDORS'),
+                  _buildSegmentTab('Utilities', 'UTILITIES'),
+                  _buildSegmentTab('Staff Hire', 'STAFF'),
+                ],
+              ),
+            ),
+          ),
+
+          // Search Bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Container(
+              height: 46,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
               ),
               child: Row(
                 children: [
                   const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Icon(Icons.search_rounded, color: AppColors.secondaryText, size: 20),
+                    padding: EdgeInsets.symmetric(horizontal: 14),
+                    child: Icon(Icons.search_rounded, color: Color(0xFF94A3B8), size: 22),
                   ),
                   Expanded(
                     child: TextField(
                       controller: _searchController,
-                      style: AppTypography.bodySmall,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF0F172A),
+                        fontWeight: FontWeight.w500,
+                      ),
                       decoration: const InputDecoration(
                         hintText: 'Search vendors, services, or category...',
-                        hintStyle: TextStyle(color: AppColors.mutedText, fontSize: 13),
+                        hintStyle: TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w400,
+                        ),
                         border: InputBorder.none,
                         isDense: true,
-                        contentPadding: EdgeInsets.symmetric(vertical: 10),
+                        contentPadding: EdgeInsets.symmetric(vertical: 12),
                       ),
                       onChanged: (val) {
                         _searchQuery = val;
@@ -241,7 +259,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                   ),
                   if (_searchQuery.isNotEmpty)
                     IconButton(
-                      icon: const Icon(Icons.clear_rounded, size: 18, color: AppColors.secondaryText),
+                      icon: const Icon(Icons.clear_rounded, size: 18, color: Color(0xFF94A3B8)),
                       onPressed: () {
                         _searchController.clear();
                         _searchQuery = '';
@@ -260,7 +278,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: _categories.length,
-              separatorBuilder: (_, index) => const SizedBox(width: 8),
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 final cat = _categories[index];
                 final isSelected = _selectedCategory == cat;
@@ -268,20 +286,22 @@ class _ServicesScreenState extends State<ServicesScreen> {
                   onTap: () => _onCategoryChanged(cat),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: isSelected ? const Color(0xFF0F172A) : Colors.white,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isSelected ? const Color(0xFF0F172A) : AppColors.border,
+                        color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+                        width: 1.2,
                       ),
                     ),
+                    alignment: Alignment.center,
                     child: Text(
                       cat,
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                        color: isSelected ? Colors.white : AppColors.secondaryText,
+                        fontSize: 13,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                        color: isSelected ? Colors.white : const Color(0xFF0F172A),
                       ),
                     ),
                   ),
@@ -289,9 +309,44 @@ class _ServicesScreenState extends State<ServicesScreen> {
               },
             ),
           ),
-          const SizedBox(height: 10),
-          const Divider(height: 1, color: AppColors.border),
+          const SizedBox(height: 12),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSegmentTab(String label, String value) {
+    final isSelected = _selectedTab == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _onTabChanged(value),
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1.5),
+                    ),
+                  ]
+                : null,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+            ),
+          ),
+        ),
       ),
     );
   }
