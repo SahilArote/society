@@ -14,6 +14,8 @@ import {
   X,
   Building2,
   Check,
+  RotateCcw,
+  Edit3,
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import {
@@ -25,6 +27,8 @@ import {
   remindUnpaidResidents,
   uploadBankStatementFile,
   downloadMaintenanceLedger,
+  editAdminMaintenanceAmount,
+  resetAdminPayment,
   type AdminMaintenanceOverview,
   type VerificationQueueItem,
 } from '../services/api';
@@ -46,6 +50,9 @@ export default function Maintenance() {
   const [selectedProofFlat, setSelectedProofFlat] = useState<string>('');
   const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
   const [isStatementModalOpen, setIsStatementModalOpen] = useState(false);
+  const [isEditAmountModalOpen, setIsEditAmountModalOpen] = useState(false);
+  const [editTargetId, setEditTargetId] = useState<string>('');
+  const [editAmountValue, setEditAmountValue] = useState<string>('2500');
   const [rejectModalPayment, setRejectModalPayment] = useState<VerificationQueueItem | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [isActionLoading, setIsActionLoading] = useState(false);
@@ -176,6 +183,44 @@ export default function Maintenance() {
     }
   };
 
+  // Handle Reset Payment
+  const handleResetPayment = async (item: VerificationQueueItem) => {
+    if (!window.confirm(`Reset payment for Flat ${item.flatNumber}? This will mark the bill as UNPAID and let the resident pay again fresh.`)) {
+      return;
+    }
+    setIsActionLoading(true);
+    try {
+      await resetAdminPayment(item.invoiceId || item.paymentId);
+      showFeedback('success', `Payment for Flat ${item.flatNumber} has been reset to UNPAID.`);
+      await loadData();
+    } catch (err: any) {
+      showFeedback('error', err.message || 'Failed to reset payment');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  // Handle Edit Amount
+  const handleSaveAmount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const num = parseFloat(editAmountValue);
+    if (isNaN(num) || num < 0) {
+      showFeedback('error', 'Please enter a valid amount');
+      return;
+    }
+    setIsActionLoading(true);
+    try {
+      await editAdminMaintenanceAmount(editTargetId || 'flat_a101', num);
+      showFeedback('success', `Maintenance bill updated to ₹${num.toLocaleString('en-IN')}`);
+      setIsEditAmountModalOpen(false);
+      await loadData();
+    } catch (err: any) {
+      showFeedback('error', err.message || 'Failed to update maintenance amount');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6" style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: 40 }}>
       {/* Feedback Banner */}
@@ -296,6 +341,27 @@ export default function Maintenance() {
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={() => {
+                setEditTargetId('');
+                setEditAmountValue('2500');
+                setIsEditAmountModalOpen(true);
+              }}
+              className="btn-secondary"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '8px 14px',
+                fontSize: 13,
+                fontWeight: 600,
+                borderRadius: 'var(--r-sm)',
+              }}
+            >
+              <Edit3 size={14} />
+              Edit bill amount
+            </button>
+
             <button
               onClick={() => setIsStatementModalOpen(true)}
               className="btn-secondary"
@@ -531,19 +597,43 @@ export default function Maintenance() {
                               </button>
                             </>
                           ) : (
-                            <span
-                              style={{
-                                fontSize: 12,
-                                fontWeight: 700,
-                                color: isApproved ? '#22c55e' : '#ef4444',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 4,
-                              }}
-                            >
-                              {isApproved ? <Check size={14} /> : <XCircle size={14} />}
-                              {isApproved ? 'Approved' : 'Rejected'}
-                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  color: isApproved ? '#22c55e' : '#ef4444',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                }}
+                              >
+                                {isApproved ? <Check size={14} /> : <XCircle size={14} />}
+                                {isApproved ? 'Approved' : 'Rejected'}
+                              </span>
+
+                              <button
+                                disabled={isActionLoading}
+                                onClick={() => handleResetPayment(item)}
+                                title="Reset payment back to UNPAID"
+                                style={{
+                                  background: 'rgba(239, 68, 68, 0.08)',
+                                  color: '#ef4444',
+                                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                                  padding: '5px 10px',
+                                  borderRadius: 'var(--r-sm)',
+                                  fontWeight: 600,
+                                  fontSize: 11,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                }}
+                              >
+                                <RotateCcw size={11} />
+                                Reset
+                              </button>
+                            </div>
                           )}
                         </div>
                       </td>
@@ -1034,6 +1124,104 @@ export default function Maintenance() {
                   Confirm Reject
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: EDIT BILL AMOUNT */}
+      <AnimatePresence>
+        {isEditAmountModalOpen && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.8)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: 16,
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              style={{
+                width: '100%',
+                maxWidth: 440,
+                background: 'var(--bg-card)',
+                borderRadius: 'var(--r-lg)',
+                border: '1px solid var(--border-subtle)',
+                padding: 24,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Edit3 size={18} style={{ color: 'var(--accent)' }} />
+                  Edit Maintenance Bill Amount
+                </h3>
+                <button
+                  onClick={() => setIsEditAmountModalOpen(false)}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                Update the monthly maintenance dues amount. Residents will see the updated amount and their direct UPI payment links will automatically update.
+              </p>
+
+              <form onSubmit={handleSaveAmount} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                    New Monthly Amount (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    required
+                    value={editAmountValue}
+                    onChange={(e) => setEditAmountValue(e.target.value)}
+                    placeholder="e.g. 2500"
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: 'var(--r-sm)',
+                      border: '1px solid var(--border-subtle)',
+                      background: 'var(--bg-input)',
+                      color: 'var(--text-primary)',
+                      fontSize: 15,
+                      fontWeight: 700,
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditAmountModalOpen(false)}
+                    className="btn-secondary"
+                    style={{ padding: '8px 16px', fontSize: 13 }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isActionLoading}
+                    className="btn-primary"
+                    style={{ padding: '8px 20px', fontSize: 13 }}
+                  >
+                    {isActionLoading ? 'Saving...' : 'Save New Amount'}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

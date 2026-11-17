@@ -52,6 +52,7 @@ class ApiEndpoints {
   // Maintenance & Direct UPI Payment (Zero Gateway Fee)
   static String get residentMaintenanceBill => '$baseUrl/resident/maintenance/current-bill';
   static String get residentMaintenanceSubmit => '$baseUrl/resident/maintenance/submit-payment';
+  static String get residentMaintenanceCancel => '$baseUrl/resident/maintenance/cancel-submission';
 
   // Notifications
   static String get notifications => '$baseUrl/notifications';

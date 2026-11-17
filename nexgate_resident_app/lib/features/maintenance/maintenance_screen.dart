@@ -112,12 +112,126 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
       debugPrint('[UPI] Launch error: $e');
     }
 
-    // Advance directly to Step 3 (Confirm UTR)
+    // Instead of forcing UTR entry immediately, prompt the resident
     if (mounted) {
-      setState(() {
-        _currentStep = MaintenanceStep.confirmUtr;
-      });
+      final appLabel = package != null
+          ? (package.contains('paisa')
+              ? 'Google Pay'
+              : package.contains('phonepe')
+                  ? 'PhonePe'
+                  : 'Paytm')
+          : 'UPI App';
+      _showPaymentConfirmationSheet(appLabel);
     }
+  }
+
+  /// Interactive confirmation dialog asking if payment was completed
+  void _showPaymentConfirmationSheet(String appName) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E222A),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  color: Color(0xFF38BDF8),
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Opened $appName',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Did you complete the payment of ${_formatINR(_bill!.totalAmount)} in your UPI app?',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    HapticHelper.mediumImpact();
+                    setState(() {
+                      _currentStep = MaintenanceStep.confirmUtr;
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text(
+                    'Yes, I Paid (Enter 12-Digit UTR)',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    // Keep resident right on Step 2 so they can re-try payment with any app
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFF334155)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text(
+                    'Didn\'t Pay Yet / Choose Another App',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF94A3B8),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   /// Pick payment screenshot proof from gallery or camera
@@ -208,7 +322,9 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Colors.white),
           onPressed: () {
-            if (_currentStep == MaintenanceStep.pickApp || _currentStep == MaintenanceStep.confirmUtr) {
+            if (_currentStep == MaintenanceStep.confirmUtr) {
+              setState(() => _currentStep = MaintenanceStep.pickApp);
+            } else if (_currentStep == MaintenanceStep.pickApp) {
               setState(() => _currentStep = MaintenanceStep.seeBill);
             } else {
               Navigator.of(context).pop();
@@ -630,7 +746,35 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
           'Enter the 12-digit UTR from your UPI app',
           style: TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 10),
+
+        // Shortcut to re-open payment apps if user hasn't paid yet
+        InkWell(
+          onTap: () {
+            HapticHelper.lightImpact();
+            setState(() => _currentStep = MaintenanceStep.pickApp);
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(vertical: 4.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.arrow_back_rounded, size: 14, color: Color(0xFF38BDF8)),
+                SizedBox(width: 6),
+                Text(
+                  'Didn\'t pay yet? Choose app & pay with UPI',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF38BDF8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
 
         // 12-digit UTR Input Field
         Container(
@@ -740,7 +884,34 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
           ),
         ),
 
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
+
+        // Back to payment apps button
+        SizedBox(
+          width: double.infinity,
+          height: 46,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              HapticHelper.lightImpact();
+              setState(() => _currentStep = MaintenanceStep.pickApp);
+            },
+            icon: const Icon(Icons.arrow_back_rounded, size: 16, color: Color(0xFF38BDF8)),
+            label: const Text(
+              'Didn\'t Pay Yet? Re-open Payment Apps',
+              style: TextStyle(
+                color: Color(0xFF38BDF8),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFF1E3A8A)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 10),
 
         // Payment failed - retry button
         Center(
@@ -749,8 +920,8 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
               setState(() => _currentStep = MaintenanceStep.seeBill);
             },
             child: const Text(
-              'Payment failed — retry',
-              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13, fontWeight: FontWeight.w500),
+              'Cancel and return to bill',
+              style: TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w500),
             ),
           ),
         ),
@@ -796,14 +967,62 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
             style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          Center(
+            child: TextButton.icon(
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: const Color(0xFF1E222A),
+                    title: const Text('Cancel Submission?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    content: const Text(
+                      'This will cancel your pending submission so you can re-open your UPI app and pay again.',
+                      style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(false),
+                        child: const Text('Keep Submission', style: TextStyle(color: Color(0xFF64748B))),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(ctx).pop(true),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                        child: const Text('Cancel & Pay Again', style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true && mounted) {
+                  try {
+                    await ApiService.cancelMaintenanceSubmission(_bill!.invoiceId);
+                    await _loadBill();
+                    setState(() => _currentStep = MaintenanceStep.pickApp);
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(e.toString())),
+                      );
+                    }
+                  }
+                }
+              },
+              icon: const Icon(Icons.refresh_rounded, size: 16, color: Color(0xFF38BDF8)),
+              label: const Text(
+                'Cancel Submission & Pay Again',
+                style: TextStyle(color: Color(0xFF38BDF8), fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           const Center(
             child: Text(
               '↓ after admin approves',
               style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
         ],
 
         // PAID STATE (After admin approves)

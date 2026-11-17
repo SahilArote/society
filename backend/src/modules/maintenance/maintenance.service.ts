@@ -710,4 +710,135 @@ export class MaintenanceService {
 
     return csvLines.join('\n');
   }
+
+  /**
+   * ADMIN: Edit maintenance bill amount for a flat / invoice
+   */
+  static async editInvoiceAmount(
+    societyId: string,
+    targetId: string, // invoiceId or flatId
+    newAmount: number,
+    breakdown?: BreakdownItem[]
+  ): Promise<{ success: boolean; message: string; updatedAmount: number }> {
+    const pool = await getMysqlPool();
+    if (!pool) throw new Error('Database connection unavailable');
+
+    if (newAmount < 0 || isNaN(newAmount)) {
+      throw new Error('Please enter a valid amount');
+    }
+
+    // Default breakdown if none provided
+    const defaultBreakdown = breakdown && breakdown.length > 0
+      ? breakdown
+      : [
+          { title: 'Maintenance', amount: Math.round(newAmount * 0.8) },
+          { title: 'Sinking fund', amount: Math.round(newAmount * 0.12) },
+          { title: 'Parking', amount: Math.round(newAmount * 0.08) },
+        ];
+
+    // Find invoice by id or flat_id
+    const [invs]: any = await pool.query(
+      'SELECT id, flat_id FROM maintenance_invoices WHERE (id = ? OR flat_id = ?) AND society_id = ? LIMIT 1',
+      [targetId, targetId, societyId]
+    );
+
+    if (invs.length === 0) {
+      throw new Error('Invoice not found');
+    }
+
+    const inv = invs[0];
+
+    await pool.query(
+      `UPDATE maintenance_invoices SET
+        total_amount = ?,
+        breakdown_json = ?,
+        updated_at = NOW()
+      WHERE id = ? AND society_id = ?`,
+      [newAmount, JSON.stringify(defaultBreakdown), inv.id, societyId]
+    );
+
+    return {
+      success: true,
+      message: `Maintenance bill updated to ₹${newAmount.toLocaleString('en-IN')}`,
+      updatedAmount: newAmount,
+    };
+  }
+
+  /**
+   * ADMIN: Reset payment status back to UNPAID
+   */
+  static async resetPayment(
+    societyId: string,
+    targetId: string // paymentId, invoiceId, or flatId
+  ): Promise<{ success: boolean; message: string }> {
+    const pool = await getMysqlPool();
+    if (!pool) throw new Error('Database connection unavailable');
+
+    // 1. Resolve invoice
+    let invId = targetId;
+    const [invRows]: any = await pool.query(
+      'SELECT id FROM maintenance_invoices WHERE (id = ? OR flat_id = ?) AND society_id = ? LIMIT 1',
+      [targetId, targetId, societyId]
+    );
+
+    if (invRows.length > 0) {
+      invId = invRows[0].id;
+    }
+
+    // 2. Revert invoice to UNPAID
+    await pool.query(
+      `UPDATE maintenance_invoices SET
+        status = 'UNPAID',
+        paid_amount = 0.00,
+        paid_at = NULL,
+        updated_at = NOW()
+      WHERE id = ? AND society_id = ?`,
+      [invId, societyId]
+    );
+
+    // 3. Delete / Clear payments for this invoice
+    await pool.query(
+      `DELETE FROM maintenance_payments 
+       WHERE (invoice_id = ? OR id = ? OR flat_id = ?) AND society_id = ?`,
+      [invId, targetId, targetId, societyId]
+    );
+
+    return {
+      success: true,
+      message: 'Payment has been successfully reset. The bill is now UNPAID and resident can pay again.',
+    };
+  }
+
+  /**
+   * RESIDENT: Cancel own pending UTR submission to retry payment
+   */
+  static async cancelResidentSubmission(
+    societyId: string,
+    residentId: string,
+    invoiceId: string
+  ): Promise<{ success: boolean; message: string }> {
+    const pool = await getMysqlPool();
+    if (!pool) throw new Error('Database connection unavailable');
+
+    // Remove pending payment
+    await pool.query(
+      `DELETE FROM maintenance_payments 
+       WHERE invoice_id = ? AND society_id = ? AND status = 'PENDING_CHECK'`,
+      [invoiceId, societyId]
+    );
+
+    // Revert invoice back to UNPAID
+    await pool.query(
+      `UPDATE maintenance_invoices SET
+        status = 'UNPAID',
+        updated_at = NOW()
+      WHERE id = ? AND society_id = ?`,
+      [invoiceId, societyId]
+    );
+
+    return {
+      success: true,
+      message: 'Submission cancelled. You can now choose a payment app and pay again.',
+    };
+  }
 }

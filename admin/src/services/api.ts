@@ -883,3 +883,23 @@ export async function remindAdminFlatResident(flatId: string) {
   });
   return res.json();
 }
+
+export async function editAdminMaintenanceAmount(targetId: string, newAmount: number) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/maintenance/admin/edit-amount`, {
+    method: 'POST',
+    body: JSON.stringify({ targetId, newAmount }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error?.message || 'Failed to update maintenance amount');
+  return json;
+}
+
+export async function resetAdminPayment(targetId: string) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/maintenance/admin/reset-payment`, {
+    method: 'POST',
+    body: JSON.stringify({ targetId }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error?.message || 'Failed to reset payment');
+  return json;
+}

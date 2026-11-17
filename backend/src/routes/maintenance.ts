@@ -101,6 +101,42 @@ router.post(
   }
 );
 
+/**
+ * POST /api/resident/maintenance/cancel-submission
+ * Resident cancels their own pending submission to pay again
+ */
+router.post(
+  ['/cancel-submission', '/resident/cancel-submission'],
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const societyId = req.user?.societyId || 'soc_greengate';
+      const residentId = req.user?.id || 'res_sahil';
+      const { invoiceId } = req.body;
+
+      if (!invoiceId) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Invoice ID is required' },
+        });
+      }
+
+      const result = await MaintenanceService.cancelResidentSubmission(societyId, residentId, invoiceId);
+
+      return res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error: any) {
+      console.error('[MAINTENANCE RESIDENT API] Error cancelling submission:', error);
+      return res.status(400).json({
+        success: false,
+        error: { code: 'CANCEL_ERROR', message: error.message || 'Failed to cancel submission' },
+      });
+    }
+  }
+);
+
 // ==========================================
 // ADMIN ENDPOINTS
 // ==========================================
@@ -277,6 +313,83 @@ router.post(
       return res.status(400).json({
         success: false,
         error: { code: 'CONFIG_ERROR', message: error.message || 'Failed to set UPI ID' },
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/maintenance/admin/edit-amount
+ * Admin updates the maintenance bill amount for a flat / invoice
+ */
+router.post(
+  '/admin/edit-amount',
+  authenticateToken,
+  authorizeRoles('ADMIN'),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const societyId = req.user?.societyId || 'soc_greengate';
+      const { targetId, newAmount, breakdown } = req.body;
+
+      if (!targetId || newAmount === undefined) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Target ID (invoice/flat) and newAmount are required' },
+        });
+      }
+
+      const result = await MaintenanceService.editInvoiceAmount(
+        societyId,
+        targetId,
+        Number(newAmount),
+        breakdown
+      );
+
+      return res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error: any) {
+      console.error('[MAINTENANCE ADMIN API] Error updating amount:', error);
+      return res.status(400).json({
+        success: false,
+        error: { code: 'UPDATE_ERROR', message: error.message || 'Failed to update bill amount' },
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/maintenance/admin/reset-payment
+ * Admin resets a resident payment back to UNPAID
+ */
+router.post(
+  '/admin/reset-payment',
+  authenticateToken,
+  authorizeRoles('ADMIN'),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const societyId = req.user?.societyId || 'soc_greengate';
+      const { targetId } = req.body; // paymentId, invoiceId, or flatId
+
+      if (!targetId) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Target ID (payment/invoice/flat) is required' },
+        });
+      }
+
+      const result = await MaintenanceService.resetPayment(societyId, targetId);
+
+      return res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error: any) {
+      console.error('[MAINTENANCE ADMIN API] Error resetting payment:', error);
+      return res.status(400).json({
+        success: false,
+        error: { code: 'RESET_ERROR', message: error.message || 'Failed to reset payment' },
       });
     }
   }

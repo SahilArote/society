@@ -1174,4 +1174,13 @@ class ApiService {
       return _handleResponse(response);
     }
   }
+
+  static Future<void> cancelMaintenanceSubmission(String invoiceId) async {
+    final response = await _post(
+      Uri.parse(ApiEndpoints.residentMaintenanceCancel),
+      headers: _headers(),
+      body: jsonEncode({'invoiceId': invoiceId}),
+    );
+    _handleResponse(response);
+  }
 }
