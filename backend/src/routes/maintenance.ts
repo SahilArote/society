@@ -20,7 +20,7 @@ const upload = multer({
  * GET /api/resident/maintenance/current-bill
  * Fetch current maintenance bill, breakdown items, society UPI config, and UTR status
  */
-router.get('/resident/current-bill', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.get(['/current-bill', '/resident/current-bill'], authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const societyId = req.user?.societyId || 'soc_greengate';
     const residentId = req.user?.id || 'res_sahil';
@@ -46,7 +46,7 @@ router.get('/resident/current-bill', authenticateToken, async (req: Authenticate
  * Resident submits 12-digit UTR with optional payment screenshot
  */
 router.post(
-  '/resident/submit-payment',
+  ['/submit-payment', '/resident/submit-payment'],
   authenticateToken,
   upload.single('screenshot'),
   async (req: AuthenticatedRequest, res: Response) => {

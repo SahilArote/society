@@ -31,10 +31,10 @@ import {
 
 export default function Maintenance() {
   const [overview, setOverview] = useState<AdminMaintenanceOverview>({
-    collectedNov: 310000,
-    collectedNovFormatted: '₹3.1L',
-    pendingCheck: 12,
-    unpaidFlats: 18,
+    collectedNov: 0,
+    collectedNovFormatted: '₹0',
+    pendingCheck: 0,
+    unpaidFlats: 0,
     gatewayFees: 0,
   });
   const [queue, setQueue] = useState<VerificationQueueItem[]>([]);
@@ -52,8 +52,8 @@ export default function Maintenance() {
 
   // Form State for Set Society UPI
   const [upiForm, setUpiForm] = useState({
-    merchantVpa: 'greenvalley@icici',
-    merchantName: 'Green Valley CHS',
+    merchantVpa: 'ecoresidency@icici',
+    merchantName: 'Eco Residency CHS',
     bankName: 'ICICI Bank',
     accountNumber: '',
   });

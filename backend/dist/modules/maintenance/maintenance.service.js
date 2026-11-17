@@ -29,10 +29,12 @@ class MaintenanceService {
             return configs[0];
         }
         // Auto-create default merchant UPI if not set yet
+        const [socRows] = await pool.query('SELECT name FROM societies WHERE id = ?', [societyId]);
+        const societyName = socRows[0]?.name || 'Eco Residency CHS';
         const id = `spc_${(0, uuid_1.v4)().slice(0, 8)}`;
         await pool.query(`INSERT INTO society_payment_configs (
         id, society_id, merchant_vpa, merchant_name, bank_name, account_number_masked, ifsc_code
-      ) VALUES (?, ?, 'greenvalley@icici', 'Green Valley CHS', 'ICICI Bank', '•••• •••• •••• 4589', 'ICIC0001234')`, [id, societyId]);
+      ) VALUES (?, ?, 'ecoresidency@icici', ?, 'ICICI Bank', '•••• •••• •••• 4589', 'ICIC0001234')`, [id, societyId, societyName]);
         const [created] = await pool.query('SELECT * FROM society_payment_configs WHERE id = ?', [id]);
         return created[0];
     }
@@ -241,7 +243,7 @@ class MaintenanceService {
         const [collectedRows] = await pool.query(`SELECT COALESCE(SUM(paid_amount), 0) as totalCollected
        FROM maintenance_invoices 
        WHERE society_id = ? AND status = 'PAID' AND billing_period = 'Nov 2026'`, [societyId]);
-        const collectedNov = Number(collectedRows[0]?.totalCollected) || 310000; // Defaults to 3.1L if initial mockup
+        const collectedNov = Number(collectedRows[0]?.totalCollected) || 0;
         // 2. Pending check count
         const [pendingRows] = await pool.query("SELECT COUNT(*) as cnt FROM maintenance_payments WHERE society_id = ? AND status = 'PENDING_CHECK'", [societyId]);
         const pendingCheck = Number(pendingRows[0]?.cnt) || 0;
@@ -251,8 +253,8 @@ class MaintenanceService {
         return {
             collectedNov,
             collectedNovFormatted: this.formatLakhs(collectedNov),
-            pendingCheck: pendingCheck > 0 ? pendingCheck : 12, // Matches reference visual
-            unpaidFlats: unpaidFlats > 0 ? unpaidFlats : 18, // Matches reference visual
+            pendingCheck,
+            unpaidFlats,
             gatewayFees: 0, // ₹0 gateway fees
         };
     }

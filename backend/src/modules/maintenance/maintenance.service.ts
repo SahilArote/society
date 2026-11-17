@@ -40,12 +40,14 @@ export class MaintenanceService {
     }
 
     // Auto-create default merchant UPI if not set yet
+    const [socRows]: any = await pool.query('SELECT name FROM societies WHERE id = ?', [societyId]);
+    const societyName = socRows[0]?.name || 'Eco Residency CHS';
     const id = `spc_${uuidv4().slice(0, 8)}`;
     await pool.query(
       `INSERT INTO society_payment_configs (
         id, society_id, merchant_vpa, merchant_name, bank_name, account_number_masked, ifsc_code
-      ) VALUES (?, ?, 'greenvalley@icici', 'Green Valley CHS', 'ICICI Bank', '•••• •••• •••• 4589', 'ICIC0001234')`,
-      [id, societyId]
+      ) VALUES (?, ?, 'ecoresidency@icici', ?, 'ICICI Bank', '•••• •••• •••• 4589', 'ICIC0001234')`,
+      [id, societyId, societyName]
     );
 
     const [created]: any = await pool.query(
@@ -339,7 +341,7 @@ export class MaintenanceService {
       [societyId]
     );
 
-    const collectedNov = Number(collectedRows[0]?.totalCollected) || 310000; // Defaults to 3.1L if initial mockup
+    const collectedNov = Number(collectedRows[0]?.totalCollected) || 0;
 
     // 2. Pending check count
     const [pendingRows]: any = await pool.query(
@@ -358,8 +360,8 @@ export class MaintenanceService {
     return {
       collectedNov,
       collectedNovFormatted: this.formatLakhs(collectedNov),
-      pendingCheck: pendingCheck > 0 ? pendingCheck : 12, // Matches reference visual
-      unpaidFlats: unpaidFlats > 0 ? unpaidFlats : 18,     // Matches reference visual
+      pendingCheck,
+      unpaidFlats,
       gatewayFees: 0, // ₹0 gateway fees
     };
   }
