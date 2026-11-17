@@ -869,3 +869,17 @@ export async function downloadMaintenanceLedger(): Promise<void> {
   document.body.removeChild(a);
   window.URL.revokeObjectURL(url);
 }
+
+export async function markAdminFlatPaid(flatId: string) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/maintenance/admin/mark-paid/${flatId}`, {
+    method: 'POST',
+  });
+  return res.json();
+}
+
+export async function remindAdminFlatResident(flatId: string) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/maintenance/admin/remind-flat/${flatId}`, {
+    method: 'POST',
+  });
+  return res.json();
+}

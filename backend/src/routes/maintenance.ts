@@ -331,6 +331,73 @@ router.post(
 );
 
 /**
+ * POST /api/maintenance/admin/mark-paid/:flatId
+ * Mark a specific flat's maintenance bill as paid
+ */
+router.post(
+  '/admin/mark-paid/:flatId',
+  authenticateToken,
+  authorizeRoles('ADMIN'),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const societyId = req.user?.societyId || 'soc_greengate';
+      const { flatId } = req.params;
+      const pool = await getMysqlPool();
+      if (!pool) throw new Error('Database pool unavailable');
+
+      await pool.query(
+        `UPDATE maintenance_invoices 
+         SET status = 'PAID', paid_amount = total_amount, paid_at = NOW(), updated_at = NOW() 
+         WHERE society_id = ? AND flat_id = ? AND status != 'PAID'`,
+        [societyId, flatId]
+      );
+
+      return res.json({ success: true, message: 'Maintenance marked as paid' });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: { message: err.message } });
+    }
+  }
+);
+
+/**
+ * POST /api/maintenance/admin/remind-flat/:flatId
+ * Send a maintenance reminder to a specific flat resident
+ */
+router.post(
+  '/admin/remind-flat/:flatId',
+  authenticateToken,
+  authorizeRoles('ADMIN'),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const societyId = req.user?.societyId || 'soc_greengate';
+      const { flatId } = req.params;
+      const pool = await getMysqlPool();
+      if (!pool) throw new Error('Database pool unavailable');
+
+      const [rows]: any = await pool.query(
+        `SELECT f.flat_number, f.resident_id, inv.total_amount, inv.billing_period 
+         FROM flats f 
+         JOIN maintenance_invoices inv ON f.id = inv.flat_id 
+         WHERE f.society_id = ? AND f.id = ? LIMIT 1`,
+        [societyId, flatId]
+      );
+
+      if (rows.length > 0 && rows[0].resident_id) {
+        sendPushToUser(rows[0].resident_id, {
+          title: 'Maintenance Due Reminder ⏰',
+          body: `Dear resident, your maintenance bill of ₹${Number(rows[0].total_amount).toLocaleString('en-IN')} for ${rows[0].billing_period} (Flat ${rows[0].flat_number}) is pending. Please pay via UPI.`,
+          data: { type: 'MAINTENANCE_REMINDER', flatNumber: rows[0].flat_number },
+        }).catch(() => {});
+      }
+
+      return res.json({ success: true, message: 'Reminder dispatched to resident' });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: { message: err.message } });
+    }
+  }
+);
+
+/**
  * POST /api/maintenance/upload-statement
  * Upload bank statement CSV to auto-match UTRs
  */

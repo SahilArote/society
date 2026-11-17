@@ -9,7 +9,7 @@ import {
 import type { Flat, FlatResident as Resident } from '../types';
 import StatCard from '../components/StatCard';
 import { RegistrationRequestsSection } from '../components/RegistrationRequestsSection';
-import { fetchAdminFlats, createAdminFlat, deleteAdminFlat, deleteAdminResident, downloadCsvTemplate, bulkImportFlats, mergeDuplicateFlats, type BulkImportResponse } from '../services/api';
+import { fetchAdminFlats, createAdminFlat, deleteAdminFlat, deleteAdminResident, downloadCsvTemplate, bulkImportFlats, mergeDuplicateFlats, markAdminFlatPaid, remindAdminFlatResident, type BulkImportResponse } from '../services/api';
 
 /* ── Badges ──────────────────────────────────────────────── */
 function MaintBadge({ s }: { s: string }) {
@@ -456,16 +456,29 @@ export default function Residents() {
     setTimeout(() => setToastMsg(null), 2500);
   };
 
-  const handleMarkPaid = (flatId: string) => {
-    setFlats(prev => prev.map(f => f.id === flatId ? { ...f, maintenanceStatus: 'paid', maintenanceDueAmount: undefined } : f));
-    if (selected?.id === flatId) {
-      setSelected(prev => prev ? { ...prev, maintenanceStatus: 'paid', maintenanceDueAmount: undefined } : null);
+  const handleMarkPaid = async (flatId: string) => {
+    try {
+      await markAdminFlatPaid(flatId);
+      setFlats(prev => prev.map(f => f.id === flatId ? { ...f, maintenanceStatus: 'paid', maintenanceDueAmount: undefined } : f));
+      if (selected?.id === flatId) {
+        setSelected(prev => prev ? { ...prev, maintenanceStatus: 'paid', maintenanceDueAmount: undefined } : null);
+      }
+      showToast('Maintenance marked as Paid and verified in database');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to mark as paid');
     }
-    showToast('Maintenance marked as Paid and receipt generated');
   };
 
-  const handleSendNotice = (flatNum: string) => {
-    showToast(`Notice alert dispatched to Flat ${flatNum}`);
+  const handleSendNotice = async (flatNum: string) => {
+    try {
+      const targetFlat = flats.find(f => f.number === flatNum) || selected;
+      if (targetFlat) {
+        await remindAdminFlatResident(targetFlat.id);
+      }
+      showToast(`Notice alert dispatched to Flat ${flatNum}`);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to dispatch notice');
+    }
   };
 
   const exportDirectory = () => {

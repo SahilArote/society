@@ -1510,6 +1510,37 @@ export async function findFlatsWithResidents(societyId: string): Promise<any[]> 
     // Tables might be empty
   }
 
+  // Fetch real maintenance dues from maintenance_invoices
+  let maintMap: Record<string, { status: string; dueAmount: number }> = {};
+  try {
+    const [invRows]: any = await pool.query(
+      `SELECT flat_id, total_amount, paid_amount, status 
+       FROM maintenance_invoices 
+       WHERE society_id = ? 
+       ORDER BY created_at DESC`,
+      [societyId]
+    );
+    for (const inv of (invRows || [])) {
+      if (!maintMap[inv.flat_id]) {
+        const remaining = Math.max(0, Number(inv.total_amount) - Number(inv.paid_amount));
+        let s = 'paid';
+        if (inv.status === 'PAID') {
+          s = 'paid';
+        } else if (inv.status === 'OVERDUE') {
+          s = 'overdue';
+        } else {
+          s = remaining > 0 ? 'due' : 'paid';
+        }
+        maintMap[inv.flat_id] = {
+          status: s,
+          dueAmount: s !== 'paid' ? remaining : 0,
+        };
+      }
+    }
+  } catch (err) {
+    // Table might be empty
+  }
+
   return rows.map((r: any) => {
     const isOccupied = !!r.resident_id && !!r.res_name;
     const owner = isOccupied ? [
@@ -1527,6 +1558,7 @@ export async function findFlatsWithResidents(societyId: string): Promise<any[]> 
     const residents = [...owner, ...famList];
     const vehicleCount = isOccupied ? (vehicleMap[r.id] || vehicleMap[r.user_id] || 1) : 0;
     const type = r.flat_number.endsWith('01') || r.flat_number.endsWith('04') ? '3BHK' : '2BHK';
+    const maint = maintMap[r.id] || (isOccupied ? { status: 'due', dueAmount: 2500 } : { status: 'paid', dueAmount: 0 });
 
     return {
       id: r.id,
@@ -1538,8 +1570,8 @@ export async function findFlatsWithResidents(societyId: string): Promise<any[]> 
       status: isOccupied ? 'occupied' : 'vacant',
       residents,
       vehicleCount,
-      maintenanceStatus: 'paid',
-      maintenanceDueAmount: 0,
+      maintenanceStatus: maint.status,
+      maintenanceDueAmount: maint.dueAmount,
     };
   });
 }

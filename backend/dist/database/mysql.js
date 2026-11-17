@@ -162,32 +162,34 @@ async function seedMaintenanceDefaults(pool) {
         ) VALUES (?, ?, 'greenvalley@icici', 'Green Valley CHS', 'ICICI Bank', '•••• •••• •••• 4589', 'ICIC0001234')`, ['spc_greenvalley', societyId]);
             console.log('[MySQL] Seeded default society merchant UPI: greenvalley@icici');
         }
-        // 2. Ensure Flats exist for sample queue (A-101, B-204, C-302, A-405)
-        const sampleFlats = [
-            { id: 'flat_a101', flat_number: 'A-101', wing: 'Wing A', floor: 1 },
-            { id: 'flat_b204', flat_number: 'B-204', wing: 'Wing B', floor: 2 },
-            { id: 'flat_c302', flat_number: 'C-302', wing: 'Wing C', floor: 3 },
-            { id: 'flat_a405', flat_number: 'A-405', wing: 'Wing A', floor: 4 },
-        ];
-        for (const f of sampleFlats) {
-            await pool.query(`INSERT IGNORE INTO flats (id, society_id, flat_number, wing, floor) 
-         VALUES (?, ?, ?, ?, ?)`, [f.id, societyId, f.flat_number, f.wing, f.floor]);
-        }
-        // 3. Seed Resident Bill for Sahil (flat_a402) - Nov 2026, ₹2,500
-        const [sahilInv] = await pool.query("SELECT id FROM maintenance_invoices WHERE society_id = ? AND flat_id = 'flat_a402' AND billing_period = 'Nov 2026'", [societyId]);
-        if (sahilInv.length === 0) {
-            const breakdown = JSON.stringify([
-                { title: 'Maintenance', amount: 2000 },
-                { title: 'Sinking fund', amount: 300 },
-                { title: 'Parking', amount: 200 },
-            ]);
+        // 2. Ensure active Nov 2026 maintenance invoice for all occupied flats in society
+        const [realFlats] = await pool.query(`SELECT f.id, f.flat_number, f.wing, f.resident_id 
+       FROM flats f 
+       WHERE f.society_id = ? AND f.resident_id IS NOT NULL`, [societyId]);
+        const breakdown = JSON.stringify([
+            { title: 'Maintenance', amount: 2000 },
+            { title: 'Sinking fund', amount: 300 },
+            { title: 'Parking', amount: 200 },
+        ]);
+        for (const f of realFlats) {
+            const cleanFlat = f.flat_number.replace(/[^a-zA-Z0-9]/g, '');
+            const invId = `inv_${f.id.replace(/[^a-zA-Z0-9]/g, '')}_nov2026`;
+            const refId = `NXG-${cleanFlat}-112026`;
             await pool.query(`INSERT IGNORE INTO maintenance_invoices (
           id, society_id, flat_id, resident_id, invoice_number,
           billing_period, due_date, total_amount, paid_amount, status,
           breakdown_json, reference_id
-        ) VALUES (?, ?, 'flat_a402', 'res_sahil', 'INV-2026-11-A402', 'Nov 2026', '2026-12-10', 2500.00, 0.00, 'UNPAID', ?, 'NXG-A402-112026')`, ['inv_sahil_nov', societyId, breakdown]);
-            console.log('[MySQL] Real Nov 2026 bill active for Sahil Arote (flat_a402)');
+        ) VALUES (?, ?, ?, ?, ?, 'Nov 2026', '2026-12-10', 2500.00, 0.00, 'UNPAID', ?, ?)`, [
+                invId,
+                societyId,
+                f.id,
+                f.resident_id,
+                `INV-2026-11-${cleanFlat}`,
+                breakdown,
+                refId,
+            ]);
         }
+        console.log(`[MySQL] Active Nov 2026 maintenance bills initialized for ${realFlats.length} occupied flats`);
     }
     catch (err) {
         console.warn('[MySQL] Maintenance initialization notice:', err.message);
