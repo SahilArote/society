@@ -90,6 +90,8 @@ class NotificationService {
 
   static bool _isInitialized = false;
 
+  static bool _isFirebaseAvailable = false;
+
 
 
 
@@ -410,6 +412,8 @@ class NotificationService {
 
       if (Firebase.apps.isEmpty) { await Firebase.initializeApp(); }
 
+      _isFirebaseAvailable = true;
+
 
 
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -615,11 +619,9 @@ class NotificationService {
 
     } catch (e) {
 
-
+      _isFirebaseAvailable = false;
 
       debugPrint('[FCM] Firebase initialization notice: $e');
-
-
 
     }
 
@@ -649,6 +651,8 @@ class NotificationService {
 
   static Future<void> syncFcmToken() async {
 
+    if (!_isFirebaseAvailable) return;
+
     try {
 
       final fcmToken = await FirebaseMessaging.instance.getToken();
@@ -674,6 +678,8 @@ class NotificationService {
   /// Unregisters FCM token from backend and wipes it locally upon logout
 
   static Future<void> unregisterFcmToken() async {
+
+    if (!_isFirebaseAvailable) return;
 
     try {
 
@@ -712,30 +718,24 @@ class NotificationService {
 
 
     try {
-
-
-
-      final androidImplementation = _notificationsPlugin
-
-
-
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-
-
-
-
-
-
-
-      final granted = await androidImplementation?.requestNotificationsPermission();
-
-
-
-      debugPrint('[NotificationService] Android Notification Permission: $granted');
-
-
-
-      return granted ?? true;
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        final androidImplementation = _notificationsPlugin
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        final granted = await androidImplementation?.requestNotificationsPermission();
+        debugPrint('[NotificationService] Android Notification Permission: $granted');
+        return granted ?? true;
+      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+        final iosImplementation = _notificationsPlugin
+            .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+        final granted = await iosImplementation?.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        debugPrint('[NotificationService] iOS Notification Permission: $granted');
+        return granted ?? true;
+      }
+      return true;
 
 
 

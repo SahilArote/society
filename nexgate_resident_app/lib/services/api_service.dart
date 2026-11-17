@@ -808,7 +808,7 @@ class ApiService {
 
           'token': fcmToken.trim(),
 
-          'deviceType': 'android',
+          'deviceType': defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android',
 
         }),
 
