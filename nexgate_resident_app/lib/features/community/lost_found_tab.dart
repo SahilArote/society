@@ -1,9 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_dimensions.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/utils/haptic_helper.dart';
-import '../../core/widgets/empty_state_widget.dart';
 import '../../core/widgets/error_state_widget.dart';
 import '../../core/widgets/loading_skeleton.dart';
 import '../../models/lost_found_model.dart';
@@ -369,7 +367,7 @@ class _LostFoundTabState extends State<LostFoundTab> {
                     ? Image.network(
                         item.imageUrl!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _buildFallbackThumbnail(isLost),
+                        errorBuilder: (_, _, _) => _buildFallbackThumbnail(isLost),
                       )
                     : _buildFallbackThumbnail(isLost),
               ),

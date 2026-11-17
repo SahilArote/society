@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_dimensions.dart';
 import '../../core/utils/haptic_helper.dart';
 import '../../core/widgets/loading_skeleton.dart';
 import '../../models/visitor_model.dart';
@@ -14,6 +13,7 @@ import '../household/vehicles_screen.dart';
 import '../visitors/invite_visitor_screen.dart';
 import '../visitors/visitor_detail_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../maintenance/maintenance_screen.dart';
 import 'widgets/quick_actions_grid.dart';
 import 'widgets/recent_visitors_section.dart';
 import 'widgets/security_status_card.dart';
@@ -104,7 +104,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> with WidgetsB
       debugPrint('[Dashboard] Visitor updated via socket: $updatedData');
       if (!mounted) return;
       final reqId = updatedData['requestId']?.toString() ?? updatedData['id']?.toString() ?? updatedData['_id']?.toString();
-      final status = updatedData['status']?.toString()?.toUpperCase();
+      final status = updatedData['status']?.toString().toUpperCase();
 
       if (reqId != null && status != null && status != 'PENDING') {
         setState(() {
@@ -259,6 +259,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> with WidgetsB
                           );
                         },
                       ),
+
+                      const SizedBox(height: 16),
+
+                      // Direct UPI Maintenance Payment Card (₹0 Gateway Fees)
+                      _buildMaintenanceBanner(context),
 
                       // Urgent Pending Gate Alert (only show if visitor is actually pending & not approved)
                       if (_pendingVisitors.isNotEmpty && _pendingVisitors.first.isPending) ...[
@@ -608,6 +613,125 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> with WidgetsB
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMaintenanceBanner(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        HapticHelper.lightImpact();
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const MaintenanceScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(22),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: const Color(0xFF334155), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0F172A).withValues(alpha: 0.2),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.account_balance_wallet_rounded,
+                color: Color(0xFF38BDF8),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'Maintenance Due',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          '₹0 Fee',
+                          style: TextStyle(
+                            color: Color(0xFF34D399),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Nov 2026 • ₹2,500 due 10 Dec',
+                    style: TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Pay',
+                    style: TextStyle(
+                      color: Color(0xFF0F172A),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(width: 4),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 14,
+                    color: Color(0xFF0F172A),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

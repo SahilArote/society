@@ -733,3 +733,173 @@ export async function deleteAdminLostFound(id: string) {
   }
   return true;
 }
+
+// ==========================================
+// MAINTENANCE & DIRECT UPI PAYMENT APIS (₹0 FEE)
+// ==========================================
+
+export interface AdminMaintenanceOverview {
+  collectedNov: number;
+  collectedNovFormatted: string;
+  pendingCheck: number;
+  unpaidFlats: number;
+  gatewayFees: number;
+}
+
+export interface VerificationQueueItem {
+  paymentId: string;
+  invoiceId: string;
+  flatNumber: string;
+  wing: string;
+  residentName: string;
+  residentMobile?: string;
+  amount: number;
+  utr: string;
+  screenshotUrl?: string;
+  bankMatchStatus: 'FOUND' | 'AMOUNT_SHORT' | 'NOT_YET';
+  status: 'PENDING_CHECK' | 'APPROVED' | 'REJECTED';
+  submittedAt: string;
+  verifiedAt?: string;
+  receiptNumber?: string;
+}
+
+export async function fetchMaintenanceOverview(): Promise<AdminMaintenanceOverview> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/maintenance/overview`);
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.error?.message || 'Failed to fetch maintenance overview');
+  }
+  return json.data;
+}
+
+export async function fetchVerificationQueue(status?: string): Promise<VerificationQueueItem[]> {
+  const query = status ? `?status=${status}` : '';
+  const res = await fetchWithAuth(`${API_BASE_URL}/maintenance/verification-queue${query}`);
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.error?.message || 'Failed to fetch verification queue');
+  }
+  return json.data || [];
+}
+
+export async function approveMaintenancePayment(paymentId: string): Promise<{ success: boolean; receiptNumber: string; message: string }> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/maintenance/approve-payment/${paymentId}`, {
+    method: 'POST',
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.error?.message || 'Failed to approve payment');
+  }
+  return json.data;
+}
+
+export async function rejectMaintenancePayment(paymentId: string, reason: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/maintenance/reject-payment/${paymentId}`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.error?.message || 'Failed to reject payment');
+  }
+  return json.data;
+}
+
+export async function setSocietyUpiConfig(data: {
+  merchantVpa: string;
+  merchantName: string;
+  bankName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+}): Promise<{ success: boolean; message: string }> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/maintenance/set-upi`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.error?.message || 'Failed to set UPI ID');
+  }
+  return json.data;
+}
+
+export async function remindUnpaidResidents(): Promise<{ sentCount: number }> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/maintenance/remind-unpaid`, {
+    method: 'POST',
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.error?.message || 'Failed to send reminders');
+  }
+  return json.data;
+}
+
+export async function uploadBankStatementFile(file: File): Promise<{ matchedCount: number; shortAmountCount: number; totalProcessed: number }> {
+  const formData = new FormData();
+  formData.append('statement', file);
+
+  const res = await fetchWithAuth(`${API_BASE_URL}/maintenance/upload-statement`, {
+    method: 'POST',
+    body: formData,
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.error?.message || 'Failed to upload statement');
+  }
+  return json.data;
+}
+
+export async function downloadMaintenanceLedger(): Promise<void> {
+  const token = getAdminToken();
+  const res = await fetch(`${API_BASE_URL}/maintenance/export-ledger`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    throw new Error('Failed to download ledger');
+  }
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `maintenance_ledger_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
+
+export async function markAdminFlatPaid(flatId: string) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/maintenance/admin/mark-paid/${flatId}`, {
+    method: 'POST',
+  });
+  return res.json();
+}
+
+export async function remindAdminFlatResident(flatId: string) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/maintenance/admin/remind-flat/${flatId}`, {
+    method: 'POST',
+  });
+  return res.json();
+}
+
+export async function editAdminMaintenanceAmount(targetId: string, newAmount: number) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/maintenance/admin/edit-amount`, {
+    method: 'POST',
+    body: JSON.stringify({ targetId, newAmount }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error?.message || 'Failed to update maintenance amount');
+  return json;
+}
+
+export async function resetAdminPayment(targetId: string) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/maintenance/admin/reset-payment`, {
+    method: 'POST',
+    body: JSON.stringify({ targetId }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error?.message || 'Failed to reset payment');
+  return json;
+}

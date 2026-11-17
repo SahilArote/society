@@ -2,9 +2,7 @@
 import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
-import '../../core/constants/app_typography.dart';
 import '../../core/utils/haptic_helper.dart';
-import '../../core/widgets/custom_app_bar.dart';
 import '../../core/widgets/empty_state_widget.dart';
 import '../../core/widgets/error_state_widget.dart';
 import '../../core/widgets/loading_skeleton.dart';
@@ -278,7 +276,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: _categories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 final cat = _categories[index];
                 final isSelected = _selectedCategory == cat;

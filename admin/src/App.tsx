@@ -11,6 +11,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Residents = lazy(() => import('./pages/Residents'));
 const Visitors = lazy(() => import('./pages/Visitors'));
 const Gates = lazy(() => import('./pages/Gates'));
+const Maintenance = lazy(() => import('./pages/Maintenance'));
 const Services = lazy(() => import('./pages/Services'));
 const Community = lazy(() => import('./pages/Community'));
 const Announcements = lazy(() => import('./pages/Announcements'));
@@ -74,6 +75,7 @@ export default function App() {
                 <Route path="residents" element={<Residents />} />
                 <Route path="visitors" element={<Visitors />} />
                 <Route path="gates" element={<Gates />} />
+                <Route path="maintenance" element={<Maintenance />} />
                 <Route path="services" element={<Services />} />
                 <Route path="community" element={<Community />} />
                 <Route path="announcements" element={<Announcements />} />
@@ -87,6 +89,7 @@ export default function App() {
               <Route path="/residents" element={<Navigate to="/admin/residents" replace />} />
               <Route path="/visitors" element={<Navigate to="/admin/visitors" replace />} />
               <Route path="/gates" element={<Navigate to="/admin/gates" replace />} />
+              <Route path="/maintenance" element={<Navigate to="/admin/maintenance" replace />} />
               <Route path="/services" element={<Navigate to="/admin/services" replace />} />
               <Route path="/community" element={<Navigate to="/admin/community" replace />} />
               <Route path="/announcements" element={<Navigate to="/admin/announcements" replace />} />

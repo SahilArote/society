@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, UserCheck,
   DoorOpen, Megaphone, Bell, BarChart3,
   Settings, LogOut, Building2, ChevronRight,
-  Wrench, CalendarDays
+  Wrench, CalendarDays, Receipt
 } from 'lucide-react';
 import { mockAdminUser } from '../../data/mockData';
 import { clearAdminSession } from '../../services/api';
@@ -14,6 +14,7 @@ const NAV = [
   { to: '/admin/residents', icon: Users, label: 'Residents', section: 'Management' },
   { to: '/admin/visitors', icon: UserCheck, label: 'Visitors', section: 'Management' },
   { to: '/admin/gates', icon: DoorOpen, label: 'Gates & Guards', section: 'Management' },
+  { to: '/admin/maintenance', icon: Receipt, label: 'Maintenance & UPI', section: 'Finance' },
   { to: '/admin/services', icon: Wrench, label: 'Services', section: 'Society' },
   { to: '/admin/community', icon: CalendarDays, label: 'Events & Community', section: 'Society' },
   { to: '/admin/announcements', icon: Megaphone, label: 'Announcements', section: 'Society', badge: 'Soon' },

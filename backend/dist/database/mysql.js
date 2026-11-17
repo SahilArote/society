@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.isMysqlConfigured = isMysqlConfigured;
 exports.getMysqlPool = getMysqlPool;
 exports.runMysqlMigrations = runMysqlMigrations;
+exports.seedMaintenanceDefaults = seedMaintenanceDefaults;
 exports.seedMysqlData = seedMysqlData;
 const promise_1 = __importDefault(require("mysql2/promise"));
 const fs_1 = __importDefault(require("fs"));
@@ -143,9 +144,55 @@ async function runMysqlMigrations() {
         console.log('[MySQL] Schema migrations execution cycle complete.');
         // Run Initial Seed Data if society table empty
         await seedMysqlData(pool);
+        // Seed Maintenance & Direct UPI Defaults
+        await seedMaintenanceDefaults(pool);
     }
     catch (err) {
         console.error('[MySQL] Migration error:', err.message);
+    }
+}
+async function seedMaintenanceDefaults(pool) {
+    try {
+        const societyId = 'soc_greengate';
+        // 1. Seed Society Merchant UPI Config
+        const [configs] = await pool.query('SELECT id FROM society_payment_configs WHERE society_id = ?', [societyId]);
+        if (configs.length === 0) {
+            await pool.query(`INSERT INTO society_payment_configs (
+          id, society_id, merchant_vpa, merchant_name, bank_name, account_number_masked, ifsc_code
+        ) VALUES (?, ?, 'greenvalley@icici', 'Green Valley CHS', 'ICICI Bank', '•••• •••• •••• 4589', 'ICIC0001234')`, ['spc_greenvalley', societyId]);
+            console.log('[MySQL] Seeded default society merchant UPI: greenvalley@icici');
+        }
+        // 2. Ensure active Nov 2026 maintenance invoice for all occupied flats in society
+        const [realFlats] = await pool.query(`SELECT f.id, f.flat_number, f.wing, f.resident_id 
+       FROM flats f 
+       WHERE f.society_id = ? AND f.resident_id IS NOT NULL`, [societyId]);
+        const breakdown = JSON.stringify([
+            { title: 'Maintenance', amount: 2000 },
+            { title: 'Sinking fund', amount: 300 },
+            { title: 'Parking', amount: 200 },
+        ]);
+        for (const f of realFlats) {
+            const cleanFlat = f.flat_number.replace(/[^a-zA-Z0-9]/g, '');
+            const invId = `inv_${f.id.replace(/[^a-zA-Z0-9]/g, '')}_nov2026`;
+            const refId = `NXG-${cleanFlat}-112026`;
+            await pool.query(`INSERT IGNORE INTO maintenance_invoices (
+          id, society_id, flat_id, resident_id, invoice_number,
+          billing_period, due_date, total_amount, paid_amount, status,
+          breakdown_json, reference_id
+        ) VALUES (?, ?, ?, ?, ?, 'Nov 2026', '2026-12-10', 2500.00, 0.00, 'UNPAID', ?, ?)`, [
+                invId,
+                societyId,
+                f.id,
+                f.resident_id,
+                `INV-2026-11-${cleanFlat}`,
+                breakdown,
+                refId,
+            ]);
+        }
+        console.log(`[MySQL] Active Nov 2026 maintenance bills initialized for ${realFlats.length} occupied flats`);
+    }
+    catch (err) {
+        console.warn('[MySQL] Maintenance initialization notice:', err.message);
     }
 }
 async function seedMysqlData(pool) {

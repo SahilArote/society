@@ -4,12 +4,13 @@ import {
   Search, Phone, Mail, Car, Users, Home,
   Building2, AlertCircle, CheckCircle2, X, Download,
   UserPlus, UserCheck, Loader2, Trash2,
-  UploadCloud, FileSpreadsheet, Check, RefreshCw
+  UploadCloud, FileSpreadsheet, Check, RefreshCw,
+  RotateCcw, Edit3
 } from 'lucide-react';
 import type { Flat, FlatResident as Resident } from '../types';
 import StatCard from '../components/StatCard';
 import { RegistrationRequestsSection } from '../components/RegistrationRequestsSection';
-import { fetchAdminFlats, createAdminFlat, deleteAdminFlat, deleteAdminResident, downloadCsvTemplate, bulkImportFlats, mergeDuplicateFlats, type BulkImportResponse } from '../services/api';
+import { fetchAdminFlats, createAdminFlat, deleteAdminFlat, deleteAdminResident, downloadCsvTemplate, bulkImportFlats, mergeDuplicateFlats, markAdminFlatPaid, remindAdminFlatResident, editAdminMaintenanceAmount, resetAdminPayment, type BulkImportResponse } from '../services/api';
 
 /* ── Badges ──────────────────────────────────────────────── */
 function MaintBadge({ s }: { s: string }) {
@@ -26,6 +27,8 @@ function FlatPanel({
   flat,
   onClose,
   onMarkPaid,
+  onResetPayment,
+  onEditAmount,
   onSendNotice,
   onDeleteFlat,
   onDeleteResident,
@@ -33,6 +36,8 @@ function FlatPanel({
   flat: Flat;
   onClose: () => void;
   onMarkPaid: (flatId: string) => void;
+  onResetPayment?: (flatId: string) => void;
+  onEditAmount?: (flat: Flat) => void;
   onSendNotice: (flatNumber: string) => void;
   onDeleteFlat?: (flat: Flat) => void;
   onDeleteResident?: (resident: Resident, flat: Flat) => void;
@@ -173,6 +178,44 @@ function FlatPanel({
               </div>
               {flat.maintenanceStatus === 'paid' ? 'Maintenance Already Settled' : 'Mark Maintenance as Paid (Cash / Cheque)'}
             </button>
+
+            {/* Reset Payment button if settled */}
+            {flat.maintenanceStatus === 'paid' && onResetPayment && (
+              <button
+                onClick={() => onResetPayment(flat.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '11px 14px', borderRadius: 'var(--r-md)',
+                  background: 'var(--bg-elevated)', border: '1px solid rgba(239, 68, 68, 0.4)',
+                  color: 'var(--red)', fontSize: 13, fontWeight: 500,
+                  cursor: 'pointer', textAlign: 'left',
+                }}
+              >
+                <div style={{ padding: 6, borderRadius: 'var(--r-sm)', background: 'var(--red-bg)' }}>
+                  <RotateCcw size={14} color="var(--red)" />
+                </div>
+                Reset Payment Back to Unpaid (Allow Re-Payment)
+              </button>
+            )}
+
+            {/* Edit Bill Amount button */}
+            {onEditAmount && (
+              <button
+                onClick={() => onEditAmount(flat)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '11px 14px', borderRadius: 'var(--r-md)',
+                  background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+                  color: 'var(--text-primary)', fontSize: 13, fontWeight: 500,
+                  cursor: 'pointer', textAlign: 'left',
+                }}
+              >
+                <div style={{ padding: 6, borderRadius: 'var(--r-sm)', background: 'var(--accent-bg)' }}>
+                  <Edit3 size={14} color="var(--accent-light)" />
+                </div>
+                Edit Maintenance Bill Amount
+              </button>
+            )}
 
             <button
               onClick={() => onDeleteFlat?.(flat)}
@@ -456,16 +499,64 @@ export default function Residents() {
     setTimeout(() => setToastMsg(null), 2500);
   };
 
-  const handleMarkPaid = (flatId: string) => {
-    setFlats(prev => prev.map(f => f.id === flatId ? { ...f, maintenanceStatus: 'paid', maintenanceDueAmount: undefined } : f));
-    if (selected?.id === flatId) {
-      setSelected(prev => prev ? { ...prev, maintenanceStatus: 'paid', maintenanceDueAmount: undefined } : null);
+  const handleMarkPaid = async (flatId: string) => {
+    try {
+      await markAdminFlatPaid(flatId);
+      setFlats(prev => prev.map(f => f.id === flatId ? { ...f, maintenanceStatus: 'paid', maintenanceDueAmount: undefined } : f));
+      if (selected?.id === flatId) {
+        setSelected(prev => prev ? { ...prev, maintenanceStatus: 'paid', maintenanceDueAmount: undefined } : null);
+      }
+      showToast('Maintenance marked as Paid and verified in database');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to mark as paid');
     }
-    showToast('Maintenance marked as Paid and receipt generated');
   };
 
-  const handleSendNotice = (flatNum: string) => {
-    showToast(`Notice alert dispatched to Flat ${flatNum}`);
+  const handleSendNotice = async (flatNum: string) => {
+    try {
+      const targetFlat = flats.find(f => f.number === flatNum) || selected;
+      if (targetFlat) {
+        await remindAdminFlatResident(targetFlat.id);
+      }
+      showToast(`Notice alert dispatched to Flat ${flatNum}`);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to dispatch notice');
+    }
+  };
+
+  const handleResetPayment = async (flatId: string) => {
+    if (!window.confirm('Reset this flat payment to UNPAID? The resident will be able to pay again fresh.')) return;
+    try {
+      await resetAdminPayment(flatId);
+      setFlats(prev => prev.map(f => f.id === flatId ? { ...f, maintenanceStatus: 'due', maintenanceDueAmount: 2500 } : f));
+      if (selected?.id === flatId) {
+        setSelected(prev => prev ? { ...prev, maintenanceStatus: 'due', maintenanceDueAmount: 2500 } : null);
+      }
+      showToast('Payment reset to Unpaid successfully in database');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to reset payment');
+    }
+  };
+
+  const handleEditAmount = async (flat: Flat) => {
+    const current = flat.maintenanceDueAmount || 2500;
+    const input = window.prompt(`Enter new maintenance bill amount (₹) for Flat ${flat.number}:`, String(current));
+    if (!input) return;
+    const num = parseFloat(input.trim());
+    if (isNaN(num) || num < 0) {
+      showToast('Invalid amount entered');
+      return;
+    }
+    try {
+      await editAdminMaintenanceAmount(flat.id, num);
+      setFlats(prev => prev.map(f => f.id === flat.id ? { ...f, maintenanceDueAmount: num } : f));
+      if (selected?.id === flat.id) {
+        setSelected(prev => prev ? { ...prev, maintenanceDueAmount: num } : null);
+      }
+      showToast(`Bill for Flat ${flat.number} updated to ₹${num.toLocaleString('en-IN')}`);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update bill amount');
+    }
   };
 
   const exportDirectory = () => {
@@ -875,6 +966,8 @@ export default function Residents() {
               flat={selected}
               onClose={() => setSelected(null)}
               onMarkPaid={handleMarkPaid}
+              onResetPayment={handleResetPayment}
+              onEditAmount={handleEditAmount}
               onSendNotice={handleSendNotice}
               onDeleteFlat={(flat) => setFlatToDelete(flat)}
               onDeleteResident={(resident, flat) => setResidentToDelete({ resident, flat })}

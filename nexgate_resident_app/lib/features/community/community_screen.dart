@@ -1,6 +1,5 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../core/constants/app_colors.dart';
 import '../../core/utils/haptic_helper.dart';
 import 'events_tab.dart';
 import 'lost_found_tab.dart';
