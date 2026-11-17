@@ -157,8 +157,163 @@ export async function runMysqlMigrations() {
 
     // Run Initial Seed Data if society table empty
     await seedMysqlData(pool);
+    // Seed Maintenance & Direct UPI Defaults
+    await seedMaintenanceDefaults(pool);
   } catch (err: any) {
     console.error('[MySQL] Migration error:', err.message);
+  }
+}
+
+export async function seedMaintenanceDefaults(pool: mysql.Pool) {
+  try {
+    const societyId = 'soc_greengate';
+
+    // 1. Seed Society Merchant UPI Config
+    const [configs]: any = await pool.query(
+      'SELECT id FROM society_payment_configs WHERE society_id = ?',
+      [societyId]
+    );
+
+    if (configs.length === 0) {
+      await pool.query(
+        `INSERT INTO society_payment_configs (
+          id, society_id, merchant_vpa, merchant_name, bank_name, account_number_masked, ifsc_code
+        ) VALUES (?, ?, 'greenvalley@icici', 'Green Valley CHS', 'ICICI Bank', '•••• •••• •••• 4589', 'ICIC0001234')`,
+        ['spc_greenvalley', societyId]
+      );
+      console.log('[MySQL] Seeded default society merchant UPI: greenvalley@icici');
+    }
+
+    // 2. Ensure Flats exist for sample queue (A-101, B-204, C-302, A-405)
+    const sampleFlats = [
+      { id: 'flat_a101', flat_number: 'A-101', wing: 'Wing A', floor: 1 },
+      { id: 'flat_b204', flat_number: 'B-204', wing: 'Wing B', floor: 2 },
+      { id: 'flat_c302', flat_number: 'C-302', wing: 'Wing C', floor: 3 },
+      { id: 'flat_a405', flat_number: 'A-405', wing: 'Wing A', floor: 4 },
+    ];
+
+    for (const f of sampleFlats) {
+      await pool.query(
+        `INSERT IGNORE INTO flats (id, society_id, flat_number, wing, floor) 
+         VALUES (?, ?, ?, ?, ?)`,
+        [f.id, societyId, f.flat_number, f.wing, f.floor]
+      );
+    }
+
+    // 3. Seed Resident Bill for Sahil (flat_a402) - Nov 2026, ₹2,500
+    const [sahilInv]: any = await pool.query(
+      "SELECT id FROM maintenance_invoices WHERE society_id = ? AND flat_id = 'flat_a402' AND billing_period = 'Nov 2026'",
+      [societyId]
+    );
+
+    if (sahilInv.length === 0) {
+      const breakdown = JSON.stringify([
+        { title: 'Maintenance', amount: 2000 },
+        { title: 'Sinking fund', amount: 300 },
+        { title: 'Parking', amount: 200 },
+      ]);
+
+      await pool.query(
+        `INSERT INTO maintenance_invoices (
+          id, society_id, flat_id, resident_id, invoice_number,
+          billing_period, due_date, total_amount, paid_amount, status,
+          breakdown_json, reference_id
+        ) VALUES (?, ?, 'flat_a402', 'res_sahil', 'INV-2026-11-A402', 'Nov 2026', '2026-12-10', 2500.00, 0.00, 'UNPAID', ?, 'NXG-A402-112026')`,
+        ['inv_sahil_nov', societyId, breakdown]
+      );
+      console.log('[MySQL] Seeded Nov 2026 bill for Sahil Arote (flat_a402)');
+    }
+
+    // 4. Seed Verification Queue Items (matching admin reference mockup: A-101, B-204, C-302, A-405)
+    const [payments]: any = await pool.query(
+      'SELECT id FROM maintenance_payments WHERE society_id = ?',
+      [societyId]
+    );
+
+    if (payments.length === 0) {
+      const breakdown = JSON.stringify([
+        { title: 'Maintenance', amount: 2000 },
+        { title: 'Sinking fund', amount: 300 },
+        { title: 'Parking', amount: 200 },
+      ]);
+
+      const queueItems = [
+        {
+          invId: 'inv_a101_nov',
+          flatId: 'flat_a101',
+          flatNum: 'A-101',
+          amount: 2500.0,
+          utr: '632145879012',
+          bankMatch: 'FOUND',
+          ref: 'NXG-A101-112026',
+        },
+        {
+          invId: 'inv_b204_nov',
+          flatId: 'flat_b204',
+          flatNum: 'B-204',
+          amount: 2500.0,
+          utr: '631998220145',
+          bankMatch: 'FOUND',
+          ref: 'NXG-B204-112026',
+        },
+        {
+          invId: 'inv_c302_nov',
+          flatId: 'flat_c302',
+          flatNum: 'C-302',
+          amount: 2000.0, // Short amount
+          utr: '630012457789',
+          bankMatch: 'AMOUNT_SHORT',
+          ref: 'NXG-C302-112026',
+        },
+        {
+          invId: 'inv_a405_nov',
+          flatId: 'flat_a405',
+          flatNum: 'A-405',
+          amount: 2500.0,
+          utr: '629874512036',
+          bankMatch: 'NOT_YET',
+          ref: 'NXG-A405-112026',
+        },
+      ];
+
+      for (let i = 0; i < queueItems.length; i++) {
+        const item = queueItems[i];
+        await pool.query(
+          `INSERT IGNORE INTO maintenance_invoices (
+            id, society_id, flat_id, invoice_number, billing_period,
+            due_date, total_amount, paid_amount, status, breakdown_json, reference_id
+          ) VALUES (?, ?, ?, ?, 'Nov 2026', '2026-12-10', ?, 0.00, 'PENDING_CHECK', ?, ?)`,
+          [
+            item.invId,
+            societyId,
+            item.flatId,
+            `INV-2026-11-${item.flatNum.replace('-', '')}`,
+            item.amount,
+            breakdown,
+            item.ref,
+          ]
+        );
+
+        await pool.query(
+          `INSERT INTO maintenance_payments (
+            id, society_id, invoice_id, resident_id, flat_id,
+            amount, utr, status, bank_match_status
+          ) VALUES (?, ?, ?, 'admin_user', ?, ?, ?, 'PENDING_CHECK', ?)`,
+          [
+            `pay_q_${i + 1}`,
+            societyId,
+            item.invId,
+            item.flatId,
+            item.amount,
+            item.utr,
+            item.bankMatch,
+          ]
+        );
+      }
+      console.log('[MySQL] Seeded verification queue mockup items (A-101, B-204, C-302, A-405)');
+    }
+  } catch (err: any) {
+    console.warn('[MySQL] Maintenance seeding notice:', err.message);
   }
 }
 

@@ -336,4 +336,90 @@ CREATE TABLE IF NOT EXISTS `event_registrations` (
 CREATE INDEX idx_event_reg_user ON event_registrations(user_id);
 CREATE INDEX idx_event_reg_event ON event_registrations(event_id, status);
 
+-- ============================================================
+-- MAINTENANCE & DIRECT UPI PAYMENT MODULE (ZERO GATEWAY FEE)
+-- ============================================================
+
+-- 19. Society Merchant UPI Configuration
+CREATE TABLE IF NOT EXISTS `society_payment_configs` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `society_id` VARCHAR(64) NOT NULL UNIQUE,
+  `merchant_vpa` VARCHAR(128) NOT NULL,
+  `merchant_name` VARCHAR(255) NOT NULL,
+  `bank_name` VARCHAR(128) NULL,
+  `account_number_masked` VARCHAR(64) NULL,
+  `ifsc_code` VARCHAR(32) NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NULL DEFAULT NULL,
+  FOREIGN KEY (`society_id`) REFERENCES `societies`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 20. Maintenance Invoices
+CREATE TABLE IF NOT EXISTS `maintenance_invoices` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `society_id` VARCHAR(64) NOT NULL,
+  `flat_id` VARCHAR(64) NOT NULL,
+  `resident_id` VARCHAR(64) NULL,
+  `invoice_number` VARCHAR(64) NOT NULL UNIQUE,
+  `billing_period` VARCHAR(32) NOT NULL, -- e.g. 'Nov 2026'
+  `due_date` DATE NOT NULL,
+  `total_amount` DECIMAL(10, 2) NOT NULL,
+  `paid_amount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+  `status` ENUM('UNPAID', 'PENDING_CHECK', 'PAID', 'CANCELLED') NOT NULL DEFAULT 'UNPAID',
+  `breakdown_json` JSON NOT NULL, -- [{"title": "Maintenance", "amount": 2000}, ...]
+  `reference_id` VARCHAR(64) NOT NULL UNIQUE, -- e.g. 'NXG-A101-112026'
+  `paid_at` DATETIME NULL DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NULL DEFAULT NULL,
+  FOREIGN KEY (`society_id`) REFERENCES `societies`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`flat_id`) REFERENCES `flats`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX idx_maint_inv_soc_status ON maintenance_invoices(society_id, status);
+CREATE INDEX idx_maint_inv_flat ON maintenance_invoices(flat_id);
+CREATE INDEX idx_maint_inv_res ON maintenance_invoices(resident_id);
+
+-- 21. Maintenance Payments (UTR Confirmations & Admin Verification Queue)
+CREATE TABLE IF NOT EXISTS `maintenance_payments` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `society_id` VARCHAR(64) NOT NULL,
+  `invoice_id` VARCHAR(64) NOT NULL,
+  `resident_id` VARCHAR(64) NOT NULL,
+  `flat_id` VARCHAR(64) NOT NULL,
+  `amount` DECIMAL(10, 2) NOT NULL,
+  `utr` VARCHAR(32) NOT NULL, -- 12-digit UPI transaction reference
+  `screenshot_url` TEXT NULL,
+  `status` ENUM('PENDING_CHECK', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING_CHECK',
+  `bank_match_status` ENUM('FOUND', 'AMOUNT_SHORT', 'NOT_YET') NOT NULL DEFAULT 'NOT_YET',
+  `rejection_reason` TEXT NULL,
+  `verified_by` VARCHAR(64) NULL,
+  `verified_at` DATETIME NULL DEFAULT NULL,
+  `receipt_number` VARCHAR(64) NULL,
+  `submitted_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`society_id`) REFERENCES `societies`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`invoice_id`) REFERENCES `maintenance_invoices`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`resident_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`flat_id`) REFERENCES `flats`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX idx_maint_pay_soc_status ON maintenance_payments(society_id, status);
+CREATE INDEX idx_maint_pay_inv ON maintenance_payments(invoice_id);
+CREATE INDEX idx_maint_pay_utr ON maintenance_payments(society_id, utr);
+
+-- 22. Bank Statement Entries (Auto-Match Ledger)
+CREATE TABLE IF NOT EXISTS `bank_statement_entries` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `society_id` VARCHAR(64) NOT NULL,
+  `transaction_date` DATE NOT NULL,
+  `description` TEXT NOT NULL,
+  `utr` VARCHAR(64) NULL,
+  `amount` DECIMAL(10, 2) NOT NULL,
+  `matched` TINYINT(1) NOT NULL DEFAULT 0,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`society_id`) REFERENCES `societies`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX idx_bank_stmt_soc_utr ON bank_statement_entries(society_id, utr);
+
+
 
