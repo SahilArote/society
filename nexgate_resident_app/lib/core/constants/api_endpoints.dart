@@ -49,6 +49,10 @@ class ApiEndpoints {
   static String eventRegister(String id) => '$baseUrl/resident/community/events/$id/register';
   static String eventCancel(String id) => '$baseUrl/resident/community/events/$id/cancel';
 
+  // Maintenance & Direct UPI Payment (Zero Gateway Fee)
+  static String get residentMaintenanceBill => '$baseUrl/resident/maintenance/current-bill';
+  static String get residentMaintenanceSubmit => '$baseUrl/resident/maintenance/submit-payment';
+
   // Notifications
   static String get notifications => '$baseUrl/notifications';
   static String get health => '$baseUrl/health';

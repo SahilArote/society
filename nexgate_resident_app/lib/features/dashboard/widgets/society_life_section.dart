@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/haptic_helper.dart';
 
 /// "Society Life & Services" section matching reference design.

@@ -25,6 +25,7 @@ import '../models/invite_model.dart';
 import '../models/society_service_model.dart';
 import '../models/lost_found_model.dart';
 import '../models/society_event_model.dart';
+import '../models/maintenance_model.dart';
 
 import 'auth_service.dart';
 
@@ -1124,4 +1125,53 @@ class ApiService {
     return json['success'] == true;
   }
 
+  // ==========================================================
+  // MAINTENANCE & DIRECT UPI PAYMENT (ZERO GATEWAY FEE)
+  // ==========================================================
+
+  static Future<MaintenanceBillModel> fetchCurrentMaintenanceBill() async {
+    final response = await _get(
+      Uri.parse(ApiEndpoints.residentMaintenanceBill),
+      headers: _headers(),
+    );
+    final json = _handleResponse(response);
+    return MaintenanceBillModel.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  static Future<Map<String, dynamic>> submitMaintenancePayment({
+    required String invoiceId,
+    required String utr,
+    String? screenshotFilePath,
+  }) async {
+    final uri = Uri.parse(ApiEndpoints.residentMaintenanceSubmit);
+
+    if (screenshotFilePath != null && screenshotFilePath.isNotEmpty) {
+      final request = http.MultipartRequest('POST', uri);
+      final token = StorageService.getToken();
+      if (token != null && token.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      request.fields['invoiceId'] = invoiceId;
+      request.fields['utr'] = utr;
+
+      request.files.add(await http.MultipartFile.fromPath(
+        'screenshot',
+        screenshotFilePath,
+      ));
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      return _handleResponse(response);
+    } else {
+      final response = await _post(
+        uri,
+        headers: _headers(),
+        body: jsonEncode({
+          'invoiceId': invoiceId,
+          'utr': utr,
+        }),
+      );
+      return _handleResponse(response);
+    }
+  }
 }
