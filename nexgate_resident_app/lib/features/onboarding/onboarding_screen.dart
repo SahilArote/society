@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
 import '../../core/widgets/primary_button.dart';
@@ -126,12 +126,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             color: item.iconBg,
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: item.iconColor.withValues(alpha: 0.25),
+                              color: item.iconColor.withOpacity(0.25),
                               width: 3,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: item.iconColor.withValues(alpha: 0.15),
+                                color: item.iconColor.withOpacity(0.15),
                                 blurRadius: 28,
                                 offset: const Offset(0, 10),
                               ),

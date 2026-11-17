@@ -203,8 +203,8 @@ class LanguageService extends ChangeNotifier {
       'mr': 'आत (सोसायटी)',
     },
     'waitingForResidentApproval': {
-      'en': 'Waiting for resident approval',
-      'hi': 'निवासी की स्वीकृति की प्रतीक्षा है',
+      'en': 'Pending resident approval',
+      'hi': 'निवासी की स्वीकृति बाकी है',
       'mr': 'रहिवाशांच्या मंजुरीची प्रतीक्षा आहे',
     },
     'approvedByResidentReady': {
@@ -337,14 +337,29 @@ class LanguageService extends ChangeNotifier {
       'mr': 'आत',
     },
     'waiting': {
-      'en': 'Waiting',
-      'hi': 'प्रतीक्षा',
-      'mr': 'प्रतीक्षा',
+      'en': 'Pending',
+      'hi': 'प्रतीक्षारत',
+      'mr': 'प्रलंबित',
     },
     'entryDeniedAtGate': {
       'en': 'Entry denied at gate',
       'hi': 'गेट पर प्रवेश रोका गया',
       'mr': 'गेटवर प्रवेश रोखला',
+    },
+    'entryRejected': {
+      'en': 'Visitor Rejected',
+      'hi': 'प्रवेश अस्वीकृत',
+      'mr': 'प्रवेश नाकारला',
+    },
+    'entryApproved': {
+      'en': 'Visitor Approved',
+      'hi': 'प्रवेश स्वीकृत',
+      'mr': 'प्रवेश मंजूर',
+    },
+    'returnToDashboard': {
+      'en': 'Return to Dashboard',
+      'hi': 'डैशबोर्ड पर वापस जाएं',
+      'mr': 'डॅशबोर्डवर परत जा',
     },
     'exitedAt': {
       'en': 'Exited at',
@@ -441,9 +456,19 @@ class LanguageService extends ChangeNotifier {
       'mr': 'पोहोचण्याची वेळ',
     },
     'decisionTime': {
+      'en': 'Decision Time',
+      'hi': 'निर्णय समय',
+      'mr': 'निर्णयाची वेळ',
+    },
+    'approvalTime': {
       'en': 'Approval Time',
       'hi': 'स्वीकृति समय',
-      'mr': 'मंजुरी वेळ',
+      'mr': 'मंजूरी वेळ',
+    },
+    'rejectionTime': {
+      'en': 'Rejection Time',
+      'hi': 'अस्वीकृति समय',
+      'mr': 'नाकारलेली वेळ',
     },
     'entryTime': {
       'en': 'Entry Time',

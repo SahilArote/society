@@ -140,14 +140,15 @@ router.delete('/resident/:id', auth_1.authenticateToken, (0, auth_1.authorizeRol
 // Guard inputs 6-digit pass code or scans QR at the security gate
 router.post('/guard/verify', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', 'ADMIN'), async (req, res) => {
     try {
-        const { passCode, gateId: reqGateId } = req.body;
-        if (!passCode || !String(passCode).trim()) {
+        const rawCode = req.body.passCode || req.body.code || req.body.pass_code;
+        const { gateId: reqGateId } = req.body;
+        if (!rawCode || !String(rawCode).trim()) {
             return res.status(400).json({
                 success: false,
                 error: { code: 'INVALID_INPUT', message: '6-digit pass code is required' },
             });
         }
-        const cleanCode = String(passCode).trim().replace(/\D/g, '');
+        const cleanCode = String(rawCode).trim().replace(/\D/g, '');
         const societyId = req.user.societyId || 'soc_greengate';
         const guardId = req.user.id;
         const gateId = reqGateId || req.user.gateId || 'gate_main';

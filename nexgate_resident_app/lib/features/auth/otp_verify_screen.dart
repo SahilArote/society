@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
@@ -299,7 +299,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.lightBlue,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+                      border: Border.all(color: AppColors.border.withOpacity(0.5)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,

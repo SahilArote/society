@@ -20,7 +20,10 @@ exports.createVisitorWithRequestTransaction = createVisitorWithRequestTransactio
 exports.findVisitorRequestById = findVisitorRequestById;
 exports.findVisitorRequestJoinedById = findVisitorRequestJoinedById;
 exports.findVisitorRequestsJoined = findVisitorRequestsJoined;
+exports.countVisitorRequestsJoined = countVisitorRequestsJoined;
 exports.updateVisitorRequestDecision = updateVisitorRequestDecision;
+exports.recordVisitorEntry = recordVisitorEntry;
+exports.recordVisitorExit = recordVisitorExit;
 exports.createNotification = createNotification;
 exports.findNotificationsByRecipient = findNotificationsByRecipient;
 exports.createAuditLog = createAuditLog;
@@ -529,6 +532,8 @@ async function findVisitorRequestById(id) {
         respondedAt: r.responded_at instanceof Date ? r.responded_at.toISOString() : (r.responded_at ? new Date(r.responded_at).toISOString() : r.responded_at),
         responseBy: r.response_by,
         rejectionReason: r.rejection_reason,
+        entryTime: r.entry_time instanceof Date ? r.entry_time.toISOString() : (r.entry_time ? new Date(r.entry_time).toISOString() : null),
+        exitTime: r.exit_time instanceof Date ? r.exit_time.toISOString() : (r.exit_time ? new Date(r.exit_time).toISOString() : null),
     };
 }
 async function findVisitorRequestJoinedById(id) {
@@ -539,11 +544,15 @@ async function findVisitorRequestJoinedById(id) {
     SELECT 
       vr.id,
       vr.society_id as societyId,
+      vr.guard_id as guardId,
+      vr.gate_id as gateId,
       vr.status,
       vr.requested_at as requestedAt,
       vr.responded_at as respondedAt,
       vr.response_by as responseBy,
       vr.rejection_reason as rejectionReason,
+      vr.entry_time as entryTime,
+      vr.exit_time as exitTime,
       v.id as visitorId,
       v.name as visitorName,
       v.mobile as visitorMobile,
@@ -573,7 +582,16 @@ async function findVisitorRequestJoinedById(id) {
     LIMIT 1
   `;
     const [rows] = await pool.query(query, [id]);
-    return rows[0] || null;
+    if (!rows || rows.length === 0)
+        return null;
+    const r = rows[0];
+    return {
+        ...r,
+        requestedAt: r.requestedAt instanceof Date ? r.requestedAt.toISOString() : (r.requestedAt ? new Date(r.requestedAt).toISOString() : r.requestedAt),
+        respondedAt: r.respondedAt instanceof Date ? r.respondedAt.toISOString() : (r.respondedAt ? new Date(r.respondedAt).toISOString() : r.respondedAt),
+        entryTime: r.entryTime instanceof Date ? r.entryTime.toISOString() : (r.entryTime ? new Date(r.entryTime).toISOString() : null),
+        exitTime: r.exitTime instanceof Date ? r.exitTime.toISOString() : (r.exitTime ? new Date(r.exitTime).toISOString() : null),
+    };
 }
 async function findVisitorRequestsJoined(filters) {
     const pool = await (0, mysql_1.getMysqlPool)();
@@ -583,11 +601,15 @@ async function findVisitorRequestsJoined(filters) {
     SELECT 
       vr.id,
       vr.society_id as societyId,
+      vr.guard_id as guardId,
+      vr.gate_id as gateId,
       vr.status,
       vr.requested_at as requestedAt,
       vr.responded_at as respondedAt,
       vr.response_by as responseBy,
       vr.rejection_reason as rejectionReason,
+      vr.entry_time as entryTime,
+      vr.exit_time as exitTime,
       v.id as visitorId,
       v.name as visitorName,
       v.mobile as visitorMobile,
@@ -630,17 +652,96 @@ async function findVisitorRequestsJoined(filters) {
         query += ' AND vr.status = ?';
         params.push(filters.status);
     }
+    if (filters.startDate && filters.endDate) {
+        query += ' AND ((vr.requested_at >= ? AND vr.requested_at <= ?) OR (vr.entry_time >= ? AND vr.entry_time <= ?) OR (vr.exit_time >= ? AND vr.exit_time <= ?))';
+        params.push(filters.startDate, filters.endDate, filters.startDate, filters.endDate, filters.startDate, filters.endDate);
+    }
+    else if (filters.startDate) {
+        query += ' AND (vr.requested_at >= ? OR vr.entry_time >= ? OR vr.exit_time >= ?)';
+        params.push(filters.startDate, filters.startDate, filters.startDate);
+    }
+    else if (filters.endDate) {
+        query += ' AND vr.requested_at <= ?';
+        params.push(filters.endDate);
+    }
+    if (filters.search && filters.search.trim()) {
+        const s = `%${filters.search.trim()}%`;
+        query += ' AND (v.name LIKE ? OR v.mobile LIKE ? OR f.flat_number LIKE ? OR u_res.name LIKE ? OR v.vehicle_number LIKE ?)';
+        params.push(s, s, s, s, s);
+    }
     query += ' ORDER BY vr.requested_at DESC';
     if (filters.limit) {
         query += ' LIMIT ?';
-        params.push(filters.limit);
+        params.push(Number(filters.limit));
+        if (filters.offset !== undefined) {
+            query += ' OFFSET ?';
+            params.push(Number(filters.offset));
+        }
+        else if (filters.page && filters.page > 1) {
+            const offset = (Number(filters.page) - 1) * Number(filters.limit);
+            query += ' OFFSET ?';
+            params.push(offset);
+        }
     }
     const [rows] = await pool.query(query, params);
     return rows.map((r) => ({
         ...r,
         requestedAt: r.requestedAt instanceof Date ? r.requestedAt.toISOString() : (r.requestedAt ? new Date(r.requestedAt).toISOString() : r.requestedAt),
         respondedAt: r.respondedAt instanceof Date ? r.respondedAt.toISOString() : (r.respondedAt ? new Date(r.respondedAt).toISOString() : r.respondedAt),
+        entryTime: r.entryTime instanceof Date ? r.entryTime.toISOString() : (r.entryTime ? new Date(r.entryTime).toISOString() : null),
+        exitTime: r.exitTime instanceof Date ? r.exitTime.toISOString() : (r.exitTime ? new Date(r.exitTime).toISOString() : null),
     }));
+}
+async function countVisitorRequestsJoined(filters) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return 0;
+    let query = `
+    SELECT COUNT(*) as total
+    FROM visitor_requests vr
+    INNER JOIN visitors v ON vr.visitor_id = v.id
+    INNER JOIN flats f ON vr.flat_id = f.id
+    INNER JOIN users u_res ON vr.resident_id = u_res.id
+    INNER JOIN users u_grd ON vr.guard_id = u_grd.id
+    INNER JOIN gates g ON vr.gate_id = g.id
+    WHERE vr.society_id = ?
+  `;
+    const params = [filters.societyId];
+    if (filters.flatId) {
+        query += ' AND vr.flat_id = ?';
+        params.push(filters.flatId);
+    }
+    else if (filters.residentId) {
+        query += ' AND vr.resident_id = ?';
+        params.push(filters.residentId);
+    }
+    if (filters.guardId) {
+        query += ' AND vr.guard_id = ?';
+        params.push(filters.guardId);
+    }
+    if (filters.status) {
+        query += ' AND vr.status = ?';
+        params.push(filters.status);
+    }
+    if (filters.startDate && filters.endDate) {
+        query += ' AND ((vr.requested_at >= ? AND vr.requested_at <= ?) OR (vr.entry_time >= ? AND vr.entry_time <= ?) OR (vr.exit_time >= ? AND vr.exit_time <= ?))';
+        params.push(filters.startDate, filters.endDate, filters.startDate, filters.endDate, filters.startDate, filters.endDate);
+    }
+    else if (filters.startDate) {
+        query += ' AND (vr.requested_at >= ? OR vr.entry_time >= ? OR vr.exit_time >= ?)';
+        params.push(filters.startDate, filters.startDate, filters.startDate);
+    }
+    else if (filters.endDate) {
+        query += ' AND vr.requested_at <= ?';
+        params.push(filters.endDate);
+    }
+    if (filters.search && filters.search.trim()) {
+        const s = `%${filters.search.trim()}%`;
+        query += ' AND (v.name LIKE ? OR v.mobile LIKE ? OR f.flat_number LIKE ? OR u_res.name LIKE ? OR v.vehicle_number LIKE ?)';
+        params.push(s, s, s, s, s);
+    }
+    const [rows] = await pool.query(query, params);
+    return Number(rows[0]?.total || 0);
 }
 async function updateVisitorRequestDecision(id, status, responseBy, rejectionReason) {
     const pool = await (0, mysql_1.getMysqlPool)();
@@ -650,6 +751,30 @@ async function updateVisitorRequestDecision(id, status, responseBy, rejectionRea
     const [result] = await pool.query(`UPDATE visitor_requests 
      SET status = ?, responded_at = ?, response_by = ?, rejection_reason = ? 
      WHERE id = ? AND status = 'PENDING'`, [status, now, responseBy, rejectionReason || null, id]);
+    return result.affectedRows > 0;
+}
+async function recordVisitorEntry(id, entryBy) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return false;
+    const now = new Date();
+    const [result] = await pool.query(`UPDATE visitor_requests 
+     SET status = 'INSIDE', 
+         entry_time = COALESCE(entry_time, ?),
+         responded_at = COALESCE(responded_at, ?),
+         response_by = COALESCE(response_by, ?)
+     WHERE id = ?`, [now, now, entryBy || 'Security Guard', id]);
+    return result.affectedRows > 0;
+}
+async function recordVisitorExit(id) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return false;
+    const now = new Date();
+    const [result] = await pool.query(`UPDATE visitor_requests 
+     SET status = 'EXITED', 
+         exit_time = ?
+     WHERE id = ?`, [now, id]);
     return result.affectedRows > 0;
 }
 // -------------------------------------------------------------

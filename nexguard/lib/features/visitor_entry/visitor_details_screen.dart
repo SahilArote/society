@@ -51,7 +51,6 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
     'Other',
   ];
 
-  bool _isSending = false;
   String? _validationError;
 
   bool _isLoadingDirectory = false;
@@ -428,8 +427,6 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final flatsInCurrentWing =
-        widget.visitorRepo.wingFlats[_selectedWing] ?? [];
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final isKeyboardOpen = bottomInset > 0;
 

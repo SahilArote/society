@@ -1,8 +1,5 @@
-﻿import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_dimensions.dart';
 import '../../core/widgets/custom_button.dart';
 import '../../core/widgets/visitor_photo_avatar.dart';
 import '../../models/visitor_request.dart';
@@ -157,7 +154,8 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen>
   }
 
   void _callResident(String phone) {
-    PhoneService.call(phone);
+    final contact = '${_liveRequest.buildingWing}-${_liveRequest.flatNumber} · ${_liveRequest.residentName}';
+    PhoneService.call(phone, context: context, contactName: contact);
   }
 
   void _navigateBackToDashboard() {
@@ -196,7 +194,7 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen>
           scrolledUnderElevation: 0,
           backgroundColor: Colors.white,
           title: const Text(
-            'Waiting for Resident Approval',
+            'Pending Resident Approval',
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w700,
@@ -262,7 +260,7 @@ class _WaitingApprovalScreenState extends State<WaitingApprovalScreen>
                       ),
                       const SizedBox(height: 16),
                       const Text(
-                        'Awaiting Resident Decision',
+                        'Pending Resident Decision',
                         style: TextStyle(
                           fontSize: 19,
                           fontWeight: FontWeight.w800,

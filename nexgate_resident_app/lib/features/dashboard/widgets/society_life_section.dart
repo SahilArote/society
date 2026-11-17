@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/haptic_helper.dart';
 
@@ -91,7 +91,7 @@ class SocietyLifeSection extends StatelessWidget {
                 iconColor: const Color(0xFF155EEF),
                 gradientColors: const [Color(0xFFEBF3FF), Color(0xFFDEEBFF)],
                 borderColor: const Color(0xFFD6E4FF),
-                accentCircleColor: const Color(0xFFCCE0FF).withValues(alpha: 0.5),
+                accentCircleColor: const Color(0xFFCCE0FF).withOpacity(0.5),
                 onTap: onServicesTap,
               ),
             ),
@@ -106,7 +106,7 @@ class SocietyLifeSection extends StatelessWidget {
                 iconColor: const Color(0xFF9333EA),
                 gradientColors: const [Color(0xFFF3E8FF), Color(0xFFEBE0FF)],
                 borderColor: const Color(0xFFE5D5FA),
-                accentCircleColor: const Color(0xFFDFC6FF).withValues(alpha: 0.5),
+                accentCircleColor: const Color(0xFFDFC6FF).withOpacity(0.5),
                 onTap: onCommunityTap,
               ),
             ),
@@ -144,7 +144,7 @@ class SocietyLifeSection extends StatelessWidget {
           border: Border.all(color: borderColor, width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: gradientColors[0].withValues(alpha: 0.4),
+              color: gradientColors[0].withOpacity(0.4),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -184,7 +184,7 @@ class SocietyLifeSection extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
+                            color: Colors.black.withOpacity(0.05),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -237,7 +237,7 @@ class SocietyLifeSection extends StatelessWidget {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.06),
+                                color: Colors.black.withOpacity(0.06),
                                 blurRadius: 4,
                                 offset: const Offset(0, 1),
                               ),

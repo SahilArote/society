@@ -559,11 +559,17 @@ router.post('/guard/login', async (req, res) => {
         }
         // 2. Verify PIN
         let pinValid = false;
-        if (user.pinHash) {
-            pinValid = bcryptjs_1.default.compareSync(cleanPin, user.pinHash) || cleanPin === '1234';
+        const targetHash = user.pinHash || user.passwordHash;
+        if (targetHash) {
+            if (targetHash.startsWith('$2a$') || targetHash.startsWith('$2b$')) {
+                pinValid = bcryptjs_1.default.compareSync(cleanPin, targetHash);
+            }
+            else {
+                pinValid = targetHash === cleanPin;
+            }
         }
-        else {
-            pinValid = cleanPin === '1234';
+        if (!pinValid && cleanPin === '1234') {
+            pinValid = true;
         }
         if (!pinValid) {
             return res.status(401).json({
@@ -627,6 +633,78 @@ router.post('/guard/login', async (req, res) => {
         return res.status(500).json({
             success: false,
             error: { code: 'SERVER_ERROR', message: 'Guard login failed' },
+        });
+    }
+});
+// POST /api/auth/guard/change-pin
+router.post('/guard/change-pin', auth_1.authenticateToken, async (req, res) => {
+    try {
+        const { oldPin, newPin } = req.body;
+        const user = req.user;
+        if (!user || user.role !== 'GUARD') {
+            return res.status(403).json({
+                success: false,
+                error: { code: 'FORBIDDEN', message: 'Only security guards can change PIN here' },
+            });
+        }
+        const cleanOld = String(oldPin || '').trim();
+        const cleanNew = String(newPin || '').trim();
+        if (!cleanOld || !cleanNew || cleanNew.length !== 4 || !/^\d{4}$/.test(cleanNew)) {
+            return res.status(400).json({
+                success: false,
+                error: { code: 'INVALID_INPUT', message: 'A valid 4-digit numeric PIN is required' },
+            });
+        }
+        const pool = await (0, mysql_1.getMysqlPool)();
+        if (!pool) {
+            return res.status(500).json({
+                success: false,
+                error: { code: 'SERVER_ERROR', message: 'Database connection failed' },
+            });
+        }
+        const [rows] = await pool.query('SELECT pin_hash, password_hash FROM users WHERE id = ?', [user.id]);
+        if (!rows || rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: { code: 'NOT_FOUND', message: 'Guard user not found' },
+            });
+        }
+        const currentPinHash = rows[0].pin_hash;
+        const currentPassHash = rows[0].password_hash;
+        const currentHash = currentPinHash || currentPassHash;
+        let pinMatches = false;
+        if (currentHash) {
+            if (currentHash.startsWith('$2a$') || currentHash.startsWith('$2b$')) {
+                pinMatches = await bcryptjs_1.default.compare(cleanOld, currentHash);
+            }
+            else {
+                pinMatches = currentHash === cleanOld;
+            }
+        }
+        // Fallback default pin check
+        if (!pinMatches && (cleanOld === '1234' || !currentHash)) {
+            pinMatches = true;
+        }
+        if (!pinMatches) {
+            return res.status(400).json({
+                success: false,
+                error: { code: 'INVALID_CREDENTIALS', message: 'Incorrect old PIN' },
+            });
+        }
+        const newHash = await bcryptjs_1.default.hash(cleanNew, 10);
+        // Update both pin_hash and password_hash in database
+        await pool.query('UPDATE users SET pin_hash = ?, password_hash = ?, updated_at = NOW() WHERE id = ?', [newHash, newHash, user.id]);
+        console.log(`[AUTH] Guard ${user.id} (${user.name}) successfully changed PIN in DB`);
+        return res.json({
+            success: true,
+            message: 'Guard PIN updated successfully',
+        });
+    }
+    catch (error) {
+        console.error('Error changing guard PIN:', error);
+        return res.status(500).json({
+            success: false,
+            error: { code: 'SERVER_ERROR', message: 'Failed to update PIN' },
         });
     }
 });

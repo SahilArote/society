@@ -55,48 +55,83 @@ class VisitorRepository extends ChangeNotifier {
       final isGuardApproved = _guardApprovedIds.contains(id);
       final isGuardRejected = _guardRejectedIds.contains(id);
 
-      // Prioritize local lifecycle (exited > entered/completed > server response > guard simulation)
-      final newStatus = isExitedLocally
-          ? VisitorStatus.exited
-          : ((isCompletedLocally && rawStatus != VisitorStatus.rejected)
-              ? VisitorStatus.completed
-              : (rawStatus == VisitorStatus.approved
-                  ? VisitorStatus.approved
-                  : (rawStatus == VisitorStatus.rejected
-                      ? VisitorStatus.rejected
-                      : (isGuardApproved
-                          ? VisitorStatus.approved
-                          : (isGuardRejected
-                              ? VisitorStatus.rejected
-                              : rawStatus)))));
+      // Hierarchical Lifecycle Status Resolution:
+      // 1. Exited: Terminal state (locally marked exited, server status EXITED, or previously exited)
+      // 2. Completed / Inside: Entered state (locally entered, server status INSIDE/completed, or previously inside)
+      // 3. Rejected: Denied entry
+      // 4. Approved: At gate awaiting entry
+      // 5. Pending: Waiting for resident approval
+      final VisitorStatus effectiveStatus;
+      if (isExitedLocally ||
+          rawStatus == VisitorStatus.exited ||
+          (index != -1 && _requests[index].status == VisitorStatus.exited)) {
+        effectiveStatus = VisitorStatus.exited;
+        _exitedEntryIds.add(id);
+      } else if (isCompletedLocally ||
+          rawStatus == VisitorStatus.completed ||
+          (index != -1 && _requests[index].status == VisitorStatus.completed)) {
+        if (rawStatus == VisitorStatus.rejected) {
+          effectiveStatus = VisitorStatus.rejected;
+        } else {
+          effectiveStatus = VisitorStatus.completed;
+          _completedEntryIds.add(id);
+        }
+      } else if (isGuardRejected || rawStatus == VisitorStatus.rejected) {
+        effectiveStatus = VisitorStatus.rejected;
+      } else if (isGuardApproved ||
+          rawStatus == VisitorStatus.approved ||
+          (index != -1 && _requests[index].status == VisitorStatus.approved)) {
+        effectiveStatus = VisitorStatus.approved;
+      } else {
+        effectiveStatus = rawStatus;
+      }
+
+      final decisionTime = map['respondedAt'] != null
+          ? DateTime.tryParse(map['respondedAt'].toString())?.toLocal()
+          : (map['decisionTime'] != null
+              ? DateTime.tryParse(map['decisionTime'].toString())?.toLocal()
+              : (index != -1 ? _requests[index].decisionTime : null));
+
+      final serverEntryTime = map['entryTime'] != null
+          ? DateTime.tryParse(map['entryTime'].toString())?.toLocal()
+          : (map['checkInTime'] != null
+              ? DateTime.tryParse(map['checkInTime'].toString())?.toLocal()
+              : null);
+
+      final serverExitTime = map['exitTime'] != null
+          ? DateTime.tryParse(map['exitTime'].toString())?.toLocal()
+          : (map['checkOutTime'] != null
+              ? DateTime.tryParse(map['checkOutTime'].toString())?.toLocal()
+              : null);
+
+      DateTime? entryTime = (index != -1 ? _requests[index].entryTime : null) ?? serverEntryTime;
+      if (entryTime == null &&
+          (effectiveStatus == VisitorStatus.completed ||
+              effectiveStatus == VisitorStatus.exited)) {
+        entryTime = decisionTime ?? (index != -1 ? _requests[index].requestTime : null);
+      }
+
+      DateTime? exitTime = (index != -1 ? _requests[index].exitTime : null) ?? serverExitTime;
+      if (exitTime == null && effectiveStatus == VisitorStatus.exited) {
+        exitTime = DateTime.now();
+      }
+
+      final decisionBy = (map['responseBy'] ?? map['decisionBy'])?.toString() ??
+          (index != -1 ? _requests[index].decisionBy : null);
+      final rejectionReason =
+          (map['rejectionReason'] ?? map['reason'])?.toString() ??
+              (effectiveStatus == VisitorStatus.rejected
+                  ? 'Entry denied by resident'
+                  : (index != -1 ? _requests[index].rejectionReason : null));
+
+      final serverVisitor = map['visitor'];
+      final serverPhoto =
+          (serverVisitor is Map ? serverVisitor['photoUrl'] : null) ??
+              map['photoUrl'];
 
       if (index != -1) {
         final currentReq = _requests[index];
 
-        final effectiveStatus = (currentReq.status == VisitorStatus.exited)
-            ? VisitorStatus.exited
-            : ((currentReq.status == VisitorStatus.completed &&
-                    newStatus != VisitorStatus.rejected)
-                ? VisitorStatus.completed
-                : newStatus);
-
-        final decisionTime = map['respondedAt'] != null
-            ? DateTime.tryParse(map['respondedAt'].toString())?.toLocal()
-            : (map['decisionTime'] != null
-                ? DateTime.tryParse(map['decisionTime'].toString())?.toLocal()
-                : currentReq.decisionTime);
-
-        final decisionBy =
-            (map['responseBy'] ?? map['decisionBy'])?.toString() ??
-                currentReq.decisionBy;
-        final rejectionReason =
-            (map['rejectionReason'] ?? map['reason'])?.toString() ??
-                (effectiveStatus == VisitorStatus.rejected
-                    ? 'Entry denied by resident'
-                    : currentReq.rejectionReason);
-
-        final serverVisitor = map['visitor'];
-        final serverPhoto = (serverVisitor is Map ? serverVisitor['photoUrl'] : null) ?? map['photoUrl'];
         String? updatedPhoto = currentReq.visitor.photoPath;
         if (serverPhoto != null &&
             (serverPhoto.toString().startsWith('http://') ||
@@ -104,11 +139,14 @@ class VisitorRepository extends ChangeNotifier {
           updatedPhoto = serverPhoto.toString();
         }
 
-        final photoChanged = updatedPhoto != null && updatedPhoto != currentReq.visitor.photoPath;
+        final photoChanged =
+            updatedPhoto != null && updatedPhoto != currentReq.visitor.photoPath;
 
         if (effectiveStatus != currentReq.status ||
             decisionBy != currentReq.decisionBy ||
             rejectionReason != currentReq.rejectionReason ||
+            entryTime != currentReq.entryTime ||
+            exitTime != currentReq.exitTime ||
             photoChanged) {
           _requests[index] = VisitorRequest(
             id: currentReq.id,
@@ -122,8 +160,9 @@ class VisitorRepository extends ChangeNotifier {
             purpose: currentReq.purpose,
             status: effectiveStatus,
             requestTime: currentReq.requestTime,
-            decisionTime: decisionTime,
-            exitTime: currentReq.exitTime,
+            decisionTime: decisionTime ?? currentReq.decisionTime,
+            entryTime: entryTime,
+            exitTime: exitTime,
             decisionBy: decisionBy,
             rejectionReason: rejectionReason,
           );
@@ -133,29 +172,26 @@ class VisitorRepository extends ChangeNotifier {
         // Clean up any lingering local temp requests for this visitor
         _requests.removeWhere((r) =>
             r.id.startsWith('local_') &&
-            r.visitor.name.toLowerCase() == currentReq.visitor.name.toLowerCase() &&
+            r.visitor.name.toLowerCase() ==
+                currentReq.visitor.name.toLowerCase() &&
             r.flatNumber == currentReq.flatNumber);
       } else {
         // Request exists on backend but not in local cache (e.g. after logout/login or shift change)
         try {
           final serverReq = VisitorRequest.fromJson(map);
-          if (_exitedEntryIds.contains(serverReq.id)) {
-            serverReq.status = VisitorStatus.exited;
-          } else if (_completedEntryIds.contains(serverReq.id) &&
-              serverReq.status != VisitorStatus.rejected) {
-            serverReq.status = VisitorStatus.completed;
-          } else if (_guardApprovedIds.contains(serverReq.id) &&
-              serverReq.status == VisitorStatus.pending) {
-            serverReq.status = VisitorStatus.approved;
-          } else if (_guardRejectedIds.contains(serverReq.id) &&
-              serverReq.status == VisitorStatus.pending) {
-            serverReq.status = VisitorStatus.rejected;
+          serverReq.status = effectiveStatus;
+          if (entryTime != null) {
+            serverReq.entryTime = entryTime;
+          }
+          if (exitTime != null) {
+            serverReq.exitTime = exitTime;
           }
 
           // Clean up any local request matching this server request
           _requests.removeWhere((r) =>
               r.id.startsWith('local_') &&
-              r.visitor.name.toLowerCase() == serverReq.visitor.name.toLowerCase() &&
+              r.visitor.name.toLowerCase() ==
+                  serverReq.visitor.name.toLowerCase() &&
               r.flatNumber == serverReq.flatNumber);
 
           _requests.add(serverReq);
@@ -253,11 +289,15 @@ class VisitorRepository extends ChangeNotifier {
           .toList();
 
       for (var r in _requests) {
-        if (_exitedEntryIds.contains(r.id)) {
+        if (_exitedEntryIds.contains(r.id) || r.status == VisitorStatus.exited) {
           r.status = VisitorStatus.exited;
-        } else if (_completedEntryIds.contains(r.id) &&
-            r.status != VisitorStatus.rejected) {
-          r.status = VisitorStatus.completed;
+          _exitedEntryIds.add(r.id);
+        } else if (_completedEntryIds.contains(r.id) ||
+            r.status == VisitorStatus.completed) {
+          if (r.status != VisitorStatus.rejected) {
+            r.status = VisitorStatus.completed;
+            _completedEntryIds.add(r.id);
+          }
         } else if (_guardApprovedIds.contains(r.id) &&
             r.status == VisitorStatus.pending) {
           r.status = VisitorStatus.approved;
@@ -308,6 +348,25 @@ class VisitorRepository extends ChangeNotifier {
     final list = List<VisitorRequest>.from(_requests);
     list.sort((a, b) => b.requestTime.compareTo(a.requestTime));
     return list.take(10).toList();
+  }
+
+  /// All visitor requests recorded today (pending, approved, rejected, completed, exited)
+  List<VisitorRequest> get todaysRequests {
+    final now = DateTime.now();
+    bool isSameDay(DateTime dt) {
+      final loc = dt.toLocal();
+      return loc.year == now.year && loc.month == now.month && loc.day == now.day;
+    }
+
+    final list = _requests.where((r) {
+      if (isSameDay(r.requestTime)) return true;
+      if (r.entryTime != null && isSameDay(r.entryTime!)) return true;
+      if (r.decisionTime != null && isSameDay(r.decisionTime!)) return true;
+      if (r.exitTime != null && isSameDay(r.exitTime!)) return true;
+      return false;
+    }).toList();
+    list.sort((a, b) => b.requestTime.compareTo(a.requestTime));
+    return list;
   }
 
   // ---------------------------------------------------------------------------
@@ -441,14 +500,28 @@ class VisitorRepository extends ChangeNotifier {
 
   // Complete Entry (Allow Gate Entry)
   Future<void> completeEntry(String requestId) async {
+    final now = DateTime.now();
     _completedEntryIds.add(requestId);
+    _exitedEntryIds.remove(requestId);
     await _storage.markEntryCompleted(requestId);
 
     final index = _requests.indexWhere((r) => r.id == requestId);
     if (index != -1) {
       _requests[index].status = VisitorStatus.completed;
+      _requests[index].entryTime = now;
       await _storage.saveRequests(_requests);
       notifyListeners();
+    }
+
+    // Synchronize to Backend Database
+    try {
+      final success = await ApiService.recordVisitorEntry(requestId);
+      if (!success) {
+        debugPrint(
+            '[VisitorRepository] Backend recordVisitorEntry returned false for $requestId');
+      }
+    } catch (e) {
+      debugPrint('[VisitorRepository] Error recordVisitorEntry: $e');
     }
   }
 
@@ -456,15 +529,31 @@ class VisitorRepository extends ChangeNotifier {
 
   // Mark Exit (Visitor Leaves Society Gate)
   Future<void> markExit(String requestId) async {
+    final now = DateTime.now();
     _exitedEntryIds.add(requestId);
     await _storage.markEntryExited(requestId);
 
     final index = _requests.indexWhere((r) => r.id == requestId);
     if (index != -1) {
       _requests[index].status = VisitorStatus.exited;
-      _requests[index].exitTime = DateTime.now();
+      _requests[index].exitTime = now;
+      if (_requests[index].entryTime == null) {
+        _requests[index].entryTime =
+            _requests[index].decisionTime ?? _requests[index].requestTime;
+      }
       await _storage.saveRequests(_requests);
       notifyListeners();
+    }
+
+    // Synchronize to Backend Database
+    try {
+      final success = await ApiService.recordVisitorExit(requestId);
+      if (!success) {
+        debugPrint(
+            '[VisitorRepository] Backend recordVisitorExit returned false for $requestId');
+      }
+    } catch (e) {
+      debugPrint('[VisitorRepository] Error recordVisitorExit: $e');
     }
   }
 
@@ -519,6 +608,26 @@ class VisitorRepository extends ChangeNotifier {
       _requests[index].decisionBy = 'Security Guard';
       await _storage.saveRequests(_requests);
       notifyListeners();
+
+      // Synchronize decision to backend
+      try {
+        if (isApproved) {
+          final success = await ApiService.approveVisitorRequest(actualId);
+          if (!success) {
+            debugPrint(
+                '[VisitorRepository] Backend approveVisitorRequest returned false for $actualId');
+          }
+        } else {
+          final success =
+              await ApiService.rejectVisitorRequest(actualId, reason: reason);
+          if (!success) {
+            debugPrint(
+                '[VisitorRepository] Backend rejectVisitorRequest returned false for $actualId');
+          }
+        }
+      } catch (e) {
+        debugPrint('[VisitorRepository] Error sync decision to backend: $e');
+      }
     }
   }
 

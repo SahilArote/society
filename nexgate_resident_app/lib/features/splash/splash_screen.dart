@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../services/storage_service.dart';
 import '../auth/login_screen.dart';
@@ -279,7 +279,7 @@ class _NexGateMarkPainter extends CustomPainter {
       final ripplePaint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.2 * k
-        ..color = const Color(0xFF34D399).withValues(alpha: 0.9 * (1.0 - ping));
+        ..color = const Color(0xFF34D399).withOpacity(0.9 * (1.0 - ping));
 
       canvas.drawCircle(dotCenter, 5.96 * k * (1.0 + 3.0 * ping), ripplePaint);
     }

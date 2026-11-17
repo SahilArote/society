@@ -161,7 +161,7 @@ export function emitVisitorDecision(data: {
   visitorName: string;
   flatNumber: string;
   gateName?: string;
-  status: 'APPROVED' | 'REJECTED';
+  status: 'APPROVED' | 'REJECTED' | 'INSIDE' | 'EXITED' | string;
   rejectionReason?: string;
 }) {
   if (!io) return;

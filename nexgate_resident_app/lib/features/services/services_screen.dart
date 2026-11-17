@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
@@ -330,7 +330,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
+                      color: Colors.black.withOpacity(0.06),
                       blurRadius: 4,
                       offset: const Offset(0, 1.5),
                     ),
@@ -427,7 +427,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: avatarColor.withValues(alpha: 0.12),
+                color: avatarColor.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(

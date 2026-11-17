@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_typography.dart';
@@ -226,7 +226,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                         width: 38,
                                         height: 38,
                                         decoration: BoxDecoration(
-                                          color: iconColor.withValues(alpha: 0.1),
+                                          color: iconColor.withOpacity(0.1),
                                           borderRadius: BorderRadius.circular(10),
                                         ),
                                         child: Icon(

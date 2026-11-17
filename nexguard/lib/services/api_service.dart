@@ -97,7 +97,7 @@ class ApiService {
         Uri.parse('$baseUrl/auth/guard/change-pin'),
         headers: {
           'Content-Type': 'application/json',
-          if (authToken != null && authToken!.isNotEmpty)
+          if (authToken.isNotEmpty)
             'Authorization': 'Bearer $authToken',
         },
         body: jsonEncode({
@@ -331,5 +331,124 @@ class ApiService {
           'Failed to verify pass';
       throw Exception(msg);
     }
+  }
+
+  // Record Visitor Entry (Gate Check-in / Inside)
+  static Future<bool> recordVisitorEntry(String requestId) async {
+    try {
+      await ensureAuthToken();
+      final response = await http.post(
+        Uri.parse('$baseUrl/visitor-requests/$requestId/entry'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $authToken',
+        },
+      ).timeout(timeoutDuration);
+
+      if (response.statusCode == 401) {
+        _handle401();
+        return false;
+      }
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final json = jsonDecode(response.body);
+        return json['success'] == true;
+      } else {
+        print('[ApiService] Record entry failed [${response.statusCode}]: ${response.body}');
+      }
+    } on TimeoutException {
+      print('[ApiService] Record entry timed out after 15 seconds.');
+    } catch (e) {
+      print('[ApiService] Error recording visitor entry: $e');
+    }
+    return false;
+  }
+
+  // Record Visitor Exit (Gate Check-out / Exited)
+  static Future<bool> recordVisitorExit(String requestId) async {
+    try {
+      await ensureAuthToken();
+      final response = await http.post(
+        Uri.parse('$baseUrl/visitor-requests/$requestId/exit'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $authToken',
+        },
+      ).timeout(timeoutDuration);
+
+      if (response.statusCode == 401) {
+        _handle401();
+        return false;
+      }
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final json = jsonDecode(response.body);
+        return json['success'] == true;
+      } else {
+        print('[ApiService] Record exit failed [${response.statusCode}]: ${response.body}');
+      }
+    } on TimeoutException {
+      print('[ApiService] Record exit timed out after 15 seconds.');
+    } catch (e) {
+      print('[ApiService] Error recording visitor exit: $e');
+    }
+    return false;
+  }
+
+  // Guard Approve Visitor Request
+  static Future<bool> approveVisitorRequest(String requestId) async {
+    try {
+      await ensureAuthToken();
+      final response = await http.post(
+        Uri.parse('$baseUrl/visitor-requests/$requestId/approve'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $authToken',
+        },
+      ).timeout(timeoutDuration);
+
+      if (response.statusCode == 401) {
+        _handle401();
+        return false;
+      }
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final json = jsonDecode(response.body);
+        return json['success'] == true;
+      }
+    } catch (e) {
+      print('[ApiService] Error approving visitor request: $e');
+    }
+    return false;
+  }
+
+  // Guard Reject Visitor Request
+  static Future<bool> rejectVisitorRequest(String requestId, {String? reason}) async {
+    try {
+      await ensureAuthToken();
+      final response = await http.post(
+        Uri.parse('$baseUrl/visitor-requests/$requestId/reject'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $authToken',
+        },
+        body: jsonEncode({
+          if (reason != null && reason.isNotEmpty) 'reason': reason,
+        }),
+      ).timeout(timeoutDuration);
+
+      if (response.statusCode == 401) {
+        _handle401();
+        return false;
+      }
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final json = jsonDecode(response.body);
+        return json['success'] == true;
+      }
+    } catch (e) {
+      print('[ApiService] Error rejecting visitor request: $e');
+    }
+    return false;
   }
 }

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/utils/haptic_helper.dart';
@@ -43,7 +43,7 @@ class ServiceDetailScreen extends StatelessWidget {
                         width: 56,
                         height: 56,
                         decoration: BoxDecoration(
-                          color: AppColors.primaryBlue.withValues(alpha: 0.12),
+                          color: AppColors.primaryBlue.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Center(

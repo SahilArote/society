@@ -48,7 +48,7 @@ class AppTheme {
       ),
 
       // Card Theme
-      cardTheme: CardThemeData(
+      cardTheme: CardTheme(
         color: AppColors.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -140,7 +140,7 @@ class AppTheme {
       ),
 
       // Dialog Theme
-      dialogTheme: DialogThemeData(
+      dialogTheme: DialogTheme(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 8,

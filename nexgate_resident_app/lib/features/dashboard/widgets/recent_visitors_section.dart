@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/haptic_helper.dart';
@@ -92,7 +92,7 @@ class RecentVisitorsSection extends StatelessWidget {
               border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                  color: const Color(0xFF0F172A).withOpacity(0.04),
                   blurRadius: 14,
                   offset: const Offset(0, 4),
                 ),
@@ -169,7 +169,7 @@ class RecentVisitorsSection extends StatelessWidget {
           border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+              color: const Color(0xFF0F172A).withOpacity(0.04),
               blurRadius: 14,
               offset: const Offset(0, 4),
             ),

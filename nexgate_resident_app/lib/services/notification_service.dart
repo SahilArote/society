@@ -245,13 +245,7 @@ class NotificationService {
 
 
     await _notificationsPlugin.initialize(
-
-
-
-      settings: initSettings,
-
-
-
+      initSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
 
 
@@ -893,29 +887,11 @@ class NotificationService {
 
 
     await _notificationsPlugin.show(
-
-
-
-      id: notificationId,
-
-
-
-      title: '$visitorName New Visitor Request',
-
-
-
-      body: '$visitorName is waiting at $gateName for Flat $flatNumber. Tap to view and respond.',
-
-
-
-      notificationDetails: notificationDetails,
-
-
-
+      notificationId,
+      '$visitorName New Visitor Request',
+      '$visitorName is waiting at $gateName for Flat $flatNumber. Tap to view and respond.',
+      notificationDetails,
       payload: requestId,
-
-
-
     );
 
 
@@ -1063,29 +1039,11 @@ class NotificationService {
 
 
     await _notificationsPlugin.show(
-
-
-
-      id: notificationId,
-
-
-
-      title: title,
-
-
-
-      body: body,
-
-
-
-      notificationDetails: notificationDetails,
-
-
-
+      notificationId,
+      title,
+      body,
+      notificationDetails,
       payload: payload,
-
-
-
     );
 
 

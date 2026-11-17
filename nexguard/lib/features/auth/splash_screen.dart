@@ -18,6 +18,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
+  Timer? _navTimer;
 
   // Staggered cinematic reveal animations
   late Animation<double> _logoScale;
@@ -37,30 +38,30 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1900),
+      duration: const Duration(milliseconds: 2200),
     );
 
-    // 1. Logo spring scale (0.0 -> 0.65)
+    // 1. Logo spring scale (0.0 -> 0.50)
     _logoScale = Tween<double>(begin: 0.55, end: 1.0).animate(
       CurvedAnimation(
         parent: _animController,
-        curve: const Interval(0.0, 0.65, curve: Curves.easeOutBack),
+        curve: const Interval(0.0, 0.50, curve: Curves.easeOutBack),
       ),
     );
 
-    // 2. Logo opacity fade (0.0 -> 0.45)
+    // 2. Logo opacity fade
     _logoFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _animController,
-        curve: const Interval(0.0, 0.45, curve: Curves.easeIn),
+        curve: const Interval(0.0, 0.35, curve: Curves.easeIn),
       ),
     );
 
-    // 3. Ambient halo glow expansion (0.10 -> 0.85)
+    // 3. Ambient halo glow expansion
     _glowScale = Tween<double>(begin: 0.5, end: 1.35).animate(
       CurvedAnimation(
         parent: _animController,
-        curve: const Interval(0.10, 0.85, curve: Curves.easeOutCubic),
+        curve: const Interval(0.10, 0.70, curve: Curves.easeOutCubic),
       ),
     );
 
@@ -76,40 +77,40 @@ class _SplashScreenState extends State<SplashScreen>
     ]).animate(
       CurvedAnimation(
         parent: _animController,
-        curve: const Interval(0.10, 0.90, curve: Curves.easeInOut),
+        curve: const Interval(0.10, 0.85, curve: Curves.easeInOut),
       ),
     );
 
-    // 4. Shimmer / light sweep (-1.5 to 1.5) across logo (0.35 -> 0.85)
+    // 4. Shimmer / light sweep (-1.2 to 1.6) across logo
     _shimmerProgress = Tween<double>(begin: -1.2, end: 1.6).animate(
       CurvedAnimation(
         parent: _animController,
-        curve: const Interval(0.35, 0.85, curve: Curves.easeInOutSine),
+        curve: const Interval(0.30, 0.75, curve: Curves.easeInOutSine),
       ),
     );
 
     // 5. Brand name typography slide & fade with letter-spacing tracking
     _textSlide = Tween<Offset>(
-      begin: const Offset(0, 0.35),
+      begin: const Offset(0, 0.30),
       end: Offset.zero,
     ).animate(
       CurvedAnimation(
         parent: _animController,
-        curve: const Interval(0.20, 0.65, curve: Curves.easeOutCubic),
+        curve: const Interval(0.20, 0.60, curve: Curves.easeOutCubic),
       ),
     );
 
     _textFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _animController,
-        curve: const Interval(0.20, 0.55, curve: Curves.easeIn),
+        curve: const Interval(0.20, 0.50, curve: Curves.easeIn),
       ),
     );
 
     _letterSpacing = Tween<double>(begin: -0.5, end: 1.2).animate(
       CurvedAnimation(
         parent: _animController,
-        curve: const Interval(0.20, 0.70, curve: Curves.easeOutCubic),
+        curve: const Interval(0.20, 0.65, curve: Curves.easeOutCubic),
       ),
     );
 
@@ -120,22 +121,22 @@ class _SplashScreenState extends State<SplashScreen>
     ).animate(
       CurvedAnimation(
         parent: _animController,
-        curve: const Interval(0.35, 0.75, curve: Curves.easeOutCubic),
+        curve: const Interval(0.30, 0.70, curve: Curves.easeOutCubic),
       ),
     );
 
     _taglineFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _animController,
-        curve: const Interval(0.35, 0.70, curve: Curves.easeIn),
+        curve: const Interval(0.30, 0.65, curve: Curves.easeIn),
       ),
     );
 
-    // 7. Progress line expansion (0.35 -> 1.0)
+    // 7. Progress line expansion (0.25 -> 0.95)
     _progressWidth = Tween<double>(begin: 0.0, end: 140.0).animate(
       CurvedAnimation(
         parent: _animController,
-        curve: const Interval(0.35, 1.0, curve: Curves.easeInOutCubic),
+        curve: const Interval(0.25, 0.95, curve: Curves.easeInOutCubic),
       ),
     );
 
@@ -145,12 +146,13 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
+    _navTimer?.cancel();
     _animController.dispose();
     super.dispose();
   }
 
   void _checkAuthAndNavigate() {
-    Timer(const Duration(milliseconds: 2300), () {
+    _navTimer = Timer(const Duration(milliseconds: 2600), () {
       if (!mounted) return;
       if (!kIsWeb && widget.guardRepo.isAuthenticated) {
         Navigator.of(context).pushReplacement(
@@ -159,7 +161,7 @@ class _SplashScreenState extends State<SplashScreen>
                 MainNavigation(guardRepo: widget.guardRepo),
             transitionsBuilder: (_, anim, __, child) =>
                 FadeTransition(opacity: anim, child: child),
-            transitionDuration: const Duration(milliseconds: 350),
+            transitionDuration: const Duration(milliseconds: 400),
           ),
         );
       } else {
@@ -169,7 +171,7 @@ class _SplashScreenState extends State<SplashScreen>
                 LoginScreen(guardRepo: widget.guardRepo),
             transitionsBuilder: (_, anim, __, child) =>
                 FadeTransition(opacity: anim, child: child),
-            transitionDuration: const Duration(milliseconds: 350),
+            transitionDuration: const Duration(milliseconds: 400),
           ),
         );
       }

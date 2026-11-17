@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 /// Premium Dark Navy Security Monitoring Banner matching reference design.
 class SecurityStatusCard extends StatelessWidget {
@@ -23,7 +23,7 @@ class SecurityStatusCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0B1936).withValues(alpha: 0.25),
+            color: const Color(0xFF0B1936).withOpacity(0.25),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -44,7 +44,7 @@ class SecurityStatusCard extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      const Color(0xFF1E40AF).withValues(alpha: 0.25),
+                      const Color(0xFF1E40AF).withOpacity(0.25),
                       Colors.transparent,
                     ],
                   ),
@@ -63,9 +63,9 @@ class SecurityStatusCard extends StatelessWidget {
                     height: 44,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFF1E3A8A).withValues(alpha: 0.4),
+                      color: const Color(0xFF1E3A8A).withOpacity(0.4),
                       border: Border.all(
-                        color: const Color(0xFF38BDF8).withValues(alpha: 0.3),
+                        color: const Color(0xFF38BDF8).withOpacity(0.3),
                         width: 1.5,
                       ),
                     ),
@@ -75,7 +75,7 @@ class SecurityStatusCard extends StatelessWidget {
                         height: 32,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF2563EB).withValues(alpha: 0.5),
+                          color: const Color(0xFF2563EB).withOpacity(0.5),
                         ),
                         child: const Icon(
                           Icons.verified_user_rounded,
@@ -105,7 +105,7 @@ class SecurityStatusCard extends StatelessWidget {
                                 boxShadow: isOnline
                                     ? [
                                         BoxShadow(
-                                          color: const Color(0xFF22C55E).withValues(alpha: 0.6),
+                                          color: const Color(0xFF22C55E).withOpacity(0.6),
                                           blurRadius: 6,
                                           spreadRadius: 1,
                                         ),
@@ -145,13 +145,13 @@ class SecurityStatusCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
                       color: isOnline
-                          ? const Color(0xFF052E16).withValues(alpha: 0.8)
-                          : const Color(0xFF450A0A).withValues(alpha: 0.8),
+                          ? const Color(0xFF052E16).withOpacity(0.8)
+                          : const Color(0xFF450A0A).withOpacity(0.8),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: isOnline
-                            ? const Color(0xFF16A34A).withValues(alpha: 0.4)
-                            : const Color(0xFFDC2626).withValues(alpha: 0.4),
+                            ? const Color(0xFF16A34A).withOpacity(0.4)
+                            : const Color(0xFFDC2626).withOpacity(0.4),
                         width: 1,
                       ),
                     ),

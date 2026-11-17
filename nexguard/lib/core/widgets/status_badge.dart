@@ -19,7 +19,7 @@ class StatusBadge extends StatelessWidget {
         bg = AppColors.warningLight;
         fg = AppColors.warningText;
         icon = Icons.access_time_filled;
-        label = 'WAITING';
+        label = 'PENDING';
         break;
       case VisitorStatus.approved:
         bg = AppColors.successLight;
@@ -38,6 +38,12 @@ class StatusBadge extends StatelessWidget {
         fg = AppColors.primary;
         icon = Icons.done_all;
         label = 'COMPLETED';
+        break;
+      case VisitorStatus.exited:
+        bg = AppColors.fieldBg;
+        fg = AppColors.textSecondary;
+        icon = Icons.exit_to_app;
+        label = 'EXITED';
         break;
     }
 

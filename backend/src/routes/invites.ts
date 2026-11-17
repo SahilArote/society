@@ -186,16 +186,17 @@ router.post(
   authorizeRoles('GUARD', 'ADMIN'),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { passCode, gateId: reqGateId } = req.body;
+      const rawCode = req.body.passCode || req.body.code || req.body.pass_code;
+      const { gateId: reqGateId } = req.body;
 
-      if (!passCode || !String(passCode).trim()) {
+      if (!rawCode || !String(rawCode).trim()) {
         return res.status(400).json({
           success: false,
           error: { code: 'INVALID_INPUT', message: '6-digit pass code is required' },
         });
       }
 
-      const cleanCode = String(passCode).trim().replace(/\D/g, '');
+      const cleanCode = String(rawCode).trim().replace(/\D/g, '');
       const societyId = req.user!.societyId || 'soc_greengate';
       const guardId = req.user!.id;
       const gateId = reqGateId || req.user!.gateId || 'gate_main';

@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../repositories/guard_repository.dart';
 import '../../services/language_service.dart';
 import '../../services/storage_service.dart';
 import '../auth/login_screen.dart';
+import '../call_spike/call_spike_screen.dart';
 
 /// Guard App - Profile Screen
 /// Matches the reference design pixel-by-pixel.
@@ -357,6 +359,9 @@ class ProfileScreen extends StatelessWidget {
 
                   // 5. SECURITY & TERMINAL CARD
                   _buildSecurityTerminalCard(context),
+
+                  // 5b. CALL SPIKE DEBUG TILE (visible if debug or kCallSpikeEnabled)
+                  _buildCallSpikeTile(context),
 
                   // 6. LOGOUT BUTTON
                   _buildLogoutButton(context),
@@ -885,6 +890,128 @@ class ProfileScreen extends StatelessWidget {
                     Icons.chevron_right_rounded,
                     color: Color(0xFF98A2B3),
                     size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 5b. TELECOM IN-CALL SPIKE DEBUG TILE
+  Widget _buildCallSpikeTile(BuildContext context) {
+    if (!kDebugMode && !kCallSpikeEnabled) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primaryContainer, width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.indigoTint,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'TERMINAL PHONE',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
+                    letterSpacing: 0.6,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'IN-APP CALLING SETUP',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.6,
+                  color: Color(0xFF64748B),
+                  fontFamily: 'Inter',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CallSpikeScreen()),
+                );
+              },
+              borderRadius: BorderRadius.circular(14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF8F0),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.phone_in_talk_rounded,
+                      color: Color(0xFF16A34A),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Gate Phone Setup',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1E293B),
+                            fontFamily: 'Inter',
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Check default phone app role and gate SIM status',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
+                            color: Color(0xFF64748B),
+                            fontFamily: 'Inter',
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: Color(0xFF98A2B3),
+                    size: 16,
                   ),
                 ],
               ),
