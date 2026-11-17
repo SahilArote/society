@@ -23,6 +23,8 @@ export interface ResidentBillResponse {
   referenceId: string;
   merchantVpa: string;
   merchantName: string;
+  /** true = admin has configured a real registered UPI VPA; false = UPI not ready, block payment */
+  upiReady: boolean;
   upiUri: string;
   submittedUtr?: string;
   submittedAt?: string;

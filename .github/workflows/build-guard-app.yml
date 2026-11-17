@@ -56,3 +56,4 @@ jobs:
           name: guard-app-release-aab
           path: nexguard/build/app/outputs/bundle/release/app-release.aab
           retention-days: 14
+

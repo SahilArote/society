@@ -87,39 +87,73 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
         )}';
   }
 
-  /// Launch NPCI UPI Intent URI into user's installed banking/UPI app
+  /// Build a correct NPCI UPI Intent URI from live bill fields.
+  /// - pa= (VPA): @ must NOT be percent-encoded — use raw string concatenation
+  /// - tr= (transaction ref): alphanumeric only, strips all special chars
+  /// - Rebuilds fresh every time so amount changes are reflected immediately
+  String _buildUpiUri() {
+    final bill = _bill!;
+    final amount = bill.totalAmount.toStringAsFixed(2);
+    // Keep @ in VPA unencoded (NPCI requirement). Encode only pn and tn.
+    final encodedName = Uri.encodeComponent(bill.merchantName);
+    final noteRaw = '${bill.flatNumber} ${bill.billingPeriod} Maintenance';
+    final encodedNote = Uri.encodeComponent(noteRaw.length > 50 ? noteRaw.substring(0, 50) : noteRaw);
+    // tr= must be alphanumeric only per NPCI spec
+    final safeRef = bill.referenceId.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+    return 'upi://pay?pa=${bill.merchantVpa}&pn=$encodedName&am=$amount&cu=INR&tn=$encodedNote&tr=$safeRef';
+  }
+
+  /// Launch NPCI UPI Intent URI into user's installed banking/UPI app.
+  /// Uses Android Intent package targeting to open the specific app chosen by the user.
   Future<void> _launchUpiIntent({String? package}) async {
     if (_bill == null) return;
     HapticHelper.mediumImpact();
 
-    final upiUriString = _bill!.upiUri.isNotEmpty
-        ? _bill!.upiUri
-        : 'upi://pay?pa=${_bill!.merchantVpa}&pn=${Uri.encodeComponent(_bill!.merchantName)}&am=${_bill!.totalAmount.toStringAsFixed(2)}&cu=INR&tn=${Uri.encodeComponent('${_bill!.flatNumber} ${_bill!.billingPeriod}')}&tr=${_bill!.referenceId}';
+    // Always build fresh URI from live bill fields (amount, VPA)
+    final baseUri = _buildUpiUri();
+
+    Uri targetUri;
+    if (package != null && Platform.isAndroid) {
+      // Android Intent scheme — targets the specific UPI app package
+      // This avoids the generic chooser and matches what the UI button says
+      final upiParams = baseUri.replaceFirst('upi://pay?', '');
+      targetUri = Uri.parse(
+        'intent://pay?$upiParams#Intent;scheme=upi;package=$package;end',
+      );
+    } else {
+      targetUri = Uri.parse(baseUri);
+    }
+
+    debugPrint('[UPI] Launching URI: $targetUri');
 
     try {
-      final uri = Uri.parse(upiUriString);
-      debugPrint('[UPI] Launching URI: $uri');
-
       final launched = await launchUrl(
-        uri,
-        mode: LaunchMode.externalNonBrowserApplication,
+        targetUri,
+        mode: LaunchMode.externalApplication,
       );
-
-      if (!launched) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched && package != null) {
+        // Package-specific app not installed — fall back to generic chooser
+        debugPrint('[UPI] Package not found, falling back to generic upi://');
+        await launchUrl(Uri.parse(baseUri), mode: LaunchMode.externalApplication);
       }
     } catch (e) {
       debugPrint('[UPI] Launch error: $e');
+      // Try generic fallback
+      try {
+        await launchUrl(Uri.parse(baseUri), mode: LaunchMode.externalApplication);
+      } catch (_) {}
     }
 
-    // Instead of forcing UTR entry immediately, prompt the resident
+    // Show confirmation sheet after app opens
     if (mounted) {
       final appLabel = package != null
           ? (package.contains('paisa')
               ? 'Google Pay'
               : package.contains('phonepe')
                   ? 'PhonePe'
-                  : 'Paytm')
+                  : package.contains('paytm')
+                      ? 'Paytm'
+                      : 'UPI App')
           : 'UPI App';
       _showPaymentConfirmationSheet(appLabel);
     }
@@ -557,6 +591,11 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
   // ==========================================================
   Widget _buildStep2PickApp() {
     final bill = _bill!;
+
+    // Block payment if admin hasn't configured a real UPI ID
+    if (!bill.upiReady) {
+      return _buildUpiNotConfiguredCard();
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1168,6 +1207,71 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
     );
   }
 
+  // ==========================================================
+  // UPI NOT CONFIGURED: Shown when admin hasn't set a real VPA
+  // ==========================================================
+  Widget _buildUpiNotConfiguredCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1D23),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF78350F)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF78350F).withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.account_balance_outlined,
+              color: Color(0xFFFCD34D),
+              size: 36,
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            'Society UPI Not Configured',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'The society admin has not set up a UPI payment ID yet.\n\nPlease contact your society admin to configure the payment account before you can pay online.',
+            style: TextStyle(
+              fontSize: 13,
+              color: Color(0xFF94A3B8),
+              height: 1.6,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          OutlinedButton.icon(
+            onPressed: () => setState(() => _currentStep = MaintenanceStep.seeBill),
+            icon: const Icon(Icons.arrow_back_rounded, size: 16, color: Color(0xFF38BDF8)),
+            label: const Text(
+              'Back to Bill',
+              style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.w700),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFF1E3A8A)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatusBadge(String status) {
     Color bg;
     Color fg;
@@ -1213,13 +1317,122 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
     }
   }
 
+  /// Show a detailed payment receipt dialog with all transaction info.
+  /// The resident can copy the receipt number or take a screenshot.
   void _downloadReceipt(MaintenanceBillModel bill) {
     HapticHelper.success();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Payment Receipt ${bill.receiptNumber ?? bill.invoiceNumber} downloaded'),
-        backgroundColor: const Color(0xFF15803D),
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E222A),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      builder: (ctx) {
+        final receiptNo = bill.receiptNumber ?? bill.invoiceNumber;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle
+              Container(
+                width: 44, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Green checkmark
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14532D),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_rounded, color: Color(0xFF86EFAC), size: 32),
+              ),
+              const SizedBox(height: 14),
+              const Text('Payment Verified', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white)),
+              const SizedBox(height: 4),
+              Text(
+                _formatINR(bill.totalAmount),
+                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Color(0xFF22C55E), letterSpacing: -1),
+              ),
+              const SizedBox(height: 20),
+              // Receipt details
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF121417),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF2E333D)),
+                ),
+                child: Column(
+                  children: [
+                    _receiptRow('Receipt No', receiptNo),
+                    const Divider(color: Color(0xFF2E333D), height: 20),
+                    _receiptRow('Flat', '${bill.flatNumber} • ${bill.societyName}'),
+                    const SizedBox(height: 10),
+                    _receiptRow('Period', bill.billingPeriod),
+                    const SizedBox(height: 10),
+                    if (bill.submittedUtr != null) _receiptRow('UTR', bill.submittedUtr!),
+                    const SizedBox(height: 10),
+                    if (bill.paidAt != null) _receiptRow('Approved', _formatTime(bill.paidAt!)),
+                    const SizedBox(height: 10),
+                    _receiptRow('Paid to', bill.merchantVpa),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Copy Receipt Number button
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: receiptNo));
+                    HapticHelper.success();
+                    Navigator.of(ctx).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Receipt number copied to clipboard'),
+                        backgroundColor: Color(0xFF15803D),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.copy_rounded, size: 18),
+                  label: const Text('Copy Receipt Number', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _receiptRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+        Flexible(
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
+            textAlign: TextAlign.right,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }

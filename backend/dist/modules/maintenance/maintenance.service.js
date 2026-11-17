@@ -18,7 +18,8 @@ class MaintenanceService {
         return `₹${amount.toLocaleString('en-IN')}`;
     }
     /**
-     * Fetch or auto-seed society payment config
+     * Fetch society payment config — returns null if admin has not configured a real UPI ID yet.
+     * Does NOT auto-seed a fake VPA. Admin must set a real one via /admin/maintenance → Set UPI ID.
      */
     static async getSocietyPaymentConfig(societyId) {
         const pool = await (0, mysql_1.getMysqlPool)();
@@ -28,15 +29,45 @@ class MaintenanceService {
         if (configs.length > 0) {
             return configs[0];
         }
-        // Auto-create default merchant UPI if not set yet
-        const [socRows] = await pool.query('SELECT name FROM societies WHERE id = ?', [societyId]);
-        const societyName = socRows[0]?.name || 'Eco Residency CHS';
-        const id = `spc_${(0, uuid_1.v4)().slice(0, 8)}`;
-        await pool.query(`INSERT INTO society_payment_configs (
-        id, society_id, merchant_vpa, merchant_name, bank_name, account_number_masked, ifsc_code
-      ) VALUES (?, ?, 'ecoresidency@icici', ?, 'ICICI Bank', '•••• •••• •••• 4589', 'ICIC0001234')`, [id, societyId, societyName]);
-        const [created] = await pool.query('SELECT * FROM society_payment_configs WHERE id = ?', [id]);
-        return created[0];
+        // No config found — return null so callers can show "UPI not configured" state
+        return null;
+    }
+    /**
+     * Check whether the society has configured a valid (non-placeholder) UPI ID.
+     */
+    static isVpaConfigured(config) {
+        if (!config)
+            return false;
+        const vpa = (config.merchant_vpa || '').trim().toLowerCase();
+        // Reject placeholder / fake VPAs
+        if (!vpa.includes('@'))
+            return false;
+        if (vpa === 'ecoresidency@icici')
+            return false;
+        if (vpa === 'greenvalley@icici')
+            return false;
+        if (vpa.startsWith('example@'))
+            return false;
+        if (vpa.startsWith('test@'))
+            return false;
+        return true;
+    }
+    /**
+     * Build a correctly-encoded NPCI UPI Intent URI.
+     * - pa= (VPA): @ must NOT be percent-encoded
+     * - tr= (transaction ref): alphanumeric only, max 50 chars
+     * - tn= (note): percent-encoded, max 50 chars
+     * - pn= (payee name): percent-encoded
+     * - am= (amount): 2 decimal places
+     * Does NOT use URLSearchParams (which encodes @ → %40, space → +)
+     */
+    static buildUpiUri(params) {
+        const safeVpa = params.vpa.trim(); // keep @ unencoded per NPCI spec
+        const safeName = encodeURIComponent(params.name.trim());
+        const safeNote = encodeURIComponent(params.note.slice(0, 50));
+        // tr= must be alphanumeric only (A-Z, 0-9), max 50 chars
+        const safeRef = params.ref.replace(/[^a-zA-Z0-9]/g, '').slice(0, 50);
+        return `upi://pay?pa=${safeVpa}&pn=${safeName}&am=${params.amount}&cu=INR&tn=${safeNote}&tr=${safeRef}`;
     }
     /**
      * RESIDENT: Fetch current maintenance bill with breakdown and UPI Intent URI
@@ -46,59 +77,72 @@ class MaintenanceService {
         if (!pool)
             throw new Error('Database connection unavailable');
         const config = await this.getSocietyPaymentConfig(societyId);
-        // 1. Resolve flat
+        const upiReady = this.isVpaConfigured(config);
+        // 1. Resolve flat — strictly by resident ownership, never fall back to another resident's flat
         let targetFlatId = flatId;
         if (!targetFlatId) {
-            const [flats] = await pool.query('SELECT id, flat_number, wing FROM flats WHERE (resident_id = ? OR id = ?) AND society_id = ? LIMIT 1', [residentId, residentId, societyId]);
+            const [flats] = await pool.query('SELECT id, flat_number, wing FROM flats WHERE resident_id = ? AND society_id = ? LIMIT 1', [residentId, societyId]);
             if (flats.length > 0) {
                 targetFlatId = flats[0].id;
             }
         }
         if (!targetFlatId) {
-            // Fallback to first flat in society
-            const [firstFlat] = await pool.query('SELECT id FROM flats WHERE society_id = ? ORDER BY flat_number ASC LIMIT 1', [societyId]);
-            targetFlatId = firstFlat[0]?.id || 'flat_a101';
+            throw new Error('Your flat is not assigned yet. Please contact the society admin to approve your registration.');
         }
         // 2. Fetch society details
         const [socRows] = await pool.query('SELECT name FROM societies WHERE id = ?', [societyId]);
-        const societyName = socRows[0]?.name || config.merchant_name || 'Green Valley CHS';
+        const societyName = socRows[0]?.name || (config?.merchant_name) || 'Green Valley CHS';
         // 3. Fetch flat details
         const [flatRows] = await pool.query('SELECT flat_number, wing FROM flats WHERE id = ?', [targetFlatId]);
         const flatNumber = flatRows[0]?.flat_number || 'A-101';
         const wing = flatRows[0]?.wing || 'Wing A';
-        // 4. Fetch latest invoice for this flat
-        let [invoices] = await pool.query(`SELECT * FROM maintenance_invoices 
-       WHERE society_id = ? AND flat_id = ? 
+        // 4. Fetch latest invoice for this flat (most recent billing period)
+        let [invoices] = await pool.query(`SELECT * FROM maintenance_invoices
+       WHERE society_id = ? AND flat_id = ?
        ORDER BY created_at DESC LIMIT 1`, [societyId, targetFlatId]);
         let inv = invoices[0];
-        // If no invoice exists, auto-seed default invoice (e.g. Nov 2026 ₹2,500)
+        // If no invoice exists, auto-seed — using INSERT IGNORE to prevent race-condition duplicates
         if (!inv) {
+            const now = new Date();
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const billingPeriod = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+            // Due date = 10th of next month
+            const dueMonth = new Date(now.getFullYear(), now.getMonth() + 1, 10);
+            const dueDateStr = dueMonth.toISOString().slice(0, 10);
             const invId = `inv_${(0, uuid_1.v4)().slice(0, 8)}`;
             const cleanFlatNum = flatNumber.replace(/[^a-zA-Z0-9]/g, '');
-            const refId = `NXG-${cleanFlatNum}-112026`;
+            const monthNum = String(now.getMonth() + 1).padStart(2, '0');
+            const yearNum = String(now.getFullYear()).slice(2);
+            // tr-safe alphanumeric reference id
+            const refId = `NXG${cleanFlatNum}${monthNum}${yearNum}`;
+            const invNumber = `INV-${now.getFullYear()}-${monthNum}-${cleanFlatNum}`;
             const breakdown = [
                 { title: 'Maintenance', amount: 2000 },
                 { title: 'Sinking fund', amount: 300 },
                 { title: 'Parking', amount: 200 },
             ];
-            await pool.query(`INSERT INTO maintenance_invoices (
+            // INSERT IGNORE prevents crash if two simultaneous requests race here
+            await pool.query(`INSERT IGNORE INTO maintenance_invoices (
           id, society_id, flat_id, resident_id, invoice_number,
           billing_period, due_date, total_amount, paid_amount, status,
           breakdown_json, reference_id
-        ) VALUES (?, ?, ?, ?, ?, 'Nov 2026', '2026-12-10', 2500.00, 0.00, 'UNPAID', ?, ?)`, [
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 2500.00, 0.00, 'UNPAID', ?, ?)`, [
                 invId,
                 societyId,
                 targetFlatId,
                 residentId,
-                `INV-2026-11-${cleanFlatNum}`,
+                invNumber,
+                billingPeriod,
+                dueDateStr,
                 JSON.stringify(breakdown),
                 refId,
             ]);
-            const [newInvs] = await pool.query('SELECT * FROM maintenance_invoices WHERE id = ?', [invId]);
+            // Always re-fetch to get the winning record (in case INSERT IGNORE skipped ours)
+            const [newInvs] = await pool.query('SELECT * FROM maintenance_invoices WHERE society_id = ? AND flat_id = ? ORDER BY created_at DESC LIMIT 1', [societyId, targetFlatId]);
             inv = newInvs[0];
         }
         // 5. Check if there is an active payment submission for this invoice
-        const [payments] = await pool.query(`SELECT * FROM maintenance_payments 
+        const [payments] = await pool.query(`SELECT * FROM maintenance_payments
        WHERE invoice_id = ? ORDER BY submitted_at DESC LIMIT 1`, [inv.id]);
         const latestPayment = payments[0];
         // Parse breakdown items
@@ -116,21 +160,20 @@ class MaintenanceService {
                 { title: 'Parking', amount: 200 },
             ];
         }
-        // 6. Generate Direct NPCI UPI Intent URI
+        // 6. Build NPCI-compliant UPI Intent URI (manual build, NOT URLSearchParams)
+        // Client rebuilds from live fields on every payment attempt — this is for reference/display only
         const amountVal = Number(inv.total_amount).toFixed(2);
-        const safeNote = `${flatNumber} ${inv.billing_period} Maintenance`
-            .replace(/[^a-zA-Z0-9\s-]/g, '')
-            .trim()
-            .slice(0, 50);
-        const params = new URLSearchParams();
-        params.set('pa', config.merchant_vpa);
-        params.set('pn', config.merchant_name);
-        params.set('am', amountVal);
-        params.set('cu', 'INR');
-        params.set('tn', safeNote);
-        params.set('tr', inv.reference_id);
-        // Standard RFC3986 percent-encoding for native UPI app compatibility
-        const upiUri = `upi://pay?${params.toString().replace(/\+/g, '%20')}`;
+        const noteStr = `${flatNumber} ${inv.billing_period} Maintenance`;
+        let upiUri = '';
+        if (upiReady && config) {
+            upiUri = this.buildUpiUri({
+                vpa: config.merchant_vpa,
+                name: config.merchant_name,
+                amount: amountVal,
+                note: noteStr,
+                ref: inv.reference_id,
+            });
+        }
         // Determine effective status
         let effectiveStatus = inv.status;
         if (latestPayment) {
@@ -144,19 +187,20 @@ class MaintenanceService {
         return {
             invoiceId: inv.id,
             invoiceNumber: inv.invoice_number,
-            flatId: targetFlatId || 'flat_a101',
+            flatId: targetFlatId,
             flatNumber,
             wing,
             societyName,
             billingPeriod: inv.billing_period,
-            dueDate: inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '2026-12-10',
+            dueDate: inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '',
             totalAmount: Number(inv.total_amount),
             paidAmount: Number(inv.paid_amount),
             status: effectiveStatus,
             breakdown,
             referenceId: inv.reference_id,
-            merchantVpa: config.merchant_vpa,
-            merchantName: config.merchant_name,
+            merchantVpa: upiReady && config ? config.merchant_vpa : '',
+            merchantName: upiReady && config ? config.merchant_name : '',
+            upiReady,
             upiUri,
             submittedUtr: latestPayment?.utr,
             submittedAt: latestPayment?.submitted_at,
@@ -239,10 +283,13 @@ class MaintenanceService {
         const pool = await (0, mysql_1.getMysqlPool)();
         if (!pool)
             throw new Error('Database connection unavailable');
-        // 1. Collected this month (Nov 2026 or current)
+        // 1. Collected this month (current billing period — dynamic, not hardcoded)
+        const now = new Date();
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const currentPeriod = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
         const [collectedRows] = await pool.query(`SELECT COALESCE(SUM(paid_amount), 0) as totalCollected
        FROM maintenance_invoices 
-       WHERE society_id = ? AND status = 'PAID' AND billing_period = 'Nov 2026'`, [societyId]);
+       WHERE society_id = ? AND status = 'PAID' AND billing_period = ?`, [societyId, currentPeriod]);
         const collectedNov = Number(collectedRows[0]?.totalCollected) || 0;
         // 2. Pending check count
         const [pendingRows] = await pool.query("SELECT COUNT(*) as cnt FROM maintenance_payments WHERE society_id = ? AND status = 'PENDING_CHECK'", [societyId]);

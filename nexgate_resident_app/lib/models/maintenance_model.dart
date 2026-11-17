@@ -31,6 +31,9 @@ class MaintenanceBillModel {
   final String referenceId;
   final String merchantVpa;
   final String merchantName;
+  /// true = admin has configured a real registered UPI VPA — safe to show payment buttons
+  final bool upiReady;
+  /// Pre-built UPI URI from server (reference only). App always rebuilds fresh on payment attempt.
   final String upiUri;
   final String? submittedUtr;
   final String? submittedAt;
@@ -53,6 +56,7 @@ class MaintenanceBillModel {
     required this.referenceId,
     required this.merchantVpa,
     required this.merchantName,
+    required this.upiReady,
     required this.upiUri,
     this.submittedUtr,
     this.submittedAt,
@@ -81,8 +85,8 @@ class MaintenanceBillModel {
       flatNumber: json['flatNumber']?.toString() ?? 'A-101',
       wing: json['wing']?.toString() ?? '',
       societyName: json['societyName']?.toString() ?? 'Green Valley CHS',
-      billingPeriod: json['billingPeriod']?.toString() ?? 'Nov 2026',
-      dueDate: json['dueDate']?.toString() ?? '10 Dec',
+      billingPeriod: json['billingPeriod']?.toString() ?? '',
+      dueDate: json['dueDate']?.toString() ?? '',
       totalAmount: double.tryParse(json['totalAmount']?.toString() ?? '0') ?? 2500.0,
       paidAmount: double.tryParse(json['paidAmount']?.toString() ?? '0') ?? 0.0,
       status: json['status']?.toString() ?? 'UNPAID',
@@ -93,9 +97,10 @@ class MaintenanceBillModel {
               const BreakdownItemModel(title: 'Sinking fund', amount: 300),
               const BreakdownItemModel(title: 'Parking', amount: 200),
             ],
-      referenceId: json['referenceId']?.toString() ?? 'NXG-A101-112026',
-      merchantVpa: json['merchantVpa']?.toString() ?? 'greenvalley@icici',
-      merchantName: json['merchantName']?.toString() ?? 'Green Valley CHS',
+      referenceId: json['referenceId']?.toString() ?? '',
+      merchantVpa: json['merchantVpa']?.toString() ?? '',
+      merchantName: json['merchantName']?.toString() ?? '',
+      upiReady: json['upiReady'] == true,
       upiUri: json['upiUri']?.toString() ?? '',
       submittedUtr: json['submittedUtr']?.toString(),
       submittedAt: json['submittedAt']?.toString(),
