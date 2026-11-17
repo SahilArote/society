@@ -86,6 +86,14 @@ Please present this pass or show the QR code at the security gate for instant en
       );
 
       final picData = await painter.toImageData(600, format: ui.ImageByteFormat.png);
+      Rect? shareOrigin;
+      if (mounted) {
+        final box = context.findRenderObject() as RenderBox?;
+        if (box != null && box.hasSize) {
+          shareOrigin = box.localToGlobal(Offset.zero) & box.size;
+        }
+      }
+
       if (picData != null) {
         final tempDir = Directory.systemTemp;
         final tempFile = File('${tempDir.path}/nexgate_pass_${widget.passId}.png');
@@ -96,6 +104,7 @@ Please present this pass or show the QR code at the security gate for instant en
             files: [XFile(tempFile.path)],
             text: text,
             subject: 'NexGate Entry Pass for ${widget.visitorName}',
+            sharePositionOrigin: shareOrigin,
           ),
         );
         return;
@@ -104,10 +113,19 @@ Please present this pass or show the QR code at the security gate for instant en
       debugPrint('[SHARE] QR image generation fallback to text-only: $e');
     }
 
+    Rect? fallbackOrigin;
+    if (mounted) {
+      final box = context.findRenderObject() as RenderBox?;
+      if (box != null && box.hasSize) {
+        fallbackOrigin = box.localToGlobal(Offset.zero) & box.size;
+      }
+    }
+
     SharePlus.instance.share(
       ShareParams(
         text: text,
         subject: 'NexGate Entry Pass for ${widget.visitorName}',
+        sharePositionOrigin: fallbackOrigin,
       ),
     );
   }
