@@ -64,14 +64,14 @@ router.get('/directory', authenticateToken, async (req: AuthenticatedRequest, re
         floor: `${f.floor}${f.floor === 1 ? 'st' : f.floor === 2 ? 'nd' : f.floor === 3 ? 'rd' : 'th'} Floor`,
         residents: f.residentName
           ? [
-              {
-                id: f.residentId,
-                name: f.residentName,
-                phoneNumber: f.residentMobile,
-                flatNumber: f.flatNumber,
-                buildingWing: normalizedWing,
-              },
-            ]
+            {
+              id: f.residentId,
+              name: f.residentName,
+              phoneNumber: f.residentMobile,
+              flatNumber: f.flatNumber,
+              buildingWing: normalizedWing,
+            },
+          ]
           : [],
       });
     }
@@ -229,7 +229,7 @@ router.post(
         }
       );
 
-            // 6. Target Resident ID for this Flat (Primary flat resident ONLY - Family members do not receive notifications)
+      // 6. Target Resident ID for this Flat (Primary flat resident ONLY - Family members do not receive notifications)
       const targetResidentIds = [resident.id];
 
       console.log(`[VISITOR] Request created: ${requestId}`);
@@ -240,7 +240,7 @@ router.post(
       try {
         const gate = await findGateById(gateId);
         if (gate) gateName = gate.name;
-      } catch (_) {}
+      } catch (_) { }
 
       // Create notifications in MySQL for all target residents
       for (const targetUid of targetResidentIds) {
@@ -319,7 +319,7 @@ router.post(
         try {
           console.log(`[FCM] Sending VISITOR_REQUEST notification for requestId: ${requestId} to resident: ${targetUid}`);
           sendPushToUser(targetUid, {
-            title: `🚨 New Visitor Request`,
+            title: `New Visitor Request`,
             body: `${name} is waiting at ${gateName} for Flat ${flat.flatNumber}. Tap to view and respond.`,
             icon: '/icons/icon-192.png',
             badge: '/icons/favicon-32.png',

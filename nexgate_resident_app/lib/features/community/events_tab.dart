@@ -96,10 +96,10 @@ class _EventsTabState extends State<EventsTab> {
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF1E60D5) : Colors.white,
+            color: isSelected ? const Color(0xFF0F172A) : Colors.white,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isSelected ? const Color(0xFF1E60D5) : AppColors.border,
+              color: isSelected ? const Color(0xFF0F172A) : AppColors.border,
             ),
           ),
           child: Text(

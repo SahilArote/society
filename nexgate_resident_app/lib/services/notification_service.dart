@@ -812,7 +812,7 @@ class NotificationService {
             )
           : BigTextStyleInformation(
               '$visitorName is waiting at $gateName for Flat $flatNumber. Tap to view and respond.',
-              contentTitle: '🚨 $visitorName at $gateName',
+              contentTitle: '$visitorName at $gateName',
             ),
     );
 
