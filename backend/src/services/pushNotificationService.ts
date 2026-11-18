@@ -348,11 +348,18 @@ export async function sendPushToUser(
           }
         }
 
-        const response = await getMessaging().sendEachForMulticast({
+        if (payload.image) {
+          stringData['imageUrl'] = payload.image;
+          stringData['photoUrl'] = payload.image;
+          stringData['image'] = payload.image;
+        }
+
+        const messagePayload: any = {
           tokens: fcmTokens,
           notification: {
             title: payload.title,
             body: payload.body,
+            ...(payload.image ? { imageUrl: payload.image } : {}),
           },
           data: stringData,
           android: {
@@ -363,9 +370,26 @@ export async function sendPushToUser(
               defaultSound: true,
               defaultVibrateTimings: true,
               visibility: 'public',
+              ...(payload.image ? { imageUrl: payload.image } : {}),
             },
           },
-        });
+          apns: {
+            payload: {
+              aps: {
+                'mutable-content': 1,
+              },
+            },
+            ...(payload.image
+              ? {
+                  fcmOptions: {
+                    imageUrl: payload.image,
+                  },
+                }
+              : {}),
+          },
+        };
+
+        const response = await getMessaging().sendEachForMulticast(messagePayload);
 
         console.log(`[FCM] Sent successfully: ${response.successCount}/${fcmTokens.length} devices for user ${userId}`);
         sentCount += response.successCount;

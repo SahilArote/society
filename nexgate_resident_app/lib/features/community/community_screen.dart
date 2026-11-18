@@ -84,11 +84,10 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
           // Thin Header Divider
           const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
-          const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
 
           // Segmented Pill Tabs: Lost & Found | Events
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             child: Container(
               height: 48,
               padding: const EdgeInsets.all(4),
@@ -119,14 +118,14 @@ class _CommunityScreenState extends State<CommunityScreen> {
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.transparent,
+            color: isSelected ? const Color(0xFF1E60D5) : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1.5),
+                      color: const Color(0xFF1E60D5).withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
                     ),
                   ]
                 : null,
@@ -137,7 +136,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+              color: isSelected ? Colors.white : const Color(0xFF64748B),
             ),
           ),
         ),

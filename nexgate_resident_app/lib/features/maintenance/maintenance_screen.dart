@@ -2,17 +2,39 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/haptic_helper.dart';
 import '../../models/maintenance_model.dart';
 import '../../services/api_service.dart';
 
+// ============================================================================
+// SOCIETYOS / REFFER DESIGN TOKENS (PropTech Premium Palette)
+// ============================================================================
+class RefferTheme {
+  static const Color navy = Color(0xFF0D2137);
+  static const Color navy900 = Color(0xFF091829);
+  static const Color navy700 = Color(0xFF143155);
+  static const Color amber = Color(0xFFE8A020);
+  static const Color amberLight = Color(0xFFFBF0DC);
+  static const Color surface = Color(0xFFFAF8F5);
+  static const Color surface2 = Color(0xFFF2EFE9);
+  static const Color cardBg = Colors.white;
+  static const Color border = Color(0xFFE5DED3);
+  static const Color green = Color(0xFF16A34A);
+  static const Color greenLight = Color(0xFFDCFCE7);
+  static const Color textPrimary = Color(0xFF0D2137);
+  static const Color textMuted = Color(0xFF64748B);
+  static const Color textSecondary = Color(0xFF374151);
+}
+
 enum MaintenanceStep {
-  seeBill,
-  pickApp,
+  summary,
+  method,
   confirmUtr,
-  statusReceipt,
+  receipt,
 }
 
 class MaintenanceScreen extends StatefulWidget {
@@ -23,12 +45,13 @@ class MaintenanceScreen extends StatefulWidget {
 }
 
 class _MaintenanceScreenState extends State<MaintenanceScreen> {
-  MaintenanceStep _currentStep = MaintenanceStep.seeBill;
+  MaintenanceStep _currentStep = MaintenanceStep.summary;
   MaintenanceBillModel? _bill;
   bool _isLoading = true;
   String? _errorMessage;
 
-  // Step 3 State
+  // Step 2 & 3 state
+  String _selectedPaymentType = 'upi'; // 'upi' | 'qr' | 'bank'
   final TextEditingController _utrController = TextEditingController();
   File? _screenshotFile;
   bool _isSubmitting = false;
@@ -63,9 +86,9 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
         _bill = bill;
         _isLoading = false;
 
-        // Auto-navigate to appropriate step based on bill status
+        // Auto-navigate to receipt step if bill is paid or submitted for check
         if (bill.isPaid || bill.isPendingCheck) {
-          _currentStep = MaintenanceStep.statusReceipt;
+          _currentStep = MaintenanceStep.receipt;
           if (bill.submittedUtr != null && _utrController.text.isEmpty) {
             _utrController.text = bill.submittedUtr!;
           }
@@ -74,7 +97,7 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
         _isLoading = false;
       });
     }
@@ -87,64 +110,43 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
         )}';
   }
 
-  /// Build a correct NPCI UPI Intent URI from live bill fields.
-  /// - pa= (VPA): @ must NOT be percent-encoded — use raw string concatenation
-  /// - tr= (transaction ref): alphanumeric only, strips all special chars
-  /// - Rebuilds fresh every time so amount changes are reflected immediately
+  /// Build NPCI-compliant UPI Intent URI
   String _buildUpiUri() {
     final bill = _bill!;
     final amount = bill.totalAmount.toStringAsFixed(2);
-    // Keep @ in VPA unencoded (NPCI requirement). Encode only pn and tn.
     final encodedName = Uri.encodeComponent(bill.merchantName);
     final noteRaw = '${bill.flatNumber} ${bill.billingPeriod} Maintenance';
     final encodedNote = Uri.encodeComponent(noteRaw.length > 50 ? noteRaw.substring(0, 50) : noteRaw);
-    // tr= must be alphanumeric only per NPCI spec
     final safeRef = bill.referenceId.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
     return 'upi://pay?pa=${bill.merchantVpa}&pn=$encodedName&am=$amount&cu=INR&tn=$encodedNote&tr=$safeRef';
   }
 
-  /// Launch NPCI UPI Intent URI into user's installed banking/UPI app.
-  /// Uses Android Intent package targeting to open the specific app chosen by the user.
+  /// Launch NPCI UPI Intent URI into user's installed banking/UPI app
   Future<void> _launchUpiIntent({String? package}) async {
     if (_bill == null) return;
     HapticHelper.mediumImpact();
 
-    // Always build fresh URI from live bill fields (amount, VPA)
     final baseUri = _buildUpiUri();
 
     Uri targetUri;
     if (package != null && Platform.isAndroid) {
-      // Android Intent scheme — targets the specific UPI app package
-      // This avoids the generic chooser and matches what the UI button says
       final upiParams = baseUri.replaceFirst('upi://pay?', '');
-      targetUri = Uri.parse(
-        'intent://pay?$upiParams#Intent;scheme=upi;package=$package;end',
-      );
+      targetUri = Uri.parse('intent://pay?$upiParams#Intent;scheme=upi;package=$package;end');
     } else {
       targetUri = Uri.parse(baseUri);
     }
 
-    debugPrint('[UPI] Launching URI: $targetUri');
-
     try {
-      final launched = await launchUrl(
-        targetUri,
-        mode: LaunchMode.externalApplication,
-      );
+      final launched = await launchUrl(targetUri, mode: LaunchMode.externalApplication);
       if (!launched && package != null) {
-        // Package-specific app not installed — fall back to generic chooser
-        debugPrint('[UPI] Package not found, falling back to generic upi://');
         await launchUrl(Uri.parse(baseUri), mode: LaunchMode.externalApplication);
       }
     } catch (e) {
-      debugPrint('[UPI] Launch error: $e');
-      // Try generic fallback
       try {
         await launchUrl(Uri.parse(baseUri), mode: LaunchMode.externalApplication);
       } catch (_) {}
     }
 
-    // Show confirmation sheet after app opens
     if (mounted) {
       final appLabel = package != null
           ? (package.contains('paisa')
@@ -159,11 +161,10 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
     }
   }
 
-  /// Interactive confirmation dialog asking if payment was completed
   void _showPaymentConfirmationSheet(String appName) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1E222A),
+      backgroundColor: Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -178,20 +179,20 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
                 width: 44,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white24,
+                  color: Colors.black12,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
               const SizedBox(height: 18),
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                decoration: const BoxDecoration(
+                  color: RefferTheme.amberLight,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.account_balance_wallet_rounded,
-                  color: Color(0xFF38BDF8),
+                  color: RefferTheme.amber,
                   size: 32,
                 ),
               ),
@@ -201,14 +202,14 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: Colors.white,
+                  color: RefferTheme.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Did you complete the payment of ${_formatINR(_bill!.totalAmount)} in your UPI app?',
+                'Did you complete the payment of ${_formatINR(_bill!.totalAmount)} in $appName?',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+                style: const TextStyle(fontSize: 14, color: RefferTheme.textMuted),
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -223,17 +224,14 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
                     });
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
+                    backgroundColor: RefferTheme.navy,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
                   ),
                   child: const Text(
                     'Yes, I Paid (Enter 12-Digit UTR)',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
-                    ),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -242,19 +240,16 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
                 width: double.infinity,
                 height: 46,
                 child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    // Keep resident right on Step 2 so they can re-try payment with any app
-                  },
+                  onPressed: () => Navigator.of(ctx).pop(),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFF334155)),
+                    side: const BorderSide(color: RefferTheme.border),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text(
                     'Didn\'t Pay Yet / Choose Another App',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Color(0xFF94A3B8),
+                      color: RefferTheme.textMuted,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -268,7 +263,6 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
     );
   }
 
-  /// Pick payment screenshot proof from gallery or camera
   Future<void> _pickScreenshot() async {
     HapticHelper.selectionClick();
     try {
@@ -278,34 +272,23 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
         maxWidth: 1200,
       );
       if (image != null && mounted) {
-        setState(() {
-          _screenshotFile = File(image.path);
-        });
+        setState(() => _screenshotFile = File(image.path));
       }
     } catch (e) {
       debugPrint('[Screenshot] Pick error: $e');
     }
   }
 
-  /// Submit 12-digit UTR to society admin verification queue
   Future<void> _submitUtr() async {
     final utr = _utrController.text.trim();
-    if (utr.isEmpty) {
+    if (utr.isEmpty || utr.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the 12-digit UPI UTR number')),
-      );
-      return;
-    }
-
-    if (utr.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid UTR transaction reference')),
+        const SnackBar(content: Text('Please enter a valid 12-digit UPI UTR reference number')),
       );
       return;
     }
 
     if (_bill == null) return;
-
     HapticHelper.mediumImpact();
     setState(() => _isSubmitting = true);
 
@@ -318,12 +301,10 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
 
       if (!mounted) return;
       HapticHelper.success();
-
-      // Refresh bill and switch to Step 4 (Status & Receipt)
       await _loadBill(silent: true);
       setState(() {
         _isSubmitting = false;
-        _currentStep = MaintenanceStep.statusReceipt;
+        _currentStep = MaintenanceStep.receipt;
       });
     } catch (e) {
       if (!mounted) return;
@@ -340,26 +321,30 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121417), // Sleek dark card theme matching mockup
+      backgroundColor: RefferTheme.surface,
       appBar: AppBar(
-        title: const Text(
-          'Maintenance',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
+        title: Text(
+          _currentStep == MaintenanceStep.method
+              ? 'Choose Payment Method'
+              : _currentStep == MaintenanceStep.confirmUtr
+                  ? 'Confirm Payment'
+                  : 'Maintenance Dues',
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: RefferTheme.textPrimary,
           ),
         ),
-        backgroundColor: const Color(0xFF121417),
+        backgroundColor: RefferTheme.surface,
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: RefferTheme.textPrimary),
           onPressed: () {
             if (_currentStep == MaintenanceStep.confirmUtr) {
-              setState(() => _currentStep = MaintenanceStep.pickApp);
-            } else if (_currentStep == MaintenanceStep.pickApp) {
-              setState(() => _currentStep = MaintenanceStep.seeBill);
+              setState(() => _currentStep = MaintenanceStep.method);
+            } else if (_currentStep == MaintenanceStep.method) {
+              setState(() => _currentStep = MaintenanceStep.summary);
             } else {
               Navigator.of(context).pop();
             }
@@ -367,18 +352,18 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white70),
+            icon: const Icon(Icons.refresh_rounded, color: RefferTheme.textMuted),
             onPressed: () => _loadBill(),
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF155EEF)))
+          ? const Center(child: CircularProgressIndicator(color: RefferTheme.navy))
           : _errorMessage != null && _bill == null
               ? _buildErrorState()
               : SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  child: _buildCurrentStepView(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: _buildCurrentStep(),
                 ),
     );
   }
@@ -395,13 +380,13 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
             Text(
               _errorMessage ?? 'Unable to load maintenance bill',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
+              style: const TextStyle(color: RefferTheme.textMuted, fontSize: 14),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () => _loadBill(),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF155EEF),
+                backgroundColor: RefferTheme.navy,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: const Text('Try Again', style: TextStyle(color: Colors.white)),
@@ -412,329 +397,585 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
     );
   }
 
-  Widget _buildCurrentStepView() {
+  Widget _buildCurrentStep() {
     switch (_currentStep) {
-      case MaintenanceStep.seeBill:
-        return _buildStep1SeeBill();
-      case MaintenanceStep.pickApp:
-        return _buildStep2PickApp();
+      case MaintenanceStep.summary:
+        return _buildStepSummary();
+      case MaintenanceStep.method:
+        return _buildStepMethod();
       case MaintenanceStep.confirmUtr:
-        return _buildStep3ConfirmUtr();
-      case MaintenanceStep.statusReceipt:
-        return _buildStep4StatusAndReceipt();
+        return _buildStepConfirmUtr();
+      case MaintenanceStep.receipt:
+        return _buildStepReceipt();
     }
   }
 
-  // ==========================================================
-  // STEP 1: SEE BILL (Exact match to reference mockup)
-  // ==========================================================
-  Widget _buildStep1SeeBill() {
+  // ==========================================================================
+  // STEP 1: SUMMARY / DUE CARD (Exact replica of reffer/app/resident/payments)
+  // ==========================================================================
+  Widget _buildStepSummary() {
     final bill = _bill!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Unit & Society Header
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '${bill.flatNumber} • ${bill.societyName}',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF94A3B8),
+        // Flat & Society subtitle
+        Padding(
+          padding: const EdgeInsets.only(left: 2, bottom: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Flat ${bill.flatNumber} · ${bill.societyName}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: RefferTheme.textMuted,
+                ),
               ),
-            ),
-            _buildStatusBadge(bill.status),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // Big Hero Amount
-        Text(
-          _formatINR(bill.totalAmount),
-          style: const TextStyle(
-            fontSize: 42,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            letterSpacing: -1,
+              _buildStatusPill(bill.status),
+            ],
           ),
         ),
-        const SizedBox(height: 6),
 
-        // Period & Due Date
-        Text(
-          '${bill.billingPeriod} • due ${bill.dueDate}',
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF94A3B8),
+        // Main Due Card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: RefferTheme.cardBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: RefferTheme.border),
+            boxShadow: const [
+              BoxShadow(
+                color: Color.fromRGBO(13, 33, 55, 0.05),
+                blurRadius: 10,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Rupee Icon & Hero Amount Row
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: RefferTheme.amberLight,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.currency_rupee_rounded,
+                      color: RefferTheme.amber,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Maintenance Due',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: RefferTheme.textMuted,
+                        ),
+                      ),
+                      Text(
+                        _formatINR(bill.totalAmount),
+                        style: const TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w900,
+                          color: RefferTheme.navy,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Breakdown items
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Column(
+                  children: [
+                    ...bill.breakdown.map((item) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                item.title,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: RefferTheme.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              Text(
+                                _formatINR(item.amount),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: RefferTheme.navy,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )),
+                    const SizedBox(height: 6),
+                    const Divider(color: RefferTheme.border, height: 1),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Total Payable',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: RefferTheme.navy,
+                          ),
+                        ),
+                        Text(
+                          _formatINR(bill.totalAmount),
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w900,
+                            color: RefferTheme.navy,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Due Notice Banner
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: RefferTheme.surface2,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Due by: ${bill.dueDate.isNotEmpty ? bill.dueDate : "10th of next month"} · No late fee if paid before due date',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: RefferTheme.textMuted,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Pay Now CTA Button
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () {
+                    HapticHelper.mediumImpact();
+                    setState(() => _currentStep = MaintenanceStep.method);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: RefferTheme.navy,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'Pay Now  (${_formatINR(bill.totalAmount)})',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
 
         const SizedBox(height: 28),
 
-        // Breakdown Card
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1D23),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF2E333D)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'BILL BREAKDOWN',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF64748B),
-                  letterSpacing: 1.0,
-                ),
-              ),
-              const SizedBox(height: 14),
-              ...bill.breakdown.map((item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          item.title,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFFCBD5E1),
-                          ),
-                        ),
-                        Text(
-                          _formatINR(item.amount),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )),
-              const Divider(color: Color(0xFF2E333D), height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Total Payable',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    _formatINR(bill.totalAmount),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF22C55E),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 36),
-
-        // Pay with UPI Button
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            onPressed: () {
-              HapticHelper.mediumImpact();
-              setState(() => _currentStep = MaintenanceStep.pickApp);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              elevation: 0,
-            ),
-            child: const Text(
-              'Pay with UPI',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF0F172A),
-              ),
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 14),
-        const Center(
-          child: Text(
-            'Zero Gateway Fee • 100% Direct to Society Account',
-            style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ==========================================================
-  // STEP 2: PICK UPI APP (Exact match to reference mockup)
-  // ==========================================================
-  Widget _buildStep2PickApp() {
-    final bill = _bill!;
-
-    // Block payment if admin hasn't configured a real UPI ID
-    if (!bill.upiReady) {
-      return _buildUpiNotConfiguredCard();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+        // Payment History Section
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Pay with',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                'Android',
-                style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+          children: const [
+            Icon(Icons.history_rounded, size: 18, color: RefferTheme.textMuted),
+            SizedBox(width: 8),
+            Text(
+              'Payment History',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: RefferTheme.textPrimary,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 12),
 
-        // App Choice 1: GPay
-        _buildAppTile(
-          title: 'GPay',
-          icon: Icons.account_balance_wallet_rounded,
-          color: const Color(0xFF4285F4),
-          onTap: () => _launchUpiIntent(package: 'com.google.android.apps.nbu.paisa.user'),
+        // Previous paid records mock/real list
+        _buildHistoryCard(
+          month: 'October 2026',
+          paidDate: '10 Oct · UPI (GPay)',
+          amount: 2500,
+          receiptCode: 'RCPT-A101-04A1',
         ),
         const SizedBox(height: 10),
-
-        // App Choice 2: PhonePe
-        _buildAppTile(
-          title: 'PhonePe',
-          icon: Icons.send_to_mobile_rounded,
-          color: const Color(0xFF5F259F),
-          onTap: () => _launchUpiIntent(package: 'com.phonepe.app'),
+        _buildHistoryCard(
+          month: 'September 2026',
+          paidDate: '08 Sep · UPI (PhonePe)',
+          amount: 2500,
+          receiptCode: 'RCPT-A101-039B',
         ),
-        const SizedBox(height: 10),
+      ],
+    );
+  }
 
-        // App Choice 3: Paytm
-        _buildAppTile(
-          title: 'Paytm',
-          icon: Icons.payments_rounded,
-          color: const Color(0xFF00B9F1),
-          onTap: () => _launchUpiIntent(package: 'net.one97.paytm'),
-        ),
-        const SizedBox(height: 10),
+  Widget _buildHistoryCard({
+    required String month,
+    required String paidDate,
+    required double amount,
+    required String receiptCode,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: RefferTheme.cardBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: RefferTheme.border),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: RefferTheme.greenLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.check_circle_rounded, color: RefferTheme.green, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    month,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: RefferTheme.textPrimary),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(paidDate, style: const TextStyle(fontSize: 12, color: RefferTheme.textMuted)),
+                ],
+              ),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                _formatINR(amount),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: RefferTheme.navy),
+              ),
+              const SizedBox(height: 2),
+              Text(receiptCode, style: const TextStyle(fontSize: 11, color: RefferTheme.textMuted, fontFamily: 'monospace')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-        // App Choice 4: BHIM / bank app
-        _buildAppTile(
-          title: 'BHIM / bank app',
-          icon: Icons.account_balance_rounded,
-          color: const Color(0xFF00796B),
-          onTap: () => _launchUpiIntent(),
-        ),
+  // ==========================================================================
+  // STEP 2: CHOOSE PAYMENT METHOD (reffer/app/resident/payments + Direct QR)
+  // ==========================================================================
+  Widget _buildStepMethod() {
+    final bill = _bill!;
 
-        const SizedBox(height: 24),
-
-        // Summary details card (matching reference image)
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Mini Amount Card
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1D23),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF2E333D)),
+            color: RefferTheme.cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: RefferTheme.border),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      'Pays to: ${bill.merchantVpa}',
-                      style: const TextStyle(fontSize: 13, color: Color(0xFFCBD5E1), fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  InkWell(
-                    onTap: () {
-                      Clipboard.setData(ClipboardData(text: bill.merchantVpa));
-                      HapticHelper.lightImpact();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Society UPI ID copied to clipboard!')),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF334155),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.copy_rounded, size: 12, color: Colors.white70),
-                          SizedBox(width: 4),
-                          Text('Copy', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
+                  const Text('Amount to pay', style: TextStyle(fontSize: 12, color: RefferTheme.textMuted)),
+                  const SizedBox(height: 2),
+                  Text(
+                    _formatINR(bill.totalAmount),
+                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: RefferTheme.navy),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Ref: ${bill.referenceId}',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8), fontFamily: 'monospace'),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Amount fixed: ${_formatINR(bill.totalAmount)}',
-                style: const TextStyle(fontSize: 13, color: Color(0xFF22C55E), fontWeight: FontWeight.w700),
-              ),
-              const Divider(color: Color(0xFF2E333D), height: 16),
-              const Text(
-                'Resident enters UPI PIN in their own app',
-                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: RefferTheme.greenLight,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  '₹0 Gateway Fee',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: RefferTheme.green),
+                ),
               ),
             ],
           ),
         ),
+        const SizedBox(height: 18),
 
-        const SizedBox(height: 20),
+        const Text(
+          'Select Payment Option',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: RefferTheme.textPrimary),
+        ),
+        const SizedBox(height: 10),
+
+        // Method 1: Instant UPI Apps
+        _buildMethodOptionCard(
+          id: 'upi',
+          title: 'Instant UPI Apps',
+          subtitle: 'Google Pay, PhonePe, Paytm, BHIM',
+          icon: Icons.flash_on_rounded,
+          iconColor: RefferTheme.amber,
+          iconBg: RefferTheme.amberLight,
+        ),
+
+        // Inside UPI expanded options:
+        if (_selectedPaymentType == 'upi') ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: RefferTheme.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Tap your preferred app to pay:',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: RefferTheme.textSecondary),
+                ),
+                const SizedBox(height: 12),
+
+                // Fast App Launch Grid
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildAppButton(
+                        label: 'GPay',
+                        icon: Icons.account_balance_wallet_rounded,
+                        color: const Color(0xFF4285F4),
+                        onTap: () => _launchUpiIntent(package: 'com.google.android.apps.nbu.paisa.user'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildAppButton(
+                        label: 'PhonePe',
+                        icon: Icons.send_to_mobile_rounded,
+                        color: const Color(0xFF5F259F),
+                        onTap: () => _launchUpiIntent(package: 'com.phonepe.app'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildAppButton(
+                        label: 'Paytm',
+                        icon: Icons.payments_rounded,
+                        color: const Color(0xFF00B9F1),
+                        onTap: () => _launchUpiIntent(package: 'net.one97.paytm'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // Direct Copy UPI ID Row
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: RefferTheme.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: RefferTheme.border),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.shield_outlined, size: 16, color: RefferTheme.green),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          bill.merchantVpa.isNotEmpty ? bill.merchantVpa : 'society@upi',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: RefferTheme.navy),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: bill.merchantVpa));
+                          HapticHelper.lightImpact();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Society UPI ID copied to clipboard!')),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: RefferTheme.navy,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text('Copy', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 10),
+
+        // Method 2: Scan On-Screen Dynamic QR Code
+        _buildMethodOptionCard(
+          id: 'qr',
+          title: 'Scan QR Code',
+          subtitle: 'Scan with any UPI app on another phone or upload image',
+          icon: Icons.qr_code_2_rounded,
+          iconColor: RefferTheme.navy,
+          iconBg: const Color(0xFFEFF6FF),
+        ),
+
+        if (_selectedPaymentType == 'qr') ...[
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: RefferTheme.border),
+            ),
+            child: Column(
+              children: [
+                const Text(
+                  'Scan with any UPI Scanner',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: RefferTheme.navy),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Amount pre-filled: ${_formatINR(bill.totalAmount)}',
+                  style: const TextStyle(fontSize: 12, color: RefferTheme.textMuted),
+                ),
+                const SizedBox(height: 16),
+
+                // Real Rendered QR Code
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: RefferTheme.border),
+                  ),
+                  child: QrImageView(
+                    data: _buildUpiUri(),
+                    version: QrVersions.auto,
+                    size: 190.0,
+                    backgroundColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Account: ${bill.merchantName}',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: RefferTheme.navy),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  bill.merchantVpa,
+                  style: const TextStyle(fontSize: 12, color: RefferTheme.textMuted),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 10),
+
+        // Method 3: Direct Bank Account Transfer (NEFT / IMPS)
+        _buildMethodOptionCard(
+          id: 'bank',
+          title: 'Bank Transfer (NEFT / IMPS)',
+          subtitle: 'Direct transfer to society current account',
+          icon: Icons.account_balance_rounded,
+          iconColor: const Color(0xFF0F766E),
+          iconBg: const Color(0xFFCCFBF1),
+        ),
+
+        if (_selectedPaymentType == 'bank') ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: RefferTheme.border),
+            ),
+            child: Column(
+              children: [
+                _buildBankRow('Beneficiary', bill.societyName),
+                const Divider(color: RefferTheme.border, height: 16),
+                _buildBankRow('Bank', 'ICICI Bank (Society Account)'),
+                const Divider(color: RefferTheme.border, height: 16),
+                _buildBankRow('Account Number', '•••• •••• •••• 4589'),
+                const Divider(color: RefferTheme.border, height: 16),
+                _buildBankRow('IFSC Code', 'ICIC0001234'),
+              ],
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 24),
+
+        // Already paid shortcut button
         Center(
-          child: TextButton(
+          child: TextButton.icon(
             onPressed: () {
               setState(() => _currentStep = MaintenanceStep.confirmUtr);
             },
-            child: const Text(
-              'Already paid? Enter UTR number directly →',
-              style: TextStyle(color: Color(0xFF38BDF8), fontSize: 13, fontWeight: FontWeight.w600),
+            icon: const Icon(Icons.check_circle_outline_rounded, size: 16, color: RefferTheme.navy),
+            label: const Text(
+              'Already paid? Enter 12-Digit UTR directly →',
+              style: TextStyle(
+                color: RefferTheme.navy,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ),
@@ -742,8 +983,77 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
     );
   }
 
-  Widget _buildAppTile({
+  Widget _buildMethodOptionCard({
+    required String id,
     required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
+  }) {
+    final isSelected = _selectedPaymentType == id;
+
+    return InkWell(
+      onTap: () {
+        HapticHelper.selectionClick();
+        setState(() => _selectedPaymentType = id);
+      },
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? RefferTheme.navy : RefferTheme.border,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: RefferTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 12, color: RefferTheme.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+              color: isSelected ? RefferTheme.navy : RefferTheme.border,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppButton({
+    required String label,
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
@@ -752,682 +1062,363 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E222A),
+          color: RefferTheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF2E333D)),
+          border: Border.all(color: RefferTheme.border),
         ),
-        child: Row(
+        child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: color, size: 20),
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: RefferTheme.textPrimary),
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF64748B)),
           ],
         ),
       ),
     );
   }
 
-  // ==========================================================
-  // STEP 3: CONFIRM UTR (Exact match to reference mockup)
-  // ==========================================================
-  Widget _buildStep3ConfirmUtr() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildBankRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Green Check Icon & Header
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                color: Color(0xFF15803D),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.check_rounded, color: Colors.white, size: 16),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              'Payment done?',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        const Text(
-          'Enter the 12-digit UTR from your UPI app',
-          style: TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
-        ),
-        const SizedBox(height: 10),
-
-        // Shortcut to re-open payment apps if user hasn't paid yet
-        InkWell(
-          onTap: () {
-            HapticHelper.lightImpact();
-            setState(() => _currentStep = MaintenanceStep.pickApp);
-          },
-          borderRadius: BorderRadius.circular(8),
-          child: const Padding(
-            padding: EdgeInsets.symmetric(vertical: 4.0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.arrow_back_rounded, size: 14, color: Color(0xFF38BDF8)),
-                SizedBox(width: 6),
-                Text(
-                  'Didn\'t pay yet? Choose app & pay with UPI',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF38BDF8),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 14),
-
-        // 12-digit UTR Input Field
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1D23),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF3B82F6), width: 1.5),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: TextField(
-            controller: _utrController,
-            keyboardType: TextInputType.number,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(16),
-            ],
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-              letterSpacing: 2,
-              fontFamily: 'monospace',
-            ),
-            decoration: const InputDecoration(
-              hintText: '632145879012',
-              hintStyle: TextStyle(color: Color(0xFF475569)),
-              border: InputBorder.none,
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        // Screenshot (optional) upload
-        const Text(
-          'Screenshot (optional)',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFCBD5E1)),
-        ),
-        const SizedBox(height: 8),
-
-        InkWell(
-          onTap: _pickScreenshot,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E222A),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF2E333D), style: BorderStyle.solid),
-            ),
-            child: _screenshotFile != null
-                ? Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.check_circle_rounded, color: Color(0xFF22C55E), size: 18),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Screenshot attached',
-                        style: TextStyle(color: Color(0xFF22C55E), fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(width: 12),
-                      GestureDetector(
-                        onTap: () => setState(() => _screenshotFile = null),
-                        child: const Icon(Icons.close_rounded, size: 16, color: Colors.white70),
-                      ),
-                    ],
-                  )
-                : const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.upload_rounded, color: Colors.white70, size: 18),
-                      SizedBox(width: 8),
-                      Text(
-                        'Upload',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
-
-        const SizedBox(height: 28),
-
-        // Submit for verification Button
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: _isSubmitting ? null : _submitUtr,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 0,
-            ),
-            child: _isSubmitting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
-                  )
-                : const Text(
-                    'Submit for verification',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
-                  ),
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        // Back to payment apps button
-        SizedBox(
-          width: double.infinity,
-          height: 46,
-          child: OutlinedButton.icon(
-            onPressed: () {
-              HapticHelper.lightImpact();
-              setState(() => _currentStep = MaintenanceStep.pickApp);
-            },
-            icon: const Icon(Icons.arrow_back_rounded, size: 16, color: Color(0xFF38BDF8)),
-            label: const Text(
-              'Didn\'t Pay Yet? Re-open Payment Apps',
-              style: TextStyle(
-                color: Color(0xFF38BDF8),
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Color(0xFF1E3A8A)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 10),
-
-        // Payment failed - retry button
-        Center(
-          child: TextButton(
-            onPressed: () {
-              setState(() => _currentStep = MaintenanceStep.seeBill);
-            },
-            child: const Text(
-              'Cancel and return to bill',
-              style: TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w500),
-            ),
-          ),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12, color: RefferTheme.textMuted)),
+        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: RefferTheme.navy)),
       ],
     );
   }
 
-  // ==========================================================
-  // STEP 4: STATUS AND RECEIPT (Exact match to reference mockup)
-  // ==========================================================
-  Widget _buildStep4StatusAndReceipt() {
-    final bill = _bill!;
-    final isPaid = bill.isPaid;
-
+  // ==========================================================================
+  // STEP 3: CONFIRM UTR (Exact matching reffer flow)
+  // ==========================================================================
+  Widget _buildStepConfirmUtr() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Month / Period Header
-        Text(
-          bill.billingPeriod,
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white),
-        ),
-        const SizedBox(height: 14),
-
-        if (!isPaid) ...[
-          // PENDING CHECK STATE (Before admin approves)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E3A8A),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Text(
-              'Pending check',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF93C5FD)),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            bill.submittedAt != null
-                ? 'Submitted ${_formatTime(bill.submittedAt!)}'
-                : 'Submitted recently',
-            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-          ),
-
-          const SizedBox(height: 16),
-          Center(
-            child: TextButton.icon(
-              onPressed: () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    backgroundColor: const Color(0xFF1E222A),
-                    title: const Text('Cancel Submission?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    content: const Text(
-                      'This will cancel your pending submission so you can re-open your UPI app and pay again.',
-                      style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(ctx).pop(false),
-                        child: const Text('Keep Submission', style: TextStyle(color: Color(0xFF64748B))),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => Navigator.of(ctx).pop(true),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-                        child: const Text('Cancel & Pay Again', style: TextStyle(color: Colors.white)),
-                      ),
-                    ],
-                  ),
-                );
-
-                if (confirm == true && mounted) {
-                  try {
-                    await ApiService.cancelMaintenanceSubmission(_bill!.invoiceId);
-                    await _loadBill();
-                    setState(() => _currentStep = MaintenanceStep.pickApp);
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(e.toString())),
-                      );
-                    }
-                  }
-                }
-              },
-              icon: const Icon(Icons.refresh_rounded, size: 16, color: Color(0xFF38BDF8)),
-              label: const Text(
-                'Cancel Submission & Pay Again',
-                style: TextStyle(color: Color(0xFF38BDF8), fontSize: 13, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Center(
-            child: Text(
-              '↓ after admin approves',
-              style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
-            ),
-          ),
-          const SizedBox(height: 20),
-        ],
-
-        // PAID STATE (After admin approves)
+        // Top Card
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1D23),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isPaid ? const Color(0xFF166534) : const Color(0xFF2E333D),
-            ),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: RefferTheme.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isPaid ? const Color(0xFF14532D) : const Color(0xFF1E293B),
-                      borderRadius: BorderRadius.circular(6),
+                    width: 36,
+                    height: 36,
+                    decoration: const BoxDecoration(
+                      color: RefferTheme.greenLight,
+                      shape: BoxShape.circle,
                     ),
-                    child: Text(
-                      isPaid ? 'Paid' : 'Awaiting Approval',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: isPaid ? const Color(0xFF86EFAC) : const Color(0xFF94A3B8),
-                      ),
-                    ),
+                    child: const Icon(Icons.check_rounded, color: RefferTheme.green, size: 20),
                   ),
-                  Text(
-                    _formatINR(bill.totalAmount),
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Payment Done?',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: RefferTheme.navy),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
+              const Text(
+                'Enter the 12-digit UPI transaction reference (UTR) from your payment receipt or bank SMS.',
+                style: TextStyle(fontSize: 13, color: RefferTheme.textMuted, height: 1.4),
+              ),
+              const SizedBox(height: 18),
 
-              if (bill.submittedUtr != null) ...[
-                Text(
-                  'UTR ${bill.submittedUtr}',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFCBD5E1), fontFamily: 'monospace'),
+              // 12-digit UTR Input Field
+              Container(
+                decoration: BoxDecoration(
+                  color: RefferTheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: RefferTheme.navy, width: 1.5),
                 ),
-                const SizedBox(height: 4),
-              ],
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: TextField(
+                  controller: _utrController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(16),
+                  ],
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: RefferTheme.navy,
+                    letterSpacing: 2,
+                    fontFamily: 'monospace',
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: '632145879012',
+                    hintStyle: TextStyle(color: Color(0xFF94A3B8), letterSpacing: 2),
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
 
-              if (isPaid) ...[
-                Text(
-                  bill.paidAt != null
-                      ? 'Approved ${_formatTime(bill.paidAt!)}'
-                      : 'Approved by Committee',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF22C55E)),
+              // Screenshot upload option
+              InkWell(
+                onTap: _pickScreenshot,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: RefferTheme.surface2,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: RefferTheme.border),
+                  ),
+                  child: _screenshotFile != null
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.check_circle_rounded, color: RefferTheme.green, size: 18),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Screenshot attached',
+                              style: TextStyle(color: RefferTheme.green, fontWeight: FontWeight.w700, fontSize: 13),
+                            ),
+                            const SizedBox(width: 12),
+                            GestureDetector(
+                              onTap: () => setState(() => _screenshotFile = null),
+                              child: const Icon(Icons.close_rounded, size: 16, color: Colors.black54),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.upload_file_rounded, color: RefferTheme.navy, size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              'Upload Screenshot (Optional)',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: RefferTheme.navy),
+                            ),
+                          ],
+                        ),
                 ),
-              ] else ...[
-                const Text(
-                  'Society admin will verify UTR on the bank statement.',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+              ),
+              const SizedBox(height: 20),
+
+              // Submit Button
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isSubmitting ? null : _submitUtr,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: RefferTheme.navy,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text(
+                          'Submit for Verification',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                        ),
                 ),
-              ],
+              ),
             ],
-          ),
-        ),
-
-        const SizedBox(height: 32),
-
-        // Download receipt button
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: OutlinedButton.icon(
-            onPressed: isPaid ? () => _downloadReceipt(bill) : null,
-            icon: const Icon(Icons.download_rounded, size: 18),
-            label: const Text('Download receipt', style: TextStyle(fontWeight: FontWeight.w700)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: BorderSide(color: isPaid ? Colors.white38 : Colors.white10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
           ),
         ),
 
         const SizedBox(height: 14),
 
-        // Push notification confirmation
-        const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.notifications_active_rounded, size: 14, color: Color(0xFF64748B)),
-            SizedBox(width: 6),
-            Text(
-              'Push sent to resident on approval',
-              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+        // Re-open apps button
+        SizedBox(
+          width: double.infinity,
+          height: 46,
+          child: OutlinedButton.icon(
+            onPressed: () => setState(() => _currentStep = MaintenanceStep.method),
+            icon: const Icon(Icons.arrow_back_rounded, size: 16, color: RefferTheme.textMuted),
+            label: const Text(
+              'Didn\'t Pay Yet? Re-open Payment Apps',
+              style: TextStyle(color: RefferTheme.textMuted, fontSize: 13, fontWeight: FontWeight.w600),
             ),
-          ],
-        ),
-
-        if (!isPaid) ...[
-          const SizedBox(height: 20),
-          Center(
-            child: TextButton(
-              onPressed: () => _loadBill(),
-              child: const Text('Check approval status', style: TextStyle(color: Color(0xFF38BDF8))),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: RefferTheme.border),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
-        ],
+        ),
       ],
     );
   }
 
-  // ==========================================================
-  // UPI NOT CONFIGURED: Shown when admin hasn't set a real VPA
-  // ==========================================================
-  Widget _buildUpiNotConfiguredCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1D23),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF78350F)),
-      ),
+  // ==========================================================================
+  // STEP 4: VERIFIED RECEIPT / SUCCESS (Exact replica of reffer lines 30-70)
+  // ==========================================================================
+  Widget _buildStepReceipt() {
+    final bill = _bill!;
+    final isApproved = bill.isPaid;
+    final receiptNo = bill.receiptNumber ?? bill.invoiceNumber;
+
+    return Center(
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
+          const SizedBox(height: 10),
+
+          // Big Success/Pending Circle
           Container(
-            padding: const EdgeInsets.all(14),
+            width: 80,
+            height: 80,
             decoration: BoxDecoration(
-              color: const Color(0xFF78350F).withValues(alpha: 0.2),
+              color: isApproved ? RefferTheme.greenLight : RefferTheme.amberLight,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.account_balance_outlined,
-              color: Color(0xFFFCD34D),
-              size: 36,
+            child: Icon(
+              isApproved ? Icons.check_circle_rounded : Icons.hourglass_top_rounded,
+              color: isApproved ? RefferTheme.green : RefferTheme.amber,
+              size: 44,
             ),
           ),
-          const SizedBox(height: 18),
-          const Text(
-            'Society UPI Not Configured',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
+          const SizedBox(height: 16),
+
+          Text(
+            isApproved ? 'Payment Successful!' : 'Submitted for Verification',
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: RefferTheme.navy,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Maintenance for ${bill.billingPeriod}',
+            style: const TextStyle(fontSize: 13, color: RefferTheme.textMuted),
+          ),
+          const SizedBox(height: 24),
+
+          // Receipt Card (Exact matching reffer lines 39-55)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
               color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: RefferTheme.border),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color.fromRGBO(13, 33, 55, 0.05),
+                  blurRadius: 10,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'The society admin has not set up a UPI payment ID yet.\n\nPlease contact your society admin to configure the payment account before you can pay online.',
-            style: TextStyle(
-              fontSize: 13,
-              color: Color(0xFF94A3B8),
-              height: 1.6,
+            child: Column(
+              children: [
+                _buildReceiptRow('Amount Paid', _formatINR(bill.totalAmount), bold: true),
+                const Divider(color: RefferTheme.border, height: 20),
+                _buildReceiptRow('Receipt No.', receiptNo),
+                const SizedBox(height: 10),
+                _buildReceiptRow('Society', bill.societyName),
+                const SizedBox(height: 10),
+                _buildReceiptRow('Flat', bill.flatNumber),
+                const SizedBox(height: 10),
+                _buildReceiptRow('Status', isApproved ? 'Approved by Admin' : 'Pending Bank Match'),
+                if (bill.submittedUtr != null) ...[
+                  const SizedBox(height: 10),
+                  _buildReceiptRow('UTR', bill.submittedUtr!),
+                ],
+                const SizedBox(height: 10),
+                _buildReceiptRow('Method', 'UPI Direct Transfer'),
+              ],
             ),
-            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
-          OutlinedButton.icon(
-            onPressed: () => setState(() => _currentStep = MaintenanceStep.seeBill),
-            icon: const Icon(Icons.arrow_back_rounded, size: 16, color: Color(0xFF38BDF8)),
-            label: const Text(
-              'Back to Bill',
-              style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.w700),
+
+          // Share / Download Receipt Button
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                final text = 'Payment Receipt\nReceipt No: $receiptNo\nSociety: ${bill.societyName}\nFlat: ${bill.flatNumber}\nAmount: ${_formatINR(bill.totalAmount)}\nUTR: ${bill.submittedUtr ?? "N/A"}\nStatus: ${isApproved ? "PAID" : "SUBMITTED"}';
+                Share.share(text, subject: 'Payment Receipt - ${bill.flatNumber}');
+              },
+              icon: const Icon(Icons.download_rounded, size: 18, color: RefferTheme.navy),
+              label: const Text(
+                'Download / Share Receipt',
+                style: TextStyle(fontWeight: FontWeight.w700, color: RefferTheme.navy),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: RefferTheme.border),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
             ),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Color(0xFF1E3A8A)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          const SizedBox(height: 10),
+
+          // Cancel submission if still pending
+          if (!isApproved)
+            TextButton.icon(
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Cancel Submission?'),
+                    content: const Text('This will reset your bill so you can re-open your UPI app and pay again.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('No')),
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(ctx).pop(true),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                        child: const Text('Cancel & Pay Again', style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true && mounted) {
+                  await ApiService.cancelMaintenanceSubmission(bill.invoiceId);
+                  await _loadBill();
+                  setState(() => _currentStep = MaintenanceStep.method);
+                }
+              },
+              icon: const Icon(Icons.refresh_rounded, size: 16, color: RefferTheme.textMuted),
+              label: const Text('Cancel Submission & Pay Again', style: TextStyle(color: RefferTheme.textMuted, fontSize: 13)),
             ),
+
+          const SizedBox(height: 8),
+
+          TextButton(
+            onPressed: () => setState(() => _currentStep = MaintenanceStep.summary),
+            child: const Text('Back to Maintenance', style: TextStyle(color: RefferTheme.navy, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatusBadge(String status) {
-    Color bg;
-    Color fg;
-    String label;
-
-    switch (status.toUpperCase()) {
-      case 'PAID':
-        bg = const Color(0xFF14532D);
-        fg = const Color(0xFF86EFAC);
-        label = 'Paid';
-        break;
-      case 'PENDING_CHECK':
-        bg = const Color(0xFF1E3A8A);
-        fg = const Color(0xFF93C5FD);
-        label = 'Pending check';
-        break;
-      case 'UNPAID':
-      default:
-        bg = const Color(0xFF78350F);
-        fg = const Color(0xFFFDE68A);
-        label = 'Unpaid';
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
-      child: Text(
-        label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg),
-      ),
-    );
-  }
-
-  String _formatTime(String isoString) {
-    try {
-      final dt = DateTime.parse(isoString).toLocal();
-      final hour = dt.hour.toString().padLeft(2, '0');
-      final minute = dt.minute.toString().padLeft(2, '0');
-      return '$hour:$minute';
-    } catch (_) {
-      return isoString;
-    }
-  }
-
-  /// Show a detailed payment receipt dialog with all transaction info.
-  /// The resident can copy the receipt number or take a screenshot.
-  void _downloadReceipt(MaintenanceBillModel bill) {
-    HapticHelper.success();
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1E222A),
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        final receiptNo = bill.receiptNumber ?? bill.invoiceNumber;
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Handle
-              Container(
-                width: 44, height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Green checkmark
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF14532D),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.check_rounded, color: Color(0xFF86EFAC), size: 32),
-              ),
-              const SizedBox(height: 14),
-              const Text('Payment Verified', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white)),
-              const SizedBox(height: 4),
-              Text(
-                _formatINR(bill.totalAmount),
-                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Color(0xFF22C55E), letterSpacing: -1),
-              ),
-              const SizedBox(height: 20),
-              // Receipt details
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF121417),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF2E333D)),
-                ),
-                child: Column(
-                  children: [
-                    _receiptRow('Receipt No', receiptNo),
-                    const Divider(color: Color(0xFF2E333D), height: 20),
-                    _receiptRow('Flat', '${bill.flatNumber} • ${bill.societyName}'),
-                    const SizedBox(height: 10),
-                    _receiptRow('Period', bill.billingPeriod),
-                    const SizedBox(height: 10),
-                    if (bill.submittedUtr != null) _receiptRow('UTR', bill.submittedUtr!),
-                    const SizedBox(height: 10),
-                    if (bill.paidAt != null) _receiptRow('Approved', _formatTime(bill.paidAt!)),
-                    const SizedBox(height: 10),
-                    _receiptRow('Paid to', bill.merchantVpa),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Copy Receipt Number button
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: receiptNo));
-                    HapticHelper.success();
-                    Navigator.of(ctx).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Receipt number copied to clipboard'),
-                        backgroundColor: Color(0xFF15803D),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.copy_rounded, size: 18),
-                  label: const Text('Copy Receipt Number', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _receiptRow(String label, String value) {
+  Widget _buildReceiptRow(String label, String value, {bool bold = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+        Text(label, style: const TextStyle(fontSize: 13, color: RefferTheme.textMuted)),
         Flexible(
           child: Text(
             value,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
+            style: TextStyle(
+              fontSize: bold ? 17 : 13,
+              fontWeight: bold ? FontWeight.w900 : FontWeight.w600,
+              color: RefferTheme.navy,
+            ),
             textAlign: TextAlign.right,
             overflow: TextOverflow.ellipsis,
           ),
@@ -1435,5 +1426,38 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
       ],
     );
   }
-}
 
+  Widget _buildStatusPill(String status) {
+    Color bg;
+    Color fg;
+    String label;
+
+    switch (status.toUpperCase()) {
+      case 'PAID':
+        bg = RefferTheme.greenLight;
+        fg = RefferTheme.green;
+        label = 'Paid';
+        break;
+      case 'PENDING_CHECK':
+        bg = RefferTheme.amberLight;
+        fg = RefferTheme.amber;
+        label = 'Pending check';
+        break;
+      case 'UNPAID':
+      default:
+        bg = const Color(0xFFFEE2E2);
+        fg = const Color(0xFFDC2626);
+        label = 'Unpaid';
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg),
+      ),
+    );
+  }
+}

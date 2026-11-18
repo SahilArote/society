@@ -243,6 +243,13 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
             console.warn('[Backend Warning] Socket emit error:', socketErr);
         }
         // 9. Dispatch Native Push to All Resident Mobile Devices (FCM) & Web
+        const reqProtocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+        const reqHost = req.headers['x-forwarded-host'] || req.get('host') || 'api.nexgate.co.in';
+        const serverBaseUrl = process.env.PUBLIC_API_URL || `${reqProtocol}://${reqHost}`;
+        let fullVisitorPhotoUrl = photoStorageResult?.photoUrl;
+        if (!fullVisitorPhotoUrl || (!fullVisitorPhotoUrl.startsWith('http://') && !fullVisitorPhotoUrl.startsWith('https://'))) {
+            fullVisitorPhotoUrl = `${serverBaseUrl}/api/visitor-requests/${requestId}/photo`;
+        }
         for (const targetUid of targetResidentIds) {
             try {
                 console.log(`[FCM] Sending VISITOR_REQUEST notification for requestId: ${requestId} to resident: ${targetUid}`);
@@ -251,7 +258,7 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
                     body: `${name} is waiting at ${gateName} for Flat ${flat.flatNumber}. Tap to view and respond.`,
                     icon: '/icons/icon-192.png',
                     badge: '/icons/favicon-32.png',
-                    image: `/api/visitor-requests/${requestId}/photo`,
+                    image: fullVisitorPhotoUrl,
                     tag: `visitor-${requestId}`,
                     data: {
                         type: 'VISITOR_REQUEST',
@@ -262,6 +269,9 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
                         visitorPhone: visitorRecord.mobile || mobile || req.body.phone || req.body.phoneNumber || '',
                         flatNumber: flat.flatNumber,
                         gateName,
+                        photoUrl: fullVisitorPhotoUrl,
+                        photo: fullVisitorPhotoUrl,
+                        imageUrl: fullVisitorPhotoUrl,
                     },
                 }).catch((err) => {
                     console.warn(`[FCM] Push dispatch warning for user ${targetUid}:`, err.message);

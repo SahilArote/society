@@ -218,53 +218,53 @@ class _ServicesScreenState extends State<ServicesScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: Container(
-              height: 46,
+              height: 48,
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
               ),
-              child: Row(
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 14),
-                    child: Icon(Icons.search_rounded, color: Color(0xFF94A3B8), size: 22),
+              child: TextField(
+                controller: _searchController,
+                textInputAction: TextInputAction.search,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF0F172A),
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: Color(0xFF64748B),
+                    size: 22,
                   ),
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF0F172A),
-                        fontWeight: FontWeight.w500,
-                      ),
-                      decoration: const InputDecoration(
-                        hintText: 'Search vendors, services, or category...',
-                        hintStyle: TextStyle(
-                          color: Color(0xFF94A3B8),
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w400,
-                        ),
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      onChanged: (val) {
-                        _searchQuery = val;
-                        _loadServices(silent: true);
-                      },
-                    ),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            size: 18,
+                            color: Color(0xFF64748B),
+                          ),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                            _loadServices(silent: true);
+                          },
+                        )
+                      : null,
+                  hintText: 'Search vendors, services, or category...',
+                  hintStyle: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
                   ),
-                  if (_searchQuery.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(Icons.clear_rounded, size: 18, color: Color(0xFF94A3B8)),
-                      onPressed: () {
-                        _searchController.clear();
-                        _searchQuery = '';
-                        _loadServices(silent: true);
-                      },
-                    ),
-                ],
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+                onChanged: (val) {
+                  setState(() => _searchQuery = val);
+                  _loadServices(silent: true);
+                },
               ),
             ),
           ),
@@ -286,10 +286,10 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     duration: const Duration(milliseconds: 150),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF0F172A) : Colors.white,
+                      color: isSelected ? const Color(0xFF1E60D5) : Colors.white,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+                        color: isSelected ? const Color(0xFF1E60D5) : const Color(0xFFE2E8F0),
                         width: 1.2,
                       ),
                     ),
@@ -323,14 +323,14 @@ class _ServicesScreenState extends State<ServicesScreen> {
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.transparent,
+            color: isSelected ? const Color(0xFF1E60D5) : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1.5),
+                      color: const Color(0xFF1E60D5).withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
                     ),
                   ]
                 : null,
@@ -341,7 +341,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+              color: isSelected ? Colors.white : const Color(0xFF64748B),
             ),
           ),
         ),

@@ -297,11 +297,17 @@ async function sendPushToUser(userId, payload) {
                         }
                     }
                 }
-                const response = await (0, messaging_1.getMessaging)().sendEachForMulticast({
+                if (payload.image) {
+                    stringData['imageUrl'] = payload.image;
+                    stringData['photoUrl'] = payload.image;
+                    stringData['image'] = payload.image;
+                }
+                const messagePayload = {
                     tokens: fcmTokens,
                     notification: {
                         title: payload.title,
                         body: payload.body,
+                        ...(payload.image ? { imageUrl: payload.image } : {}),
                     },
                     data: stringData,
                     android: {
@@ -312,9 +318,25 @@ async function sendPushToUser(userId, payload) {
                             defaultSound: true,
                             defaultVibrateTimings: true,
                             visibility: 'public',
+                            ...(payload.image ? { imageUrl: payload.image } : {}),
                         },
                     },
-                });
+                    apns: {
+                        payload: {
+                            aps: {
+                                'mutable-content': 1,
+                            },
+                        },
+                        ...(payload.image
+                            ? {
+                                fcmOptions: {
+                                    imageUrl: payload.image,
+                                },
+                            }
+                            : {}),
+                    },
+                };
+                const response = await (0, messaging_1.getMessaging)().sendEachForMulticast(messagePayload);
                 console.log(`[FCM] Sent successfully: ${response.successCount}/${fcmTokens.length} devices for user ${userId}`);
                 sentCount += response.successCount;
                 failedCount += response.failureCount;
