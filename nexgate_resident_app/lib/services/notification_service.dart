@@ -776,14 +776,21 @@ class NotificationService {
     ByteArrayAndroidBitmap? pictureBitmap;
     if (photoUrl != null && photoUrl.isNotEmpty) {
       try {
-        final resolvedUrl = photoUrl.startsWith('http')
-            ? photoUrl
-            : '${ApiEndpoints.baseUrl}$photoUrl';
+        String resolvedUrl = photoUrl;
+        if (!resolvedUrl.startsWith('http://') && !resolvedUrl.startsWith('https://')) {
+          final baseHost = ApiEndpoints.baseUrl.replaceAll(RegExp(r'/api/?$'), '');
+          final cleanPath = resolvedUrl.startsWith('/') ? resolvedUrl : '/$resolvedUrl';
+          resolvedUrl = '$baseHost$cleanPath';
+        }
+        debugPrint('[NotificationService] Fetching visitor photo from: $resolvedUrl');
         final response = await http
             .get(Uri.parse(resolvedUrl))
-            .timeout(const Duration(seconds: 4));
+            .timeout(const Duration(seconds: 7));
         if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
           pictureBitmap = ByteArrayAndroidBitmap(response.bodyBytes);
+          debugPrint('[NotificationService] Successfully downloaded visitor photo (${response.bodyBytes.length} bytes)');
+        } else {
+          debugPrint('[NotificationService] Note: Photo download HTTP status: ${response.statusCode}');
         }
       } catch (e) {
         debugPrint('[NotificationService] Note: Could not download visitor photo: $e');
@@ -805,7 +812,7 @@ class NotificationService {
           ? BigPictureStyleInformation(
               pictureBitmap,
               largeIcon: pictureBitmap,
-              contentTitle: '🚨 $visitorName at $gateName',
+              contentTitle: '$visitorName at $gateName',
               summaryText: 'Flat $flatNumber • Tap to view and respond',
               htmlFormatContentTitle: true,
               htmlFormatSummaryText: true,
@@ -924,12 +931,15 @@ class NotificationService {
     ByteArrayAndroidBitmap? pictureBitmap;
     if (imageUrl != null && imageUrl.isNotEmpty) {
       try {
-        final resolvedUrl = imageUrl.startsWith('http')
-            ? imageUrl
-            : '${ApiEndpoints.baseUrl}$imageUrl';
+        String resolvedUrl = imageUrl;
+        if (!resolvedUrl.startsWith('http://') && !resolvedUrl.startsWith('https://')) {
+          final baseHost = ApiEndpoints.baseUrl.replaceAll(RegExp(r'/api/?$'), '');
+          final cleanPath = resolvedUrl.startsWith('/') ? resolvedUrl : '/$resolvedUrl';
+          resolvedUrl = '$baseHost$cleanPath';
+        }
         final response = await http
             .get(Uri.parse(resolvedUrl))
-            .timeout(const Duration(seconds: 4));
+            .timeout(const Duration(seconds: 7));
         if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
           pictureBitmap = ByteArrayAndroidBitmap(response.bodyBytes);
         }

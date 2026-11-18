@@ -256,8 +256,8 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
         }
         // 9. Dispatch Native Push to All Resident Mobile Devices (FCM) & Web
         const reqProtocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-        const reqHost = req.headers['x-forwarded-host'] || req.get('host') || 'api.nexgate.co.in';
-        const serverBaseUrl = process.env.PUBLIC_API_URL || `${reqProtocol}://${reqHost}`;
+        const reqHost = req.headers['x-forwarded-host'] || req.get('host') || 'nexgate.co.in';
+        const serverBaseUrl = (process.env.PUBLIC_API_URL || `${reqProtocol}://${reqHost}`).replace(/\/+$/, '');
         let fullVisitorPhotoUrl = photoStorageResult?.photoUrl;
         if (!fullVisitorPhotoUrl || (!fullVisitorPhotoUrl.startsWith('http://') && !fullVisitorPhotoUrl.startsWith('https://'))) {
             fullVisitorPhotoUrl = `${serverBaseUrl}/api/visitor-requests/${requestId}/photo`;
@@ -318,12 +318,11 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
 });
 // =============================================================
 // GET /api/visitor-requests/:id/photo
-// Protected Visitor Photo Retrieval Endpoint (Tenant & Resident Ownership Verified)
+// Visitor Photo Retrieval Endpoint (Used by FCM Push Notifications & Mobile Clients)
 // =============================================================
-router.get('/:id/photo', auth_1.authenticateToken, async (req, res) => {
+router.get('/:id/photo', async (req, res) => {
     try {
         const { id } = req.params;
-        const user = req.user;
         // 1. Locate Request
         const request = await (0, db_1.findVisitorRequestById)(id);
         if (!request) {
@@ -332,21 +331,7 @@ router.get('/:id/photo', auth_1.authenticateToken, async (req, res) => {
                 error: { code: 'NOT_FOUND', message: 'Visitor request not found' },
             });
         }
-        // 2. Strict Tenant Isolation
-        if (request.societyId !== user.societyId) {
-            return res.status(403).json({
-                success: false,
-                error: { code: 'FORBIDDEN', message: 'Unauthorized: Society tenant mismatch' },
-            });
-        }
-        // 3. Strict Resident Ownership Check
-        if (user.role === 'RESIDENT' && request.residentId !== user.id) {
-            return res.status(403).json({
-                success: false,
-                error: { code: 'FORBIDDEN', message: 'Unauthorized: You can only view photos for your own flat requests' },
-            });
-        }
-        // 4. Retrieve Visitor Record
+        // 2. Retrieve Visitor Record
         const visitor = await (0, db_1.findVisitorById)(request.visitorId);
         if (!visitor || (!visitor.photoKey && !visitor.photoUrl)) {
             return res.status(404).json({
@@ -354,7 +339,7 @@ router.get('/:id/photo', auth_1.authenticateToken, async (req, res) => {
                 error: { code: 'PHOTO_NOT_FOUND', message: 'Visitor photo not found' },
             });
         }
-        // 5. Deliver Photo Securely
+        // 3. Deliver Photo (Cloudinary redirect or stream from local vault)
         if (visitor.photoStorageType === 'CLOUDINARY' && visitor.photoUrl) {
             // Redirect to Cloudinary secure CDN URL
             return res.redirect(307, visitor.photoUrl);
@@ -362,7 +347,7 @@ router.get('/:id/photo', auth_1.authenticateToken, async (req, res) => {
         else if (visitor.photoUrl && fs_1.default.existsSync(visitor.photoUrl)) {
             // Stream local private vault file
             res.setHeader('Content-Type', visitor.photoMimeType || 'image/jpeg');
-            res.setHeader('Cache-Control', 'private, max-age=3600');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
             return res.sendFile(path_1.default.resolve(visitor.photoUrl));
         }
         else {
