@@ -186,10 +186,16 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
         // 4. Create Visitor and Visitor Request in a Single MySQL Transaction
         const visitorId = `vis_${(0, uuid_1.v4)().slice(0, 8)}`;
         const requestId = `REQ-${(0, uuid_1.v4)().slice(0, 8).toUpperCase()}`;
-        // Generate thumbnail from uploaded buffer (non-blocking on failure)
+        // Generate thumbnail: if Cloudinary, use high-speed 200x200 CDN thumbnail; also generate sharp thumbnail on disk
         let thumbUrl = null;
-        if (uploadedBuffer) {
+        if (photoStorageResult.photoUrl && photoStorageResult.photoUrl.includes('/image/upload/')) {
+            thumbUrl = photoStorageResult.photoUrl.replace('/image/upload/', '/image/upload/c_fill,h_200,w_200,q_70/');
+        }
+        else if (uploadedBuffer) {
             thumbUrl = await generateThumbnail(uploadedBuffer, visitorId);
+        }
+        if (uploadedBuffer) {
+            generateThumbnail(uploadedBuffer, visitorId).catch(() => { });
         }
         const { visitor: visitorRecord, request: requestRecord } = await (0, db_1.createVisitorWithRequestTransaction)({
             id: visitorId,
@@ -421,6 +427,18 @@ router.get('/:id', auth_1.authenticateToken, async (req, res) => {
                 error: { code: 'FORBIDDEN', message: 'You are not authorized to view this visitor record' },
             });
         }
+        const resolvedPhoto = (r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://")))
+            ? r.photoUrl
+            : `/api/visitor-requests/${r.id}/photo`;
+        let resolvedThumb = r.thumbUrl;
+        if (!resolvedThumb || resolvedThumb.startsWith('/uploads/')) {
+            if (r.photoUrl && r.photoUrl.includes('/image/upload/')) {
+                resolvedThumb = r.photoUrl.replace('/image/upload/', '/image/upload/c_fill,h_200,w_200,q_70/');
+            }
+            else {
+                resolvedThumb = resolvedThumb || resolvedPhoto;
+            }
+        }
         return res.json({
             success: true,
             data: {
@@ -432,14 +450,14 @@ router.get('/:id', auth_1.authenticateToken, async (req, res) => {
                     mobile: r.visitorMobile,
                     purpose: r.purpose,
                     visitorType: r.visitorType,
-                    photoUrl: (r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`,
-                    photo: (r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`,
-                    thumbUrl: r.thumbUrl || ((r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`),
+                    photoUrl: resolvedPhoto,
+                    photo: resolvedPhoto,
+                    thumbUrl: resolvedThumb,
                     vehicleNumber: r.vehicleNumber,
                     deliveryCompany: r.deliveryCompany,
                 },
-                photoUrl: (r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`,
-                thumbUrl: r.thumbUrl || ((r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`),
+                photoUrl: resolvedPhoto,
+                thumbUrl: resolvedThumb,
                 flatNumber: r.flatNumber,
                 buildingWing: r.buildingWing,
                 residentName: r.residentName,
@@ -518,36 +536,50 @@ router.get('/', auth_1.authenticateToken, async (req, res) => {
             (0, db_1.findVisitorRequestsJoined)(filters),
             (0, db_1.countVisitorRequestsJoined)(filters),
         ]);
-        const result = rows.map((r) => ({
-            id: r.id,
-            visitorId: r.visitorId,
-            visitor: {
-                id: r.visitorId,
-                name: r.visitorName,
-                mobile: r.visitorMobile,
-                purpose: r.purpose,
-                visitorType: r.visitorType,
-                photoUrl: (r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`,
-                photo: (r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`,
-                thumbUrl: r.thumbUrl || ((r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`),
-                vehicleNumber: r.vehicleNumber,
-                deliveryCompany: r.deliveryCompany,
-            },
-            photoUrl: (r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`,
-            thumbUrl: r.thumbUrl || ((r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`),
-            flatNumber: r.flatNumber,
-            buildingWing: r.buildingWing,
-            residentName: r.residentName,
-            residentPhone: r.residentPhone || r.residentMobile || '',
-            gate: r.gateName,
-            status: r.status,
-            requestedAt: r.requestedAt,
-            respondedAt: r.respondedAt,
-            responseBy: r.responseBy,
-            rejectionReason: r.rejectionReason,
-            entryTime: r.entryTime,
-            exitTime: r.exitTime,
-        }));
+        const result = rows.map((r) => {
+            const resolvedPhoto = (r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://")))
+                ? r.photoUrl
+                : `/api/visitor-requests/${r.id}/photo`;
+            let resolvedThumb = r.thumbUrl;
+            if (!resolvedThumb || resolvedThumb.startsWith('/uploads/')) {
+                if (r.photoUrl && r.photoUrl.includes('/image/upload/')) {
+                    resolvedThumb = r.photoUrl.replace('/image/upload/', '/image/upload/c_fill,h_200,w_200,q_70/');
+                }
+                else {
+                    resolvedThumb = resolvedThumb || resolvedPhoto;
+                }
+            }
+            return {
+                id: r.id,
+                visitorId: r.visitorId,
+                visitor: {
+                    id: r.visitorId,
+                    name: r.visitorName,
+                    mobile: r.visitorMobile,
+                    purpose: r.purpose,
+                    visitorType: r.visitorType,
+                    photoUrl: resolvedPhoto,
+                    photo: resolvedPhoto,
+                    thumbUrl: resolvedThumb,
+                    vehicleNumber: r.vehicleNumber,
+                    deliveryCompany: r.deliveryCompany,
+                },
+                photoUrl: resolvedPhoto,
+                thumbUrl: resolvedThumb,
+                flatNumber: r.flatNumber,
+                buildingWing: r.buildingWing,
+                residentName: r.residentName,
+                residentPhone: r.residentPhone || r.residentMobile || '',
+                gate: r.gateName,
+                status: r.status,
+                requestedAt: r.requestedAt,
+                respondedAt: r.respondedAt,
+                responseBy: r.responseBy,
+                rejectionReason: r.rejectionReason,
+                entryTime: r.entryTime,
+                exitTime: r.exitTime,
+            };
+        });
         const totalPages = limit ? Math.ceil(total / limit) : 1;
         const hasMore = page && limit ? page < totalPages : false;
         return res.json({

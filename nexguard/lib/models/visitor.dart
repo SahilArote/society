@@ -65,8 +65,26 @@ class Visitor {
     this.vehicleNumber,
   });
 
-  /// Returns thumb if available, falls back to full photo
-  String? get displayPhoto => thumbPath ?? photoPath;
+  /// Returns 200x200 thumb if available, falls back reliably to full photo
+  String? get displayPhoto {
+    // 1. If thumbPath is already a valid full URL
+    if (thumbPath != null && (thumbPath!.startsWith('http://') || thumbPath!.startsWith('https://'))) {
+      return thumbPath;
+    }
+    // 2. If photoPath is Cloudinary, transform into instant 200x200 CDN thumbnail
+    if (photoPath != null && photoPath!.contains('cloudinary.com') && photoPath!.contains('/image/upload/')) {
+      return photoPath!.replaceFirst('/image/upload/', '/image/upload/c_fill,h_200,w_200,q_70/');
+    }
+    // 3. If photoPath is a full URL, use it
+    if (photoPath != null && (photoPath!.startsWith('http://') || photoPath!.startsWith('https://'))) {
+      return photoPath;
+    }
+    // 4. Local camera file on device
+    if (photoPath != null && photoPath!.isNotEmpty) {
+      return photoPath;
+    }
+    return thumbPath;
+  }
 
   Visitor copyWith({
     String? name,

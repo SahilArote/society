@@ -920,13 +920,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   // Avatar Widget with Zoom Tap
   Widget _buildAvatar(VisitorRequest req, {double size = 48}) {
-    final hasPhoto = req.visitor.photoPath != null &&
-        req.visitor.photoPath!.trim().isNotEmpty;
+    final hasPhoto = (req.visitor.displayPhoto != null &&
+            req.visitor.displayPhoto!.trim().isNotEmpty) ||
+        (req.visitor.photoPath != null &&
+            req.visitor.photoPath!.trim().isNotEmpty);
 
     return GestureDetector(
       onTap: () {
         if (hasPhoto) {
-          _showPhotoZoomDialog(context, req.visitor.photoPath, req.visitor.name);
+          _showPhotoZoomDialog(
+              context,
+              req.visitor.photoPath ?? req.visitor.displayPhoto,
+              req.visitor.name);
         } else {
           _showDetailsSheet(context, req);
         }

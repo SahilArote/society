@@ -92,7 +92,22 @@ class VisitorPhotoAvatar extends StatelessWidget {
       );
     }
 
-    // 4. Relative API Path (e.g. /api/visitor-requests/REQ-.../photo)
+    // 4. Relative uploads path (e.g. /uploads/thumbs/...)
+    if (trimmed.startsWith('/uploads/') || trimmed.startsWith('uploads/')) {
+      final baseHost = ApiService.baseUrl.replaceAll(RegExp(r'/api/?$'), '');
+      final cleanPath = trimmed.startsWith('/') ? trimmed : '/$trimmed';
+      final fullUrl = '$baseHost$cleanPath';
+
+      return Image.network(
+        fullUrl,
+        width: size,
+        height: size,
+        fit: fit,
+        errorBuilder: (_, __, ___) => _buildFallback(size),
+      );
+    }
+
+    // 5. Relative API Path (e.g. /api/visitor-requests/REQ-.../photo)
     if (trimmed.startsWith('/api/') || trimmed.startsWith('api/') || trimmed.startsWith('/visitor-requests/')) {
       var apiEndpoint = trimmed;
       if (!apiEndpoint.startsWith('/')) {

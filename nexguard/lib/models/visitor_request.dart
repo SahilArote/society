@@ -98,7 +98,7 @@ class VisitorRequest {
     final visitorData = json['visitor'];
     final Map<String, dynamic> visitorMap;
     if (visitorData is Map<String, dynamic>) {
-      visitorMap = visitorData;
+      visitorMap = Map<String, dynamic>.from(visitorData);
     } else if (visitorData is Map) {
       visitorMap = Map<String, dynamic>.from(visitorData);
     } else {
@@ -107,10 +107,20 @@ class VisitorRequest {
         'mobile':
             json['visitorMobile'] ?? json['mobile'] ?? json['phoneNumber'],
         'photoUrl': json['photoUrl'] ?? json['photoPath'],
+        'thumbUrl': json['thumbUrl'] ?? json['thumbPath'],
         'visitorType': json['visitorType'] ?? json['type'],
         'vehicleNumber': json['vehicleNumber'],
         'deliveryCompany': json['deliveryCompany'],
       };
+    }
+
+    if ((visitorMap['photoUrl'] == null && visitorMap['photoPath'] == null && visitorMap['photo'] == null) &&
+        (json['photoUrl'] != null || json['photoPath'] != null || json['photo'] != null)) {
+      visitorMap['photoUrl'] = json['photoUrl'] ?? json['photoPath'] ?? json['photo'];
+    }
+    if ((visitorMap['thumbUrl'] == null && visitorMap['thumbPath'] == null) &&
+        (json['thumbUrl'] != null || json['thumbPath'] != null)) {
+      visitorMap['thumbUrl'] = json['thumbUrl'] ?? json['thumbPath'];
     }
 
     final purpose =
