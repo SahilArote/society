@@ -10,7 +10,8 @@
     "start": "node dist/index.js",
     "deploy:local": "powershell -ExecutionPolicy Bypass -File ./deploy-local.ps1",
     "db:migrate": "ts-node -e \"import { runMysqlMigrations } from './src/database/mysql'; runMysqlMigrations().then(() => process.exit(0));\"",
-    "db:reset": "ts-node reset_and_migrate.ts"
+    "db:reset": "ts-node reset_and_migrate.ts",
+    "thumbs:backfill": "ts-node scripts/generate_thumbnails.ts"
   },
   "dependencies": {
     "@types/sharp": "^0.31.1",
