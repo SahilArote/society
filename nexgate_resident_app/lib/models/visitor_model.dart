@@ -43,7 +43,7 @@ class VisitorModel {
   bool get isPending => status.toUpperCase() == 'PENDING';
   bool get isApproved => status.toUpperCase() == 'APPROVED';
   bool get isRejected => status.toUpperCase() == 'REJECTED';
-  bool get isEntered => status.toUpperCase() == 'ENTERED' || status.toUpperCase() == 'INSIDE' || status.toUpperCase() == 'COMPLETED';
+  bool get isEntered => status.toUpperCase() == 'ENTERED' || status.toUpperCase() == 'INSIDE';
   bool get isExited => status.toUpperCase() == 'EXITED' || status.toUpperCase() == 'LEFT';
 
   factory VisitorModel.fromJson(Map<String, dynamic> json) {

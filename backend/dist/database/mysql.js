@@ -135,6 +135,16 @@ async function runMysqlMigrations() {
             await pool.query('ALTER TABLE visitors MODIFY COLUMN purpose VARCHAR(255) NOT NULL');
         }
         catch (_) { }
+        // Auto-migrate: add thumb_url column if missing (safe idempotent)
+        try {
+            await pool.query('ALTER TABLE visitors ADD COLUMN thumb_url TEXT NULL AFTER photo_url');
+            console.log('[MySQL] Migration: Added thumb_url column to visitors table');
+        }
+        catch (e) {
+            if (!e.message.includes('Duplicate column') && !e.message.includes('already exists')) {
+                // ignore — column already exists
+            }
+        }
         // Auto-update society name to official real name
         try {
             await pool.query("UPDATE societies SET name = 'Eco Residency Co-operative Housing Society Ltd' WHERE name = 'Green Gate Residency' OR name = 'NexGate Residency' OR id = 'soc_greengate'");

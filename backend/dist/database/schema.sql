@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS `visitors` (
   `photo_storage_type` VARCHAR(32) DEFAULT 'VAULT',
   `photo_mime_type` VARCHAR(64) DEFAULT 'image/jpeg',
   `photo_url` TEXT DEFAULT NULL,
+  `thumb_url` TEXT DEFAULT NULL,
   `vehicle_number` VARCHAR(64) DEFAULT NULL,
   `delivery_company` VARCHAR(128) DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP

@@ -17,6 +17,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 
 import 'api_service.dart';
+import 'package:http/http.dart' as http;
+import '../core/constants/api_endpoints.dart';
 
 
 
@@ -247,7 +249,7 @@ class NotificationService {
 
 
     await _notificationsPlugin.initialize(
-      initSettings,
+      settings: initSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
 
 
@@ -523,14 +525,15 @@ class NotificationService {
 
 
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-
-
-
         debugPrint('[FCM] Foreground push message received: ${message.data}');
         final type = message.data['type'];
         final requestId = message.data['requestId'] ?? message.data['visitorRequestId'];
         final title = message.notification?.title ?? message.data['title'] ?? '🚨 Gate Alert';
         final body = message.notification?.body ?? message.data['body'] ?? 'Visitor arrived at gate';
+        final photoUrl = message.notification?.android?.imageUrl ??
+            message.data['photoUrl'] ??
+            message.data['imageUrl'] ??
+            message.data['photo'];
 
         if (type == 'VISITOR_REQUEST' || requestId != null) {
           final visitorName = message.data['visitorName'] ?? 'Visitor';
@@ -541,12 +544,14 @@ class NotificationService {
             flatNumber: flatNumber,
             gateName: gateName,
             requestId: requestId,
+            photoUrl: photoUrl,
           );
         } else {
           showGeneralNotification(
             title: title,
             body: body,
             payload: requestId,
+            imageUrl: photoUrl,
           );
         }
       });
@@ -762,62 +767,60 @@ class NotificationService {
 
 
   static Future<void> showVisitorAlert({
-
-
-
     required String visitorName,
-
-
-
     required String flatNumber,
-
-
-
     required String gateName,
-
-
-
     String? requestId,
-
-
-
+    String? photoUrl,
   }) async {
+    ByteArrayAndroidBitmap? pictureBitmap;
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      try {
+        String resolvedUrl = photoUrl;
+        if (!resolvedUrl.startsWith('http://') && !resolvedUrl.startsWith('https://')) {
+          final baseHost = ApiEndpoints.baseUrl.replaceAll(RegExp(r'/api/?$'), '');
+          final cleanPath = resolvedUrl.startsWith('/') ? resolvedUrl : '/$resolvedUrl';
+          resolvedUrl = '$baseHost$cleanPath';
+        }
+        debugPrint('[NotificationService] Fetching visitor photo from: $resolvedUrl');
+        final response = await http
+            .get(Uri.parse(resolvedUrl))
+            .timeout(const Duration(seconds: 7));
+        if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+          pictureBitmap = ByteArrayAndroidBitmap(response.bodyBytes);
+          debugPrint('[NotificationService] Successfully downloaded visitor photo (${response.bodyBytes.length} bytes)');
+        } else {
+          debugPrint('[NotificationService] Note: Photo download HTTP status: ${response.statusCode}');
+        }
+      } catch (e) {
+        debugPrint('[NotificationService] Note: Could not download visitor photo: $e');
+      }
+    }
 
-
-
-    const androidDetails = AndroidNotificationDetails(
+    final androidDetails = AndroidNotificationDetails(
       'nexgate_visitor_alerts',
       'Gate Visitor Alerts',
       channelDescription: 'Instant alerts when a visitor or delivery arrives at the gate',
-
-
-
       importance: Importance.max,
-
-
-
       priority: Priority.high,
-
-
-
       playSound: true,
-
-
-
       enableVibration: true,
-
-
-
       icon: '@drawable/ic_stat_nexgate',
-
-      color: Color(0xFF2563EB),
-
-
-
-      styleInformation: BigTextStyleInformation(''),
-
-
-
+      color: const Color(0xFF2563EB),
+      largeIcon: pictureBitmap,
+      styleInformation: pictureBitmap != null
+          ? BigPictureStyleInformation(
+              pictureBitmap,
+              largeIcon: pictureBitmap,
+              contentTitle: '$visitorName at $gateName',
+              summaryText: 'Flat $flatNumber • Tap to view and respond',
+              htmlFormatContentTitle: true,
+              htmlFormatSummaryText: true,
+            )
+          : BigTextStyleInformation(
+              '$visitorName is waiting at $gateName for Flat $flatNumber. Tap to view and respond.',
+              contentTitle: '$visitorName at $gateName',
+            ),
     );
 
 
@@ -826,7 +829,7 @@ class NotificationService {
 
 
 
-    const notificationDetails = NotificationDetails(
+    final notificationDetails = NotificationDetails(
 
 
 
@@ -887,10 +890,10 @@ class NotificationService {
 
 
     await _notificationsPlugin.show(
-      notificationId,
-      '$visitorName New Visitor Request',
-      '$visitorName is waiting at $gateName for Flat $flatNumber. Tap to view and respond.',
-      notificationDetails,
+      id: notificationId,
+      title: '$visitorName New Visitor Request',
+      body: '$visitorName is waiting at $gateName for Flat $flatNumber. Tap to view and respond.',
+      notificationDetails: notificationDetails,
       payload: requestId,
     );
 
@@ -917,26 +920,34 @@ class NotificationService {
 
 
   static Future<void> showGeneralNotification({
-
-
-
     required String title,
-
-
-
     required String body,
-
-
-
     String? payload,
-
-
-
+    String? imageUrl,
   }) async {
 
 
 
-    const androidDetails = AndroidNotificationDetails(
+    ByteArrayAndroidBitmap? pictureBitmap;
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      try {
+        String resolvedUrl = imageUrl;
+        if (!resolvedUrl.startsWith('http://') && !resolvedUrl.startsWith('https://')) {
+          final baseHost = ApiEndpoints.baseUrl.replaceAll(RegExp(r'/api/?$'), '');
+          final cleanPath = resolvedUrl.startsWith('/') ? resolvedUrl : '/$resolvedUrl';
+          resolvedUrl = '$baseHost$cleanPath';
+        }
+        final response = await http
+            .get(Uri.parse(resolvedUrl))
+            .timeout(const Duration(seconds: 7));
+        if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+          pictureBitmap = ByteArrayAndroidBitmap(response.bodyBytes);
+        }
+      } catch (e) {
+        debugPrint('[NotificationService] Note: Could not download general notif image: $e');
+      }
+    }
+    final androidDetails = AndroidNotificationDetails(
 
 
 
@@ -970,7 +981,16 @@ class NotificationService {
 
       icon: '@drawable/ic_stat_nexgate',
 
-      color: Color(0xFF2563EB),
+      color: const Color(0xFF2563EB),
+      largeIcon: pictureBitmap,
+      styleInformation: pictureBitmap != null
+          ? BigPictureStyleInformation(
+              pictureBitmap,
+              largeIcon: pictureBitmap,
+              contentTitle: title,
+              summaryText: body,
+            )
+          : BigTextStyleInformation(body),
 
 
 
@@ -982,7 +1002,7 @@ class NotificationService {
 
 
 
-    const notificationDetails = NotificationDetails(
+    final notificationDetails = NotificationDetails(
 
 
 
@@ -1039,10 +1059,10 @@ class NotificationService {
 
 
     await _notificationsPlugin.show(
-      notificationId,
-      title,
-      body,
-      notificationDetails,
+      id: notificationId,
+      title: title,
+      body: body,
+      notificationDetails: notificationDetails,
       payload: payload,
     );
 

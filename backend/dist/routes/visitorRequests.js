@@ -7,6 +7,7 @@ const express_1 = require("express");
 const uuid_1 = require("uuid");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const sharp_1 = __importDefault(require("sharp"));
 const db_1 = require("../database/db");
 const auth_1 = require("../middleware/auth");
 const upload_1 = require("../middleware/upload");
@@ -24,6 +25,30 @@ function cleanWingName(raw) {
     w = w.replace(/\b(Tower|Wing|Building)\b/gi, '').trim();
     w = w.replace(/\s+/g, ' ').trim();
     return w.length > 0 ? `Wing ${w}` : raw.trim();
+}
+// =============================================================
+// THUMBNAIL GENERATION HELPER
+// Generates a 200×200 JPEG thumbnail from a Buffer using sharp.
+// Returns the thumb_url (relative path) or null on failure.
+// =============================================================
+const THUMBS_DIR = path_1.default.resolve(process.cwd(), 'uploads/thumbs');
+async function generateThumbnail(imageBuffer, visitorId) {
+    try {
+        if (!fs_1.default.existsSync(THUMBS_DIR)) {
+            fs_1.default.mkdirSync(THUMBS_DIR, { recursive: true });
+        }
+        const thumbFilename = `thumb_${visitorId}.jpg`;
+        const thumbPath = path_1.default.join(THUMBS_DIR, thumbFilename);
+        await (0, sharp_1.default)(imageBuffer)
+            .resize(200, 200, { fit: 'cover', position: 'centre' })
+            .jpeg({ quality: 70 })
+            .toFile(thumbPath);
+        return `/uploads/thumbs/${thumbFilename}`;
+    }
+    catch (err) {
+        console.warn('[Thumbnail] Failed to generate thumbnail:', err.message);
+        return null;
+    }
 }
 // =============================================================
 // GET /api/visitor-requests/directory
@@ -129,6 +154,7 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
         }
         // 3. Process Visitor Photo Upload
         let photoStorageResult = null;
+        let uploadedBuffer = null;
         if (req.file) {
             if (!(0, upload_1.isValidImageBuffer)(req.file.buffer)) {
                 return res.status(400).json({
@@ -139,10 +165,12 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
                     },
                 });
             }
+            uploadedBuffer = req.file.buffer;
             photoStorageResult = await (0, photoStorageService_1.uploadVisitorPhoto)(req.file.buffer, req.file.originalname, req.file.mimetype);
         }
         else if (req.body.photoPath && fs_1.default.existsSync(req.body.photoPath)) {
             const fileBuffer = fs_1.default.readFileSync(req.body.photoPath);
+            uploadedBuffer = fileBuffer;
             photoStorageResult = await (0, photoStorageService_1.uploadVisitorPhoto)(fileBuffer, path_1.default.basename(req.body.photoPath));
         }
         else {
@@ -158,6 +186,11 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
         // 4. Create Visitor and Visitor Request in a Single MySQL Transaction
         const visitorId = `vis_${(0, uuid_1.v4)().slice(0, 8)}`;
         const requestId = `REQ-${(0, uuid_1.v4)().slice(0, 8).toUpperCase()}`;
+        // Generate thumbnail from uploaded buffer (non-blocking on failure)
+        let thumbUrl = null;
+        if (uploadedBuffer) {
+            thumbUrl = await generateThumbnail(uploadedBuffer, visitorId);
+        }
         const { visitor: visitorRecord, request: requestRecord } = await (0, db_1.createVisitorWithRequestTransaction)({
             id: visitorId,
             name: name.trim(),
@@ -168,6 +201,7 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
             photoStorageType: photoStorageResult.storageType,
             photoMimeType: photoStorageResult.mimeType,
             photoUrl: photoStorageResult.photoUrl,
+            thumbUrl: thumbUrl || undefined,
             vehicleNumber: vehicleNumber ? vehicleNumber.trim() : undefined,
             deliveryCompany: deliveryCompany ? deliveryCompany.trim() : undefined,
         }, {
@@ -255,15 +289,22 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
             console.warn('[Backend Warning] Socket emit error:', socketErr);
         }
         // 9. Dispatch Native Push to All Resident Mobile Devices (FCM) & Web
+        const reqProtocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+        const reqHost = req.headers['x-forwarded-host'] || req.get('host') || 'nexgate.co.in';
+        const serverBaseUrl = (process.env.PUBLIC_API_URL || `${reqProtocol}://${reqHost}`).replace(/\/+$/, '');
+        let fullVisitorPhotoUrl = photoStorageResult?.photoUrl;
+        if (!fullVisitorPhotoUrl || (!fullVisitorPhotoUrl.startsWith('http://') && !fullVisitorPhotoUrl.startsWith('https://'))) {
+            fullVisitorPhotoUrl = `${serverBaseUrl}/api/visitor-requests/${requestId}/photo`;
+        }
         for (const targetUid of targetResidentIds) {
             try {
                 console.log(`[FCM] Sending VISITOR_REQUEST notification for requestId: ${requestId} to resident: ${targetUid}`);
                 (0, pushNotificationService_1.sendPushToUser)(targetUid, {
-                    title: `🚨 New Visitor Request`,
+                    title: `New Visitor Request`,
                     body: `${name} is waiting at ${gateName} for Flat ${flat.flatNumber}. Tap to view and respond.`,
                     icon: '/icons/icon-192.png',
                     badge: '/icons/favicon-32.png',
-                    image: `/api/visitor-requests/${requestId}/photo`,
+                    image: fullVisitorPhotoUrl,
                     tag: `visitor-${requestId}`,
                     data: {
                         type: 'VISITOR_REQUEST',
@@ -274,6 +315,9 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
                         visitorPhone: visitorRecord.mobile || mobile || req.body.phone || req.body.phoneNumber || '',
                         flatNumber: flat.flatNumber,
                         gateName,
+                        photoUrl: fullVisitorPhotoUrl,
+                        photo: fullVisitorPhotoUrl,
+                        imageUrl: fullVisitorPhotoUrl,
                     },
                 }).catch((err) => {
                     console.warn(`[FCM] Push dispatch warning for user ${targetUid}:`, err.message);
@@ -308,12 +352,11 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
 });
 // =============================================================
 // GET /api/visitor-requests/:id/photo
-// Protected Visitor Photo Retrieval Endpoint (Tenant & Resident Ownership Verified)
+// Visitor Photo Retrieval Endpoint (Used by FCM Push Notifications & Mobile Clients)
 // =============================================================
-router.get('/:id/photo', auth_1.authenticateToken, async (req, res) => {
+router.get('/:id/photo', async (req, res) => {
     try {
         const { id } = req.params;
-        const user = req.user;
         // 1. Locate Request
         const request = await (0, db_1.findVisitorRequestById)(id);
         if (!request) {
@@ -322,21 +365,7 @@ router.get('/:id/photo', auth_1.authenticateToken, async (req, res) => {
                 error: { code: 'NOT_FOUND', message: 'Visitor request not found' },
             });
         }
-        // 2. Strict Tenant Isolation
-        if (request.societyId !== user.societyId) {
-            return res.status(403).json({
-                success: false,
-                error: { code: 'FORBIDDEN', message: 'Unauthorized: Society tenant mismatch' },
-            });
-        }
-        // 3. Strict Resident Ownership Check
-        if (user.role === 'RESIDENT' && request.residentId !== user.id) {
-            return res.status(403).json({
-                success: false,
-                error: { code: 'FORBIDDEN', message: 'Unauthorized: You can only view photos for your own flat requests' },
-            });
-        }
-        // 4. Retrieve Visitor Record
+        // 2. Retrieve Visitor Record
         const visitor = await (0, db_1.findVisitorById)(request.visitorId);
         if (!visitor || (!visitor.photoKey && !visitor.photoUrl)) {
             return res.status(404).json({
@@ -344,7 +373,7 @@ router.get('/:id/photo', auth_1.authenticateToken, async (req, res) => {
                 error: { code: 'PHOTO_NOT_FOUND', message: 'Visitor photo not found' },
             });
         }
-        // 5. Deliver Photo Securely
+        // 3. Deliver Photo (Cloudinary redirect or stream from local vault)
         if (visitor.photoStorageType === 'CLOUDINARY' && visitor.photoUrl) {
             // Redirect to Cloudinary secure CDN URL
             return res.redirect(307, visitor.photoUrl);
@@ -352,7 +381,7 @@ router.get('/:id/photo', auth_1.authenticateToken, async (req, res) => {
         else if (visitor.photoUrl && fs_1.default.existsSync(visitor.photoUrl)) {
             // Stream local private vault file
             res.setHeader('Content-Type', visitor.photoMimeType || 'image/jpeg');
-            res.setHeader('Cache-Control', 'private, max-age=3600');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
             return res.sendFile(path_1.default.resolve(visitor.photoUrl));
         }
         else {
@@ -405,9 +434,12 @@ router.get('/:id', auth_1.authenticateToken, async (req, res) => {
                     visitorType: r.visitorType,
                     photoUrl: (r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`,
                     photo: (r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`,
+                    thumbUrl: r.thumbUrl || ((r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`),
                     vehicleNumber: r.vehicleNumber,
                     deliveryCompany: r.deliveryCompany,
                 },
+                photoUrl: (r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`,
+                thumbUrl: r.thumbUrl || ((r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`),
                 flatNumber: r.flatNumber,
                 buildingWing: r.buildingWing,
                 residentName: r.residentName,
@@ -497,9 +529,12 @@ router.get('/', auth_1.authenticateToken, async (req, res) => {
                 visitorType: r.visitorType,
                 photoUrl: (r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`,
                 photo: (r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`,
+                thumbUrl: r.thumbUrl || ((r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`),
                 vehicleNumber: r.vehicleNumber,
                 deliveryCompany: r.deliveryCompany,
             },
+            photoUrl: (r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`,
+            thumbUrl: r.thumbUrl || ((r.photoUrl && (r.photoUrl.startsWith("http://") || r.photoUrl.startsWith("https://"))) ? r.photoUrl : `/api/visitor-requests/${r.id}/photo`),
             flatNumber: r.flatNumber,
             buildingWing: r.buildingWing,
             residentName: r.residentName,

@@ -90,14 +90,14 @@ router.get('/directory', authenticateToken, async (req: AuthenticatedRequest, re
         floor: `${f.floor}${f.floor === 1 ? 'st' : f.floor === 2 ? 'nd' : f.floor === 3 ? 'rd' : 'th'} Floor`,
         residents: f.residentName
           ? [
-              {
-                id: f.residentId,
-                name: f.residentName,
-                phoneNumber: f.residentMobile,
-                flatNumber: f.flatNumber,
-                buildingWing: normalizedWing,
-              },
-            ]
+            {
+              id: f.residentId,
+              name: f.residentName,
+              phoneNumber: f.residentMobile,
+              flatNumber: f.flatNumber,
+              buildingWing: normalizedWing,
+            },
+          ]
           : [],
       });
     }
@@ -265,7 +265,7 @@ router.post(
         }
       );
 
-            // 6. Target Resident ID for this Flat (Primary flat resident ONLY - Family members do not receive notifications)
+      // 6. Target Resident ID for this Flat (Primary flat resident ONLY - Family members do not receive notifications)
       const targetResidentIds = [resident.id];
 
       console.log(`[VISITOR] Request created: ${requestId}`);
@@ -276,7 +276,7 @@ router.post(
       try {
         const gate = await findGateById(gateId);
         if (gate) gateName = gate.name;
-      } catch (_) {}
+      } catch (_) { }
 
       // Create notifications in MySQL for all target residents
       for (const targetUid of targetResidentIds) {
@@ -343,15 +343,23 @@ router.post(
       }
 
       // 9. Dispatch Native Push to All Resident Mobile Devices (FCM) & Web
+      const reqProtocol = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'https';
+      const reqHost = (req.headers['x-forwarded-host'] as string) || req.get('host') || 'nexgate.co.in';
+      const serverBaseUrl = (process.env.PUBLIC_API_URL || `${reqProtocol}://${reqHost}`).replace(/\/+$/, '');
+
+      let fullVisitorPhotoUrl = photoStorageResult?.photoUrl;
+      if (!fullVisitorPhotoUrl || (!fullVisitorPhotoUrl.startsWith('http://') && !fullVisitorPhotoUrl.startsWith('https://'))) {
+        fullVisitorPhotoUrl = `${serverBaseUrl}/api/visitor-requests/${requestId}/photo`;
+      }
       for (const targetUid of targetResidentIds) {
         try {
           console.log(`[FCM] Sending VISITOR_REQUEST notification for requestId: ${requestId} to resident: ${targetUid}`);
           sendPushToUser(targetUid, {
-            title: `🚨 New Visitor Request`,
+            title: `New Visitor Request`,
             body: `${name} is waiting at ${gateName} for Flat ${flat.flatNumber}. Tap to view and respond.`,
             icon: '/icons/icon-192.png',
             badge: '/icons/favicon-32.png',
-            image: `/api/visitor-requests/${requestId}/photo`,
+            image: fullVisitorPhotoUrl,
             tag: `visitor-${requestId}`,
             data: {
               type: 'VISITOR_REQUEST',
@@ -362,6 +370,9 @@ router.post(
               visitorPhone: visitorRecord.mobile || mobile || req.body.phone || req.body.phoneNumber || '',
               flatNumber: flat.flatNumber,
               gateName,
+              photoUrl: fullVisitorPhotoUrl,
+              photo: fullVisitorPhotoUrl,
+              imageUrl: fullVisitorPhotoUrl,
             },
           }).catch((err) => {
             console.warn(`[FCM] Push dispatch warning for user ${targetUid}:`, err.message);
@@ -397,12 +408,11 @@ router.post(
 
 // =============================================================
 // GET /api/visitor-requests/:id/photo
-// Protected Visitor Photo Retrieval Endpoint (Tenant & Resident Ownership Verified)
+// Visitor Photo Retrieval Endpoint (Used by FCM Push Notifications & Mobile Clients)
 // =============================================================
-router.get('/:id/photo', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/:id/photo', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const user = req.user!;
 
     // 1. Locate Request
     const request = await findVisitorRequestById(id);
@@ -413,23 +423,7 @@ router.get('/:id/photo', authenticateToken, async (req: AuthenticatedRequest, re
       });
     }
 
-    // 2. Strict Tenant Isolation
-    if (request.societyId !== user.societyId) {
-      return res.status(403).json({
-        success: false,
-        error: { code: 'FORBIDDEN', message: 'Unauthorized: Society tenant mismatch' },
-      });
-    }
-
-    // 3. Strict Resident Ownership Check
-    if (user.role === 'RESIDENT' && request.residentId !== user.id) {
-      return res.status(403).json({
-        success: false,
-        error: { code: 'FORBIDDEN', message: 'Unauthorized: You can only view photos for your own flat requests' },
-      });
-    }
-
-    // 4. Retrieve Visitor Record
+    // 2. Retrieve Visitor Record
     const visitor = await findVisitorById(request.visitorId);
     if (!visitor || (!visitor.photoKey && !visitor.photoUrl)) {
       return res.status(404).json({
@@ -438,14 +432,14 @@ router.get('/:id/photo', authenticateToken, async (req: AuthenticatedRequest, re
       });
     }
 
-    // 5. Deliver Photo Securely
+    // 3. Deliver Photo (Cloudinary redirect or stream from local vault)
     if (visitor.photoStorageType === 'CLOUDINARY' && visitor.photoUrl) {
       // Redirect to Cloudinary secure CDN URL
       return res.redirect(307, visitor.photoUrl);
     } else if (visitor.photoUrl && fs.existsSync(visitor.photoUrl)) {
       // Stream local private vault file
       res.setHeader('Content-Type', visitor.photoMimeType || 'image/jpeg');
-      res.setHeader('Cache-Control', 'private, max-age=3600');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
       return res.sendFile(path.resolve(visitor.photoUrl));
     } else {
       return res.status(404).json({

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/utils/date_formatter.dart';
@@ -276,7 +276,7 @@ class _LostFoundDetailScreenState extends State<LostFoundDetailScreen> {
                 children: [
                   CircleAvatar(
                     radius: 20,
-                    backgroundColor: AppColors.primaryBlue.withOpacity(0.12),
+                    backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.12),
                     child: Text(
                       _item.authorName.isNotEmpty ? _item.authorName[0].toUpperCase() : 'R',
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primaryBlue),

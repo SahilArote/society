@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_dimensions.dart';
 import '../../../core/constants/app_typography.dart';
@@ -41,7 +41,7 @@ class UrgentGateAlertCard extends StatelessWidget {
           border: Border.all(color: const Color(0xFFFED7AA), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.amber.withOpacity(0.12),
+              color: Colors.amber.withValues(alpha: 0.12),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),

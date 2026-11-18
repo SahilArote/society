@@ -105,6 +105,7 @@ class SocketService {
             flatNumber: model.flatNumber,
             gateName: model.gate,
             requestId: model.id,
+            photoUrl: model.photoUrl,
           );
         } catch (e) {
           debugPrint('[SOCKET] Parsing error on visitor created: $e');

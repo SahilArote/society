@@ -400,8 +400,8 @@ async function createVisitor(data) {
     const safeVisitorType = (data.visitorType || 'guest').trim().slice(0, 60);
     const safeVehicle = data.vehicleNumber ? data.vehicleNumber.trim().slice(0, 60) : null;
     const safeCompany = data.deliveryCompany ? data.deliveryCompany.trim().slice(0, 120) : null;
-    await pool.query(`INSERT INTO visitors (id, name, mobile, purpose, visitor_type, photo_key, photo_storage_type, photo_mime_type, photo_url, vehicle_number, delivery_company) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+    await pool.query(`INSERT INTO visitors (id, name, mobile, purpose, visitor_type, photo_key, photo_storage_type, photo_mime_type, photo_url, thumb_url, vehicle_number, delivery_company) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
         data.id,
         safeName,
         safeMobile,
@@ -411,6 +411,7 @@ async function createVisitor(data) {
         data.photoStorageType || 'VAULT',
         data.photoMimeType || 'image/jpeg',
         data.photoUrl || null,
+        data.thumbUrl || null,
         safeVehicle,
         safeCompany,
     ]);
@@ -437,6 +438,7 @@ async function findVisitorById(id) {
         photoStorageType: r.photo_storage_type,
         photoMimeType: r.photo_mime_type,
         photoUrl: r.photo_url,
+        thumbUrl: r.thumb_url,
         vehicleNumber: r.vehicle_number,
         deliveryCompany: r.delivery_company,
         createdAt: r.created_at,
@@ -469,8 +471,8 @@ async function createVisitorWithRequestTransaction(visitorData, requestData) {
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
-        await connection.query(`INSERT INTO visitors (id, name, mobile, purpose, visitor_type, photo_key, photo_storage_type, photo_mime_type, photo_url, vehicle_number, delivery_company) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+        await connection.query(`INSERT INTO visitors (id, name, mobile, purpose, visitor_type, photo_key, photo_storage_type, photo_mime_type, photo_url, thumb_url, vehicle_number, delivery_company) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
             visitorData.id,
             visitorData.name,
             visitorData.mobile || null,
@@ -480,6 +482,7 @@ async function createVisitorWithRequestTransaction(visitorData, requestData) {
             visitorData.photoStorageType || 'VAULT',
             visitorData.photoMimeType || 'image/jpeg',
             visitorData.photoUrl || null,
+            visitorData.thumbUrl || null,
             visitorData.vehicleNumber || null,
             visitorData.deliveryCompany || null,
         ]);
@@ -561,6 +564,7 @@ async function findVisitorRequestJoinedById(id) {
       v.photo_key as photoKey,
       v.photo_storage_type as photoStorageType,
       v.photo_url as photoUrl,
+      v.thumb_url as thumbUrl,
       v.vehicle_number as vehicleNumber,
       v.delivery_company as deliveryCompany,
       f.id as flatId,
@@ -618,6 +622,7 @@ async function findVisitorRequestsJoined(filters) {
       v.photo_key as photoKey,
       v.photo_storage_type as photoStorageType,
       v.photo_url as photoUrl,
+      v.thumb_url as thumbUrl,
       v.vehicle_number as vehicleNumber,
       v.delivery_company as deliveryCompany,
       f.id as flatId,
@@ -1392,6 +1397,7 @@ async function findAdminVisitorLogs(societyId, filter) {
       v.visitor_type as visitorType,
       v.vehicle_number as vehicleNumber,
       v.photo_url as photoUrl,
+      v.thumb_url as thumbUrl,
       v.photo_key as photoKey,
       f.flat_number as flatNumber,
       f.wing as buildingWing,
@@ -1442,11 +1448,14 @@ async function findAdminVisitorLogs(societyId, filter) {
         const resolvedPhoto = r.photoKey
             ? `/api/visitor-requests/${r.id}/photo`
             : (r.photoUrl || undefined);
+        const resolvedThumb = r.thumbUrl || resolvedPhoto;
         return {
             id: r.id,
             name: r.visitorName,
             phone: r.visitorMobile || '',
             photo: resolvedPhoto,
+            photoUrl: r.photoUrl || resolvedPhoto,
+            thumbUrl: resolvedThumb,
             purpose: normPurpose,
             status: normStatus,
             flatNumber: r.flatNumber || 'A-402',
