@@ -245,12 +245,13 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
     final unique = <String>[];
 
     for (final w in raw) {
-      final clean = _cleanWingName(w).toLowerCase();
-      if (!seen.contains(clean)) {
-        seen.add(clean);
-        unique.add(w);
+      final clean = _cleanWingName(w);
+      if (!seen.contains(clean.toLowerCase())) {
+        seen.add(clean.toLowerCase());
+        unique.add(clean);
       }
     }
+    unique.sort();
     return unique;
   }
 
@@ -266,7 +267,7 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
     if (availableWings.isEmpty) return;
     final firstWing = availableWings.first;
     setState(() {
-      _selectedWing = firstWing;
+      _selectedWing = _cleanWingName(firstWing);
       _selectedFlat = '';
       _selectedResidentName = '';
       _selectedResidentPhone = '';
@@ -281,9 +282,29 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
     _applyFirstWing();
   }
 
+  List<Flat> _getFlatsForWing(String wing) {
+    final clean = _cleanWingName(wing).toLowerCase();
+    final results = <Flat>[];
+    for (final entry in widget.visitorRepo.wingFlats.entries) {
+      if (_cleanWingName(entry.key).toLowerCase() == clean) {
+        results.addAll(entry.value);
+      }
+    }
+    if (results.isEmpty) {
+      for (final list in widget.visitorRepo.wingFlats.values) {
+        for (final f in list) {
+          if (_cleanWingName(f.buildingWing).toLowerCase() == clean) {
+            results.add(f);
+          }
+        }
+      }
+    }
+    return results;
+  }
+
   void _onWingChanged(String wing) {
     setState(() {
-      _selectedWing = wing;
+      _selectedWing = _cleanWingName(wing);
       _selectedFlat = '';
       _selectedResidentName = '';
       _selectedResidentPhone = '';
@@ -291,16 +312,38 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
   }
 
   void _updateFlatSelection(String flatNumber) {
-    final flats = widget.visitorRepo.wingFlats[_selectedWing] ?? [];
-    final match = flats.firstWhere(
-      (f) => f.flatNumber == flatNumber,
-      orElse: () => flats.isNotEmpty ? flats.first : flats.first,
-    );
-    setState(() {
-      _selectedFlat = match.flatNumber;
-      _selectedResidentName = match.primaryResident?.name ?? 'Resident';
-      _selectedResidentPhone = match.primaryResident?.phoneNumber ?? '';
-    });
+    final flats = _getFlatsForWing(_selectedWing);
+    Flat? match;
+    for (final f in flats) {
+      if (f.flatNumber.trim().toLowerCase() == flatNumber.trim().toLowerCase()) {
+        match = f;
+        break;
+      }
+    }
+    if (match == null) {
+      for (final list in widget.visitorRepo.wingFlats.values) {
+        for (final f in list) {
+          if (f.flatNumber.trim().toLowerCase() == flatNumber.trim().toLowerCase()) {
+            match = f;
+            break;
+          }
+        }
+        if (match != null) break;
+      }
+    }
+
+    if (match != null) {
+      final matchedFlat = match;
+      setState(() {
+        _selectedFlat = matchedFlat.flatNumber;
+        _selectedResidentName = matchedFlat.primaryResident?.name ?? 'Resident';
+        _selectedResidentPhone = matchedFlat.primaryResident?.phoneNumber ?? '';
+        final matchWing = _cleanWingName(matchedFlat.buildingWing);
+        if (_cleanWingName(_selectedWing) != matchWing) {
+          _selectedWing = matchWing;
+        }
+      });
+    }
   }
 
   void _openSearchableFlatPicker() {
@@ -316,8 +359,9 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
           wings: _getUniqueWings(),
           onFlatSelected: (wing, flatNumber) {
             setState(() {
-              if (_selectedWing != wing) {
-                _selectedWing = wing;
+              final cleanW = _cleanWingName(wing);
+              if (_cleanWingName(_selectedWing) != cleanW) {
+                _selectedWing = cleanW;
               }
             });
             _updateFlatSelection(flatNumber);
@@ -1032,15 +1076,46 @@ class _SearchableFlatPickerSheetState extends State<_SearchableFlatPickerSheet> 
 
   List<Flat> _getFilteredFlats() {
     final all = <Flat>[];
+    final seenKeys = <String>{};
     for (final list in widget.wingFlats.values) {
-      all.addAll(list);
+      for (final f in list) {
+        final key = '${_cleanTabWing(f.buildingWing)}_${f.flatNumber}'.toLowerCase();
+        if (seenKeys.add(key)) {
+          all.add(f);
+        }
+      }
+    }
+
+    final List<Flat> scopeFlats;
+    if (_activeWing == 'All') {
+      scopeFlats = all;
+    } else {
+      final cleanActive = _cleanTabWing(_activeWing).toLowerCase();
+      final wingList = <Flat>[];
+      for (final entry in widget.wingFlats.entries) {
+        if (_cleanTabWing(entry.key).toLowerCase() == cleanActive) {
+          for (final f in entry.value) {
+            final key = '${_cleanTabWing(f.buildingWing)}_${f.flatNumber}'.toLowerCase();
+            if (!wingList.any((existing) => '${_cleanTabWing(existing.buildingWing)}_${existing.flatNumber}'.toLowerCase() == key)) {
+              wingList.add(f);
+            }
+          }
+        }
+      }
+      for (final f in all) {
+        if (_cleanTabWing(f.buildingWing).toLowerCase() == cleanActive) {
+          final key = '${_cleanTabWing(f.buildingWing)}_${f.flatNumber}'.toLowerCase();
+          if (!wingList.any((existing) => '${_cleanTabWing(existing.buildingWing)}_${existing.flatNumber}'.toLowerCase() == key)) {
+            wingList.add(f);
+          }
+        }
+      }
+      wingList.sort((a, b) => a.flatNumber.compareTo(b.flatNumber));
+      scopeFlats = wingList;
     }
 
     if (_query.isEmpty) {
-      if (_activeWing == 'All') {
-        return all;
-      }
-      return widget.wingFlats[_activeWing] ?? [];
+      return scopeFlats;
     }
 
     // When searching, match across all flats for maximum convenience
