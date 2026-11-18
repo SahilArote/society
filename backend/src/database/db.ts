@@ -1826,6 +1826,7 @@ export async function findAdminVisitorLogs(societyId: string, filter?: {
       v.visitor_type as visitorType,
       v.vehicle_number as vehicleNumber,
       v.photo_url as photoUrl,
+      v.thumb_url as thumbUrl,
       v.photo_key as photoKey,
       f.flat_number as flatNumber,
       f.wing as buildingWing,
@@ -1883,12 +1884,15 @@ export async function findAdminVisitorLogs(societyId: string, filter?: {
     const resolvedPhoto = r.photoKey 
       ? `/api/visitor-requests/${r.id}/photo` 
       : (r.photoUrl || undefined);
+    const resolvedThumb = r.thumbUrl || resolvedPhoto;
 
     return {
       id: r.id,
       name: r.visitorName,
       phone: r.visitorMobile || '',
       photo: resolvedPhoto,
+      photoUrl: r.photoUrl || resolvedPhoto,
+      thumbUrl: resolvedThumb,
       purpose: normPurpose,
       status: normStatus,
       flatNumber: r.flatNumber || 'A-402',
