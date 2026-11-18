@@ -822,7 +822,7 @@ class NotificationService {
 
 
 
-    const notificationDetails = NotificationDetails(
+    final notificationDetails = NotificationDetails(
 
 
 
@@ -913,26 +913,31 @@ class NotificationService {
 
 
   static Future<void> showGeneralNotification({
-
-
-
     required String title,
-
-
-
     required String body,
-
-
-
     String? payload,
-
-
-
+    String? imageUrl,
   }) async {
 
 
 
-    const androidDetails = AndroidNotificationDetails(
+    ByteArrayAndroidBitmap? pictureBitmap;
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      try {
+        final resolvedUrl = imageUrl.startsWith('http')
+            ? imageUrl
+            : '${ApiEndpoints.baseUrl}$imageUrl';
+        final response = await http
+            .get(Uri.parse(resolvedUrl))
+            .timeout(const Duration(seconds: 4));
+        if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+          pictureBitmap = ByteArrayAndroidBitmap(response.bodyBytes);
+        }
+      } catch (e) {
+        debugPrint('[NotificationService] Note: Could not download general notif image: $e');
+      }
+    }
+    final androidDetails = AndroidNotificationDetails(
 
 
 
@@ -966,7 +971,16 @@ class NotificationService {
 
       icon: '@drawable/ic_stat_nexgate',
 
-      color: Color(0xFF2563EB),
+      color: const Color(0xFF2563EB),
+      largeIcon: pictureBitmap,
+      styleInformation: pictureBitmap != null
+          ? BigPictureStyleInformation(
+              pictureBitmap,
+              largeIcon: pictureBitmap,
+              contentTitle: title,
+              summaryText: body,
+            )
+          : BigTextStyleInformation(body),
 
 
 
@@ -978,7 +992,7 @@ class NotificationService {
 
 
 
-    const notificationDetails = NotificationDetails(
+    final notificationDetails = NotificationDetails(
 
 
 
