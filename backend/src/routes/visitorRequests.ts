@@ -5,6 +5,7 @@ import path from 'path';
 import {
   findFlatByNumberAndWing,
   findFlatsBySociety,
+  findFlatById,
   findUserById,
   findGateById,
   createVisitor,
@@ -14,7 +15,10 @@ import {
   findVisitorRequestById,
   findVisitorRequestJoinedById,
   findVisitorRequestsJoined,
+  countVisitorRequestsJoined,
   updateVisitorRequestDecision,
+  recordVisitorEntry,
+  recordVisitorExit,
   createNotification,
   createAuditLog,
 } from '../database/db';
@@ -487,8 +491,19 @@ router.get('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
 
 // =============================================================
 // GET /api/visitor-requests
-// List visitor requests with strict role and tenant isolation
+// List visitor requests with strict role/tenant isolation, pagination & date filtering
 // =============================================================
+function formatFilterDate(val: any, isEnd: boolean = false): string | undefined {
+  if (!val || typeof val !== 'string') return undefined;
+  const trimmed = val.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return isEnd ? `${trimmed} 23:59:59` : `${trimmed} 00:00:00`;
+  }
+  const d = new Date(trimmed);
+  if (isNaN(d.getTime())) return undefined;
+  return d.toISOString();
+}
+
 router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const user = req.user!;
@@ -503,7 +518,33 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Respon
       }
     }
 
-    const rows = await findVisitorRequestsJoined(filters);
+    // Status filter
+    if (req.query.status && typeof req.query.status === 'string' && req.query.status !== 'ALL') {
+      filters.status = req.query.status.toUpperCase();
+    }
+
+    // Date range filters
+    const startDate = formatFilterDate(req.query.startDate, false);
+    const endDate = formatFilterDate(req.query.endDate, true);
+    if (startDate) filters.startDate = startDate;
+    if (endDate) filters.endDate = endDate;
+
+    // Search filter (visitor name, phone, flat, resident name, vehicle)
+    if (req.query.search && typeof req.query.search === 'string' && req.query.search.trim()) {
+      filters.search = req.query.search.trim();
+    }
+
+    // Pagination
+    const page = req.query.page ? Math.max(1, parseInt(req.query.page as string, 10)) : undefined;
+    const limit = req.query.limit ? Math.max(1, parseInt(req.query.limit as string, 10)) : undefined;
+
+    if (page) filters.page = page;
+    if (limit) filters.limit = limit;
+
+    const [rows, total] = await Promise.all([
+      findVisitorRequestsJoined(filters),
+      countVisitorRequestsJoined(filters),
+    ]);
 
     const result = rows.map((r: any) => ({
       id: r.id,
@@ -529,11 +570,23 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Respon
       respondedAt: r.respondedAt,
       responseBy: r.responseBy,
       rejectionReason: r.rejectionReason,
+      entryTime: r.entryTime,
+      exitTime: r.exitTime,
     }));
+
+    const totalPages = limit ? Math.ceil(total / limit) : 1;
+    const hasMore = page && limit ? page < totalPages : false;
 
     return res.json({
       success: true,
       data: result,
+      pagination: {
+        total,
+        page: page || 1,
+        limit: limit || total,
+        totalPages,
+        hasMore,
+      },
     });
   } catch (error: any) {
     console.error('Error listing visitor requests:', error);
@@ -546,9 +599,9 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Respon
 
 // =============================================================
 // POST /api/visitor-requests/:id/approve
-// Resident approves visitor entry
+// Resident, Guard, or Admin approves visitor entry
 // =============================================================
-router.post('/:id/approve', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+router.post('/:id/approve', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN', 'GUARD'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
     const user = req.user!;
@@ -587,7 +640,11 @@ router.post('/:id/approve', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN
       });
     }
 
-    const updated = await updateVisitorRequestDecision(id, 'APPROVED', user.name);
+    const responderLabel = user.role === 'GUARD'
+      ? (user.name ? `Guard: ${user.name}` : 'Security Guard')
+      : (user.role === 'ADMIN' ? (user.name ? `Admin: ${user.name}` : 'Society Admin') : user.name);
+
+    const updated = await updateVisitorRequestDecision(id, 'APPROVED', responderLabel);
     if (!updated) {
       return res.status(409).json({
         success: false,
@@ -605,12 +662,15 @@ router.post('/:id/approve', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN
       actorRole: user.role,
       societyId: user.societyId,
       requestId: id,
-      action: 'RESIDENT_APPROVED',
+      action: user.role === 'GUARD' ? 'GUARD_APPROVED' : (user.role === 'ADMIN' ? 'ADMIN_APPROVED' : 'RESIDENT_APPROVED'),
       entityType: 'VISITOR_REQUEST',
       entityId: id,
-      metadata: JSON.stringify({ residentName: user.name, visitorName: visitor?.name }),
+      metadata: JSON.stringify({ responder: responderLabel, visitorName: visitor?.name }),
       ipAddress: req.ip,
     });
+
+    const flat = request.flatId ? await findFlatById(request.flatId) : null;
+    const flatNumber = flat?.flatNumber || user.flatNumber || 'Flat';
 
     // Emit Realtime Socket.IO Decision Event to Guard, Resident, and Admin
     emitVisitorDecision({
@@ -619,7 +679,7 @@ router.post('/:id/approve', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN
       residentId: request.residentId,
       societyId: request.societyId,
       visitorName: visitor?.name || 'Visitor',
-      flatNumber: user.flatNumber || 'A-402',
+      flatNumber,
       gateName: gate?.name || 'Main Gate',
       status: 'APPROVED',
     });
@@ -643,9 +703,9 @@ router.post('/:id/approve', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN
 
 // =============================================================
 // POST /api/visitor-requests/:id/reject
-// Resident rejects visitor entry
+// Resident, Guard, or Admin rejects visitor entry
 // =============================================================
-router.post('/:id/reject', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+router.post('/:id/reject', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN', 'GUARD'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
@@ -685,8 +745,14 @@ router.post('/:id/reject', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN'
       });
     }
 
-    const rejectionReason = reason || 'Denied by resident';
-    const updated = await updateVisitorRequestDecision(id, 'REJECTED', user.name, rejectionReason);
+    const responderLabel = user.role === 'GUARD'
+      ? (user.name ? `Guard: ${user.name}` : 'Security Guard')
+      : (user.role === 'ADMIN' ? (user.name ? `Admin: ${user.name}` : 'Society Admin') : user.name);
+
+    const defaultReason = user.role === 'GUARD' ? 'Denied by guard at gate' : 'Denied by resident';
+    const finalReason = reason ? String(reason).trim() : defaultReason;
+
+    const updated = await updateVisitorRequestDecision(id, 'REJECTED', responderLabel, finalReason);
     if (!updated) {
       return res.status(409).json({
         success: false,
@@ -704,12 +770,15 @@ router.post('/:id/reject', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN'
       actorRole: user.role,
       societyId: user.societyId,
       requestId: id,
-      action: 'RESIDENT_REJECTED',
+      action: user.role === 'GUARD' ? 'GUARD_REJECTED' : (user.role === 'ADMIN' ? 'ADMIN_REJECTED' : 'RESIDENT_REJECTED'),
       entityType: 'VISITOR_REQUEST',
       entityId: id,
-      metadata: JSON.stringify({ residentName: user.name, visitorName: visitor?.name, reason: rejectionReason }),
+      metadata: JSON.stringify({ responder: responderLabel, visitorName: visitor?.name, reason: finalReason }),
       ipAddress: req.ip,
     });
+
+    const flat = request.flatId ? await findFlatById(request.flatId) : null;
+    const flatNumber = flat?.flatNumber || user.flatNumber || 'Flat';
 
     // Emit Realtime Socket.IO Decision Event
     emitVisitorDecision({
@@ -718,10 +787,10 @@ router.post('/:id/reject', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN'
       residentId: request.residentId,
       societyId: request.societyId,
       visitorName: visitor?.name || 'Visitor',
-      flatNumber: user.flatNumber || 'A-402',
+      flatNumber,
       gateName: gate?.name || 'Main Gate',
       status: 'REJECTED',
-      rejectionReason,
+      rejectionReason: finalReason,
     });
 
     return res.json({
@@ -729,7 +798,7 @@ router.post('/:id/reject', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN'
       data: {
         id,
         status: 'REJECTED',
-        rejectionReason,
+        rejectionReason: finalReason,
         respondedAt: new Date().toISOString(),
       },
     });
@@ -738,6 +807,174 @@ router.post('/:id/reject', authenticateToken, authorizeRoles('RESIDENT', 'ADMIN'
     return res.status(500).json({
       success: false,
       error: { code: 'SERVER_ERROR', message: 'Failed to reject visitor request' },
+    });
+  }
+});
+
+// =============================================================
+// POST /api/visitor-requests/:id/entry
+// Guard or Admin marks visitor entered through gate
+// =============================================================
+router.post('/:id/entry', authenticateToken, authorizeRoles('GUARD', 'ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = req.user!;
+
+    const request = await findVisitorRequestById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Visitor request not found' },
+      });
+    }
+
+    if (request.societyId !== user.societyId) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Unauthorized society action' },
+      });
+    }
+
+    const responderLabel = user.role === 'GUARD'
+      ? (user.name ? `Guard: ${user.name}` : 'Security Guard')
+      : 'Society Admin';
+
+    const ok = await recordVisitorEntry(id, responderLabel);
+    if (!ok) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'UPDATE_FAILED', message: 'Failed to record entry for this visitor' },
+      });
+    }
+
+    const now = new Date().toISOString();
+    const visitor = await findVisitorById(request.visitorId);
+    const gate = await findGateById(request.gateId);
+
+    // Audit Log
+    await createAuditLog({
+      id: `audit_${uuidv4().slice(0, 8)}`,
+      actorId: user.id,
+      actorRole: user.role,
+      societyId: user.societyId,
+      requestId: id,
+      action: 'VISITOR_ENTERED',
+      entityType: 'VISITOR_REQUEST',
+      entityId: id,
+      metadata: JSON.stringify({ entryBy: responderLabel, visitorName: visitor?.name, entryTime: now }),
+      ipAddress: req.ip,
+    });
+
+    const flat = request.flatId ? await findFlatById(request.flatId) : null;
+    const flatNumber = flat?.flatNumber || user.flatNumber || 'Flat';
+
+    // Emit Realtime Socket.IO Decision Event
+    emitVisitorDecision({
+      requestId: id,
+      guardId: request.guardId,
+      residentId: request.residentId,
+      societyId: request.societyId,
+      visitorName: visitor?.name || 'Visitor',
+      flatNumber,
+      gateName: gate?.name || 'Main Gate',
+      status: 'INSIDE',
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        id,
+        status: 'INSIDE',
+        entryTime: now,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error recording visitor entry:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to record visitor entry' },
+    });
+  }
+});
+
+// =============================================================
+// POST /api/visitor-requests/:id/exit
+// Guard or Admin marks visitor exited through gate
+// =============================================================
+router.post('/:id/exit', authenticateToken, authorizeRoles('GUARD', 'ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = req.user!;
+
+    const request = await findVisitorRequestById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Visitor request not found' },
+      });
+    }
+
+    if (request.societyId !== user.societyId) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Unauthorized society action' },
+      });
+    }
+
+    const ok = await recordVisitorExit(id);
+    if (!ok) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'UPDATE_FAILED', message: 'Failed to record exit for this visitor' },
+      });
+    }
+
+    const now = new Date().toISOString();
+    const visitor = await findVisitorById(request.visitorId);
+    const gate = await findGateById(request.gateId);
+
+    // Audit Log
+    await createAuditLog({
+      id: `audit_${uuidv4().slice(0, 8)}`,
+      actorId: user.id,
+      actorRole: user.role,
+      societyId: user.societyId,
+      requestId: id,
+      action: 'VISITOR_EXITED',
+      entityType: 'VISITOR_REQUEST',
+      entityId: id,
+      metadata: JSON.stringify({ exitTime: now, visitorName: visitor?.name }),
+      ipAddress: req.ip,
+    });
+
+    const flat = request.flatId ? await findFlatById(request.flatId) : null;
+    const flatNumber = flat?.flatNumber || user.flatNumber || 'Flat';
+
+    // Emit Realtime Socket.IO Decision Event
+    emitVisitorDecision({
+      requestId: id,
+      guardId: request.guardId,
+      residentId: request.residentId,
+      societyId: request.societyId,
+      visitorName: visitor?.name || 'Visitor',
+      flatNumber,
+      gateName: gate?.name || 'Main Gate',
+      status: 'EXITED',
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        id,
+        status: 'EXITED',
+        exitTime: now,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error recording visitor exit:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: 'Failed to record visitor exit' },
     });
   }
 });

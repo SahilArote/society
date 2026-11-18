@@ -51,7 +51,6 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
     'Other',
   ];
 
-  bool _isSending = false;
   String? _validationError;
 
   bool _isLoadingDirectory = false;
@@ -428,8 +427,6 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final flatsInCurrentWing =
-        widget.visitorRepo.wingFlats[_selectedWing] ?? [];
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final isKeyboardOpen = bottomInset > 0;
 
@@ -783,8 +780,8 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
                         )
                       else
                         Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
+                          spacing: 8,
+                          runSpacing: 8,
                           children: _getUniqueWings().map((wing) {
                             final isSelected = _selectedWing == wing ||
                                 _cleanWingName(_selectedWing) ==
@@ -795,19 +792,16 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
                               color: Colors.transparent,
                               child: InkWell(
                                 onTap: () => _onWingChanged(wing),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(10),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 150),
-                                  constraints:
-                                      const BoxConstraints(minWidth: 84),
-                                  height: 44,
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 16),
+                                      horizontal: 14, vertical: 8),
                                   decoration: BoxDecoration(
                                     color: isSelected
                                         ? AppColors.primary
-                                        : const Color(0xFFF8FAFC),
-                                    borderRadius: BorderRadius.circular(12),
+                                        : const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(10),
                                     border: Border.all(
                                       color: isSelected
                                           ? AppColors.primaryDark
@@ -818,27 +812,25 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
                                         ? [
                                             BoxShadow(
                                               color: AppColors.primary
-                                                  .withOpacity(0.25),
-                                              blurRadius: 6,
+                                                  .withOpacity(0.22),
+                                              blurRadius: 4,
                                               offset: const Offset(0, 2),
                                             ),
                                           ]
                                         : null,
                                   ),
-                                  alignment: Alignment.center,
                                   child: Text(
                                     label,
                                     style: TextStyle(
-                                      fontSize: 14,
+                                      fontSize: 13,
                                       fontWeight: isSelected
-                                          ? FontWeight.w800
+                                          ? FontWeight.w700
                                           : FontWeight.w600,
                                       color: isSelected
                                           ? Colors.white
-                                          : AppColors.textPrimary,
+                                          : const Color(0xFF334155),
                                       fontFamily: 'Inter',
                                     ),
-                                    maxLines: 1,
                                   ),
                                 ),
                               ),

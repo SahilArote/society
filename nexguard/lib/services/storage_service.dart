@@ -24,6 +24,20 @@ class StorageService {
 
   StorageService(this._prefs, this._secureStorage, this._cachedToken);
 
+  static Future<StorageService> fallback() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return StorageService(
+        prefs,
+        const FlutterSecureStorage(aOptions: AndroidOptions(resetOnError: true)),
+        prefs.getString(_keyAuthToken),
+      );
+    } catch (_) {
+      // Emergency bare minimum
+      throw Exception('Critical storage initialization failed');
+    }
+  }
+
   static Future<StorageService> init() async {
     final prefs = await SharedPreferences.getInstance();
     const secureStorage = FlutterSecureStorage(
@@ -31,13 +45,17 @@ class StorageService {
     );
     String? token;
     try {
-      token = await secureStorage.read(key: _keyAuthToken);
+      token = await secureStorage
+          .read(key: _keyAuthToken)
+          .timeout(const Duration(milliseconds: 1500), onTimeout: () {
+        return prefs.getString(_keyAuthToken);
+      });
       // Migration from plaintext SharedPreferences
       if (token == null && prefs.containsKey(_keyAuthToken)) {
         final legacy = prefs.getString(_keyAuthToken);
         if (legacy != null && legacy.isNotEmpty) {
           token = legacy;
-          await secureStorage.write(key: _keyAuthToken, value: legacy);
+          secureStorage.write(key: _keyAuthToken, value: legacy).catchError((_) {});
           await prefs.remove(_keyAuthToken);
         }
       }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/visitor_photo_avatar.dart';
-import '../../models/visitor.dart';
 import '../../models/visitor_request.dart';
 import '../../repositories/guard_repository.dart';
 import '../../repositories/visitor_repository.dart';
@@ -237,11 +236,13 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
     final decisionTimeFormatted = req.decisionTime != null
         ? DateFormat('hh:mm a, dd MMM yyyy').format(req.decisionTime!)
         : null;
-    final entryTimeFormatted = (req.status == VisitorStatus.completed ||
-            req.status == VisitorStatus.exited)
-        ? (req.decisionTime != null
-            ? DateFormat('hh:mm a, dd MMM yyyy').format(req.decisionTime!)
-            : DateFormat('hh:mm a, dd MMM yyyy').format(req.requestTime))
+    final entryDateTime = req.entryTime ??
+        ((req.status == VisitorStatus.completed ||
+                req.status == VisitorStatus.exited)
+            ? (req.decisionTime ?? req.requestTime)
+            : null);
+    final entryTimeFormatted = entryDateTime != null
+        ? DateFormat('hh:mm a, dd MMM yyyy').format(entryDateTime)
         : null;
     final exitTimeFormatted = req.exitTime != null
         ? DateFormat('hh:mm a, dd MMM yyyy').format(req.exitTime!)
@@ -258,33 +259,77 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
         return StatefulBuilder(
           builder: (modalCtx, setModalState) {
             final isProc = _processingEntryIds.contains(req.id);
+            final modalPhone = _resolveResidentPhone(req);
             return SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // 1. Top Drag Handle & Close Bar
                     Center(
                       child: Container(
-                        width: 40,
-                        height: 5,
+                        width: 36,
+                        height: 4,
                         decoration: BoxDecoration(
                           color: const Color(0xFFCBD5E1),
-                          borderRadius: BorderRadius.circular(999),
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    // Header row: Photo (clickable), Name, details, status
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'VISITOR CHECKPOINT',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF64748B),
+                              letterSpacing: 0.6,
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                        ),
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => Navigator.of(sheetCtx).pop(),
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFF1F5F9),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.close_rounded,
+                                  size: 18, color: Color(0xFF64748B)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // 2. Visitor Profile Identity Card
                     Row(
                       children: [
                         GestureDetector(
                           onTap: () {
                             if (req.visitor.photoPath != null &&
                                 req.visitor.photoPath!.isNotEmpty) {
-                              _showPhotoZoomDialog(
-                                  context, req.visitor.photoPath, req.visitor.name);
+                              _showPhotoZoomDialog(context,
+                                  req.visitor.photoPath, req.visitor.name);
                             }
                           },
                           child: Stack(
@@ -292,15 +337,15 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(16),
                                 child: Container(
-                                  width: 58,
-                                  height: 58,
+                                  width: 60,
+                                  height: 60,
                                   color: const Color(0xFFEEF2FF),
                                   alignment: Alignment.center,
                                   child: (req.visitor.photoPath != null &&
                                           req.visitor.photoPath!.isNotEmpty)
                                       ? VisitorPhotoAvatar.buildImageWidget(
                                           req.visitor.photoPath,
-                                          size: 58,
+                                          size: 60,
                                         )
                                       : Text(
                                           _getInitials(req.visitor.name),
@@ -325,7 +370,7 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                                     ),
                                     child: const Icon(
                                       Icons.zoom_in,
-                                      size: 13,
+                                      size: 12,
                                       color: Colors.white,
                                     ),
                                   ),
@@ -342,20 +387,47 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                                 req.visitor.name,
                                 style: const TextStyle(
                                   fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w800,
                                   color: Color(0xFF0F172A),
                                   fontFamily: 'Inter',
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 3),
-                              Text(
-                                '${req.visitor.type.displayName}${req.visitor.phoneNumber != null ? " · ${req.visitor.phoneNumber!}" : ""}',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: Color(0xFF64748B),
-                                  fontFamily: 'Inter',
-                                ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      req.visitor.type.displayName,
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF475569),
+                                        fontFamily: 'Inter',
+                                      ),
+                                    ),
+                                  ),
+                                  if (req.visitor.phoneNumber != null &&
+                                      req.visitor.phoneNumber!.isNotEmpty) ...[
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      req.visitor.phoneNumber!,
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF64748B),
+                                        fontFamily: 'Inter',
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ],
                           ),
@@ -364,84 +436,187 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    const Divider(color: Color(0xFFE2E8F0), height: 1),
-                    const SizedBox(height: 12),
-                    _buildModalRow(
-                        '${tr("flatAndWing")}:', '${req.flatNumber} (${req.buildingWing})'),
-                    const SizedBox(height: 8),
-                    if (req.residentPhone.isNotEmpty)
-                      InkWell(
-                        onTap: () => PhoneService.call(req.residentPhone),
-                        borderRadius: BorderRadius.circular(8),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+
+                    // 3. Destination Residence & Resident Card with Quick In-App Call
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
                             children: [
-                              SizedBox(
-                                width: 110,
-                                child: Text(
-                                  '${tr("resident")}:',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF64748B),
-                                  ),
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEEF2FF),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
+                                alignment: Alignment.center,
+                                child: const Icon(Icons.apartment_rounded,
+                                    size: 18, color: Color(0xFF4F46E5)),
                               ),
+                              const SizedBox(width: 12),
                               Expanded(
-                                child: Row(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Expanded(
-                                      child: Text(
-                                        '${req.residentName} (${req.residentPhone})',
-                                        style: const TextStyle(
-                                          fontSize: 13.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF16A34A),
-                                        ),
+                                    const Text(
+                                      'DESTINATION RESIDENCE',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF64748B),
+                                        letterSpacing: 0.5,
                                       ),
                                     ),
-                                    const SizedBox(width: 6),
-                                    const Icon(Icons.call_rounded,
-                                        size: 16, color: Color(0xFF16A34A)),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Flat ${req.flatNumber} (${req.buildingWing})',
+                                      style: const TextStyle(
+                                        fontSize: 14.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      )
-                    else
-                      _buildModalRow(
-                          '${tr("resident")}:', req.residentName),
-                    const SizedBox(height: 8),
+                          const SizedBox(height: 10),
+                          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFDCFCE7),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                alignment: Alignment.center,
+                                child: const Icon(Icons.person_rounded,
+                                    size: 18, color: Color(0xFF16A34A)),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'HOST RESIDENT',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF64748B),
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      req.residentName,
+                                      style: const TextStyle(
+                                        fontSize: 14.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (modalPhone.isNotEmpty)
+                                Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () => PhoneService.call(
+                                      modalPhone,
+                                      context: context,
+                                      contactName:
+                                          '${req.buildingWing}-${req.flatNumber} · ${req.residentName}',
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 7),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF16A34A),
+                                        borderRadius: BorderRadius.circular(10),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFF16A34A)
+                                                .withOpacity(0.2),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.call_rounded,
+                                              size: 14, color: Colors.white),
+                                          SizedBox(width: 5),
+                                          Text(
+                                            'Call',
+                                            style: TextStyle(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // 4. Request Metadata
                     _buildModalRow('${tr("purpose")}:', req.purpose),
                     if (req.visitor.deliveryCompany != null &&
                         req.visitor.deliveryCompany!.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      _buildModalRow('${tr("company")}:', req.visitor.deliveryCompany!),
+                      _buildModalRow(
+                          '${tr("company")}:', req.visitor.deliveryCompany!),
                     ],
                     if (req.visitor.vehicleNumber != null &&
                         req.visitor.vehicleNumber!.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      _buildModalRow('${tr("vehicle")}:', req.visitor.vehicleNumber!),
+                      _buildModalRow(
+                          '${tr("vehicle")}:', req.visitor.vehicleNumber!),
                     ],
                     const SizedBox(height: 8),
                     _buildModalRow('${tr("requestTime")}:', timeFormatted),
                     if (decisionTimeFormatted != null) ...[
                       const SizedBox(height: 8),
-                      _buildModalRow('${tr("decisionTime")}:', decisionTimeFormatted),
+                      _buildModalRow(
+                          '${tr("decisionTime")}:', decisionTimeFormatted),
                     ],
                     if (entryTimeFormatted != null) ...[
                       const SizedBox(height: 8),
-                      _buildModalRow('${tr("entryTime")}:', entryTimeFormatted),
+                      _buildModalRow(
+                          '${tr("entryTime")}:', entryTimeFormatted),
                     ],
                     if (exitTimeFormatted != null) ...[
                       const SizedBox(height: 8),
                       _buildModalRow('${tr("exitTime")}:', exitTimeFormatted),
                     ],
-                    if (req.decisionBy != null && req.decisionBy!.isNotEmpty) ...[
+                    if (req.decisionBy != null &&
+                        req.decisionBy!.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       _buildModalRow('${tr("actionBy")}:', req.decisionBy!),
                     ],
@@ -454,7 +629,8 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFF1F2),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFFECDD3)),
+                          border:
+                              Border.all(color: const Color(0xFFFECDD3)),
                         ),
                         child: Text(
                           '${tr("rejectionReason")}: ${req.rejectionReason!}',
@@ -467,54 +643,15 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 18),
 
-                    // Actions Inside Modal
+                    // 5. Actions Bar
                     if (req.status == VisitorStatus.pending) ...[
-                      Builder(builder: (context) {
-                        final modalPhone = _resolveResidentPhone(req);
-                        return Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: double.infinity,
-                              height: 48,
-                              child: ElevatedButton.icon(
-                                onPressed: modalPhone.isNotEmpty
-                                    ? () => PhoneService.call(modalPhone)
-                                    : null,
-                                icon: const Icon(Icons.phone_in_talk_rounded,
-                                    size: 20, color: Colors.white),
-                                label: Text(
-                                  modalPhone.isNotEmpty
-                                      ? 'CALL RESIDENT ($modalPhone)'
-                                      : 'CALL RESIDENT',
-                                  style: const TextStyle(
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                    letterSpacing: 0.4,
-                                  ),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF16A34A),
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-                        );
-                      }),
                       Row(
                         children: [
                           Expanded(
                             child: SizedBox(
-                              height: 46,
+                              height: 48,
                               child: OutlinedButton.icon(
                                 onPressed: isProc
                                     ? null
@@ -527,16 +664,18 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                                 label: Text(
                                   tr('reject'),
                                   style: const TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 14.5,
                                     fontWeight: FontWeight.w700,
                                     color: Color(0xFFDC2626),
+                                    fontFamily: 'Inter',
                                   ),
                                 ),
                                 style: OutlinedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFFF1F2),
                                   side: const BorderSide(
-                                      color: Color(0xFFFCA5A5), width: 1.2),
+                                      color: Color(0xFFFECDD3), width: 1.2),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(14),
                                   ),
                                 ),
                               ),
@@ -545,7 +684,7 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: SizedBox(
-                              height: 46,
+                              height: 48,
                               child: ElevatedButton.icon(
                                 onPressed: isProc
                                     ? null
@@ -558,9 +697,10 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                                 label: Text(
                                   tr('approve'),
                                   style: const TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 14.5,
                                     fontWeight: FontWeight.w700,
                                     color: Colors.white,
+                                    fontFamily: 'Inter',
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
@@ -568,7 +708,7 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                                   foregroundColor: Colors.white,
                                   elevation: 0,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(14),
                                   ),
                                 ),
                               ),
@@ -576,7 +716,6 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
                     ] else if (req.status == VisitorStatus.approved) ...[
                       SizedBox(
                         width: double.infinity,
@@ -609,7 +748,6 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 10),
                     ] else if (req.status == VisitorStatus.completed) ...[
                       SizedBox(
                         width: double.infinity,
@@ -641,31 +779,7 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 10),
                     ],
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 44,
-                      child: TextButton(
-                        onPressed: () => Navigator.of(sheetCtx).pop(),
-                        style: TextButton.styleFrom(
-                          backgroundColor: const Color(0xFFF1F5F9),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          tr('close'),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF475569),
-                            fontFamily: 'Inter',
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -1246,7 +1360,7 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                                     ? tr('deniedAtGate')
                                     : (isExited
                                         ? tr('checkedOutSociety')
-                                        : '${tr("statusEntered")} · ${DateFormat('hh:mm a').format(req.decisionTime ?? req.requestTime)}'))),
+                                        : '${tr("statusEntered")} · ${DateFormat('hh:mm a').format(req.entryTime ?? req.decisionTime ?? req.requestTime)}'))),
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.normal,
@@ -1269,7 +1383,11 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: residentPhone.isNotEmpty
-                            ? () => PhoneService.call(residentPhone)
+                            ? () => PhoneService.call(
+                                residentPhone,
+                                context: context,
+                                contactName: '${req.buildingWing}-${req.flatNumber} · ${req.residentName}',
+                              )
                             : null,
                         borderRadius: BorderRadius.circular(14),
                         child: Container(

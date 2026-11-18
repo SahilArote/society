@@ -5,6 +5,7 @@ import '../../core/widgets/visitor_photo_avatar.dart';
 import '../../models/visitor_request.dart';
 import '../../repositories/visitor_repository.dart';
 import '../../services/language_service.dart';
+import '../../services/phone_service.dart';
 
 /// Guard App - Visitor Logs / History Screen
 /// Senior UI/UX Architect Implementation:
@@ -64,12 +65,42 @@ class _HistoryScreenState extends State<HistoryScreen> {
   bool _matchesDate(VisitorRequest r, DateTime target) {
     // A visitor record belongs to this day if:
     // 1. Requested on this day, OR
-    // 2. Responded / Entered on this day (decisionTime), OR
-    // 3. Exited on this day (exitTime)
+    // 2. Responded on this day (decisionTime), OR
+    // 3. Entered on this day (entryTime), OR
+    // 4. Exited on this day (exitTime)
     if (_isSameDay(r.requestTime, target)) return true;
+    if (r.entryTime != null && _isSameDay(r.entryTime!, target)) return true;
     if (r.decisionTime != null && _isSameDay(r.decisionTime!, target)) return true;
     if (r.exitTime != null && _isSameDay(r.exitTime!, target)) return true;
     return false;
+  }
+
+  String _resolveResidentPhone(VisitorRequest req) {
+    if (req.residentPhone.trim().isNotEmpty) {
+      return req.residentPhone.trim();
+    }
+    for (final flatList in widget.visitorRepo.wingFlats.values) {
+      for (final flat in flatList) {
+        if (flat.flatNumber.trim().toLowerCase() == req.flatNumber.trim().toLowerCase() &&
+            (req.buildingWing.isEmpty ||
+                flat.buildingWing.trim().toLowerCase() ==
+                    req.buildingWing.trim().toLowerCase())) {
+          for (final resident in flat.residents) {
+            if (resident.name.trim().toLowerCase() ==
+                req.residentName.trim().toLowerCase()) {
+              if (resident.phoneNumber.trim().isNotEmpty) {
+                return resident.phoneNumber.trim();
+              }
+            }
+          }
+          final phone = flat.primaryResident?.phoneNumber;
+          if (phone != null && phone.trim().isNotEmpty) {
+            return phone.trim();
+          }
+        }
+      }
+    }
+    return '';
   }
 
   Future<void> _pickDate() async {
@@ -714,15 +745,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   // 5. VISITOR LOG CARD
   Widget _buildLogCard(VisitorRequest req) {
-    final entryTimeStr = req.decisionTime != null
-        ? DateFormat('hh:mm a').format(req.decisionTime!)
-        : DateFormat('hh:mm a').format(req.requestTime);
+    final entryTime = req.entryTime ?? req.decisionTime ?? req.requestTime;
+    final entryTimeStr = DateFormat('hh:mm a').format(entryTime);
 
     final exitTimeStr = req.exitTime != null
         ? DateFormat('hh:mm a').format(req.exitTime!)
         : null;
 
-    final dateStr = DateFormat('dd MMM').format(req.requestTime);
+    final dateStr = DateFormat('dd MMM').format(entryTime);
 
     return Container(
       decoration: BoxDecoration(
@@ -1221,22 +1251,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  // Detailed Modal Bottom Sheet
+  // Detailed Modal Bottom Sheet (Modern UI/UX for Security Guards)
   void _showDetailsSheet(BuildContext context, VisitorRequest req) {
     final timeFormatted =
         DateFormat('hh:mm a, dd MMM yyyy').format(req.requestTime);
     final decisionTimeFormatted = req.decisionTime != null
         ? DateFormat('hh:mm a, dd MMM yyyy').format(req.decisionTime!)
         : null;
-    final entryTimeFormatted = (req.status == VisitorStatus.completed ||
-            req.status == VisitorStatus.exited)
-        ? (req.decisionTime != null
-            ? DateFormat('hh:mm a, dd MMM yyyy').format(req.decisionTime!)
-            : DateFormat('hh:mm a, dd MMM yyyy').format(req.requestTime))
+    final entryDateTime = req.entryTime ??
+        ((req.status == VisitorStatus.completed ||
+                req.status == VisitorStatus.exited)
+            ? (req.decisionTime ?? req.requestTime)
+            : null);
+    final entryTimeFormatted = entryDateTime != null
+        ? DateFormat('hh:mm a, dd MMM yyyy').format(entryDateTime)
         : null;
     final exitTimeFormatted = req.exitTime != null
         ? DateFormat('hh:mm a, dd MMM yyyy').format(req.exitTime!)
         : null;
+
+    final resolvedPhone = _resolveResidentPhone(req);
 
     showModalBottomSheet(
       context: context,
@@ -1245,25 +1279,71 @@ class _HistoryScreenState extends State<HistoryScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
+      builder: (sheetCtx) {
         return SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 1. Top Drag Handle
                 Center(
                   child: Container(
-                    width: 40,
-                    height: 5,
+                    width: 36,
+                    height: 4,
                     decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(999),
+                      color: const Color(0xFFCBD5E1),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
+                const SizedBox(height: 12),
+
+                // 2. Top Title Bar with (X) Close Button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'VISITOR LOG DETAILS',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF64748B),
+                          letterSpacing: 0.6,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                    ),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => Navigator.of(sheetCtx).pop(),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF1F5F9),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close_rounded,
+                              size: 18, color: Color(0xFF64748B)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 16),
+
+                // 3. Visitor Profile Header
                 Row(
                   children: [
                     _buildAvatar(req, size: 56),
@@ -1276,108 +1356,368 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             req.visitor.name,
                             style: const TextStyle(
                               fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
                               fontFamily: 'Inter',
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 3),
-                          Text(
-                            '${req.visitor.type.displayName}${req.visitor.phoneNumber != null ? " • ${req.visitor.phoneNumber!}" : ""}',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textMuted,
-                              fontFamily: 'Inter',
-                            ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.indigoTint,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  req.visitor.type.displayName,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                    fontFamily: 'Inter',
+                                  ),
+                                ),
+                              ),
+                              if (req.visitor.phoneNumber != null &&
+                                  req.visitor.phoneNumber!.trim().isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    req.visitor.phoneNumber!.trim(),
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF64748B),
+                                      fontFamily: 'Inter',
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(width: 8),
                     _buildStatusPill(req.status),
                   ],
                 ),
                 const SizedBox(height: 16),
-                const Divider(color: AppColors.border, height: 1),
-                const SizedBox(height: 14),
 
-                _buildModalRow(
-                    '${tr("flatAndWing")}:', '${req.flatNumber} (${req.buildingWing})'),
-                const SizedBox(height: 10),
-                _buildModalRow(
-                    '${tr("resident")}:', '${req.residentName} (${req.residentPhone})'),
-                const SizedBox(height: 10),
-                _buildModalRow('${tr("purpose")}:', req.purpose),
-                if (req.visitor.deliveryCompany != null &&
-                    req.visitor.deliveryCompany!.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  _buildModalRow('${tr("company")}:', req.visitor.deliveryCompany!),
-                ],
-                if (req.visitor.vehicleNumber != null &&
-                    req.visitor.vehicleNumber!.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  _buildModalRow('${tr("vehicle")}:', req.visitor.vehicleNumber!),
-                ],
-                const SizedBox(height: 10),
-                _buildModalRow('${tr("requestTime")}:', timeFormatted),
-                if (decisionTimeFormatted != null) ...[
-                  const SizedBox(height: 10),
-                  _buildModalRow('${tr("decisionTime")}:', decisionTimeFormatted),
-                ],
-                if (entryTimeFormatted != null) ...[
-                  const SizedBox(height: 10),
-                  _buildModalRow('${tr("entryTime")}:', entryTimeFormatted),
-                ],
-                if (exitTimeFormatted != null) ...[
-                  const SizedBox(height: 10),
-                  _buildModalRow('${tr("exitTime")}:', exitTimeFormatted),
-                ],
-                if (req.decisionBy != null && req.decisionBy!.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  _buildModalRow('${tr("actionBy")}:', req.decisionBy!),
-                ],
+                // 4. Destination & Host Resident Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    children: [
+                      // Destination Row
+                      Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEEF2FF),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.apartment_rounded,
+                                size: 18, color: Color(0xFF4F46E5)),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'DESTINATION RESIDENCE',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF64748B),
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Flat ${req.flatNumber} (${req.buildingWing})',
+                                  style: const TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      const SizedBox(height: 10),
+
+                      // Host Resident Row
+                      Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDCFCE7),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.person_rounded,
+                                size: 18, color: Color(0xFF16A34A)),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'HOST RESIDENT',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF64748B),
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  req.residentName,
+                                  style: const TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (resolvedPhone.isNotEmpty)
+                                  Text(
+                                    resolvedPhone,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          if (resolvedPhone.isNotEmpty)
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => PhoneService.call(
+                                  resolvedPhone,
+                                  context: context,
+                                  contactName:
+                                      '${req.buildingWing}-${req.flatNumber} · ${req.residentName}',
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF16A34A),
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF16A34A)
+                                            .withOpacity(0.25),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.phone_rounded,
+                                          size: 14, color: Colors.white),
+                                      SizedBox(width: 5),
+                                      Text(
+                                        'Call',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // 5. Visit Information & Timestamps Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildInfoRow(
+                        icon: Icons.info_outline_rounded,
+                        iconColor: const Color(0xFF64748B),
+                        label: tr('purpose'),
+                        value: req.purpose.isNotEmpty ? req.purpose : 'Visit',
+                      ),
+                      if (req.visitor.deliveryCompany != null &&
+                          req.visitor.deliveryCompany!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        _buildInfoRow(
+                          icon: Icons.local_shipping_outlined,
+                          iconColor: const Color(0xFF4F46E5),
+                          label: tr('company'),
+                          value: req.visitor.deliveryCompany!,
+                        ),
+                      ],
+                      if (req.visitor.vehicleNumber != null &&
+                          req.visitor.vehicleNumber!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        _buildInfoRow(
+                          icon: Icons.directions_car_outlined,
+                          iconColor: const Color(0xFF0284C7),
+                          label: tr('vehicle'),
+                          value: req.visitor.vehicleNumber!,
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      const SizedBox(height: 10),
+
+                      // Timestamps
+                      _buildInfoRow(
+                        icon: Icons.access_time_rounded,
+                        iconColor: const Color(0xFF64748B),
+                        label: tr('requestTime'),
+                        value: timeFormatted,
+                      ),
+                      if (decisionTimeFormatted != null) ...[
+                        const SizedBox(height: 8),
+                        _buildInfoRow(
+                          icon: req.status == VisitorStatus.rejected
+                              ? Icons.cancel_outlined
+                              : Icons.how_to_reg_rounded,
+                          iconColor: req.status == VisitorStatus.rejected
+                              ? const Color(0xFFDC2626)
+                              : const Color(0xFF16A34A),
+                          label: req.status == VisitorStatus.rejected
+                              ? tr('rejectionTime')
+                              : tr('approvalTime'),
+                          value: req.decisionBy != null &&
+                                  req.decisionBy!.isNotEmpty
+                              ? '$decisionTimeFormatted (${req.decisionBy!})'
+                              : decisionTimeFormatted,
+                        ),
+                      ],
+                      if (entryTimeFormatted != null) ...[
+                        const SizedBox(height: 8),
+                        _buildInfoRow(
+                          icon: Icons.login_rounded,
+                          iconColor: const Color(0xFF16A34A),
+                          label: tr('entryTime'),
+                          value: entryTimeFormatted,
+                        ),
+                      ],
+                      if (exitTimeFormatted != null) ...[
+                        const SizedBox(height: 8),
+                        _buildInfoRow(
+                          icon: Icons.logout_rounded,
+                          iconColor: const Color(0xFF475569),
+                          label: tr('exitTime'),
+                          value: exitTimeFormatted,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                // 6. Rejection Reason Banner (if rejected)
                 if (req.status == VisitorStatus.rejected &&
                     req.rejectionReason != null &&
                     req.rejectionReason!.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
-                      color: AppColors.pillRejectedBg,
+                      color: const Color(0xFFFFF1F2),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.statRejectedBorder),
+                      border: Border.all(color: const Color(0xFFFECDD3)),
                     ),
-                    child: Text(
-                      '${tr("rejectionReason")}: ${req.rejectionReason!}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.pillRejectedText,
-                        fontFamily: 'Inter',
-                      ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.error_outline_rounded,
+                            size: 18, color: Color(0xFFE11D48)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${tr("rejectionReason")}: ${req.rejectionReason!}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFFBE123C),
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-                const SizedBox(height: 20),
+
+                // 7. Close Button
+                const SizedBox(height: 18),
                 SizedBox(
                   width: double.infinity,
                   height: 48,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.of(sheetCtx).pop(),
+                    icon: const Icon(Icons.close_rounded,
+                        size: 18, color: Colors.white),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF1F5F9),
-                      foregroundColor: const Color(0xFF334155),
+                      backgroundColor: const Color(0xFF0F172A),
+                      foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: Text(
+                    label: Text(
                       tr('close'),
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 15,
+                        color: Colors.white,
                         fontFamily: 'Inter',
                       ),
                     ),
@@ -1391,29 +1731,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildModalRow(String label, String value) {
+  Widget _buildInfoRow({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Icon(icon, size: 16, color: iconColor),
+        const SizedBox(width: 8),
         SizedBox(
-          width: 120,
+          width: 95,
           child: Text(
             label,
             style: const TextStyle(
-              fontSize: 13.5,
+              fontSize: 12.5,
               fontWeight: FontWeight.w600,
-              color: AppColors.textMuted,
+              color: Color(0xFF64748B),
               fontFamily: 'Inter',
             ),
           ),
         ),
+        const SizedBox(width: 6),
         Expanded(
           child: Text(
             value,
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: Color(0xFF0F172A),
               fontFamily: 'Inter',
             ),
           ),

@@ -9,7 +9,7 @@ import '../../repositories/guard_repository.dart';
 import '../../repositories/visitor_repository.dart';
 import '../../services/image_compress_service.dart';
 import '../../services/language_service.dart';
-import '../visitor_entry/camera_capture_screen.dart';
+import '../../services/phone_service.dart';
 import '../visitor_entry/visitor_details_screen.dart';
 import '../visitor_entry/waiting_approval_screen.dart';
 import '../visitor_entry/entry_approved_screen.dart';
@@ -328,8 +328,8 @@ class DashboardScreen extends StatelessWidget {
             final pendingCount = visitorRepo.pendingCount;
             final approvedCount = visitorRepo.approvedTodayCount;
             final rejectedCount = visitorRepo.rejectedTodayCount;
-            final recentActivity = visitorRepo.recentActivity;
-            final displayList = recentActivity.take(3).toList();
+            final todaysList = visitorRepo.todaysRequests;
+            final displayList = todaysList.isNotEmpty ? todaysList : visitorRepo.allRequests;
 
             return SingleChildScrollView(
               physics: const ClampingScrollPhysics(),
@@ -652,14 +652,37 @@ class DashboardScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
-                          tr('recentActivity'),
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1E293B),
-                            fontFamily: 'Inter',
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              tr('recentActivity'),
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1E293B),
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                            if (displayList.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEEF2FF),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${displayList.length}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.primary,
+                                    fontFamily: 'Inter',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                         InkWell(
                           onTap: onNavigateToVisitors,
@@ -891,6 +914,34 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
+  String _resolveResidentPhone(VisitorRequest req) {
+    if (req.residentPhone.trim().isNotEmpty) {
+      return req.residentPhone.trim();
+    }
+    for (final flatList in visitorRepo.wingFlats.values) {
+      for (final flat in flatList) {
+        if (flat.flatNumber.trim().toLowerCase() == req.flatNumber.trim().toLowerCase() &&
+            (req.buildingWing.isEmpty ||
+                flat.buildingWing.trim().toLowerCase() ==
+                    req.buildingWing.trim().toLowerCase())) {
+          for (final resident in flat.residents) {
+            if (resident.name.trim().toLowerCase() ==
+                req.residentName.trim().toLowerCase()) {
+              if (resident.phoneNumber.trim().isNotEmpty) {
+                return resident.phoneNumber.trim();
+              }
+            }
+          }
+          final phone = flat.primaryResident?.phoneNumber;
+          if (phone != null && phone.trim().isNotEmpty) {
+            return phone.trim();
+          }
+        }
+      }
+    }
+    return '';
+  }
+
   Widget _buildStatusPill(VisitorStatus status) {
     final Color bg;
     final Color textColor;
@@ -900,19 +951,28 @@ class DashboardScreen extends StatelessWidget {
       case VisitorStatus.rejected:
         bg = AppColors.pillRejectedBg; // #FDE8E8
         textColor = AppColors.pillRejectedText; // #A11A1A
-        label = 'Rejected';
+        label = tr('statusRejected');
         break;
       case VisitorStatus.approved:
+        bg = AppColors.pillApprovedBg; // #E7F6EC
+        textColor = AppColors.pillApprovedText; // #0B6B38
+        label = tr('statusApproved');
+        break;
       case VisitorStatus.completed:
         bg = AppColors.pillApprovedBg; // #E7F6EC
         textColor = AppColors.pillApprovedText; // #0B6B38
-        label = 'Approved';
+        label = tr('statusEntered');
+        break;
+      case VisitorStatus.exited:
+        bg = const Color(0xFFF1F5F9);
+        textColor = const Color(0xFF334155);
+        label = tr('statusExited');
         break;
       case VisitorStatus.pending:
       default:
         bg = AppColors.pillWaitingBg; // #FDE7C3
         textColor = AppColors.pillWaitingText; // #8A4B00
-        label = 'Waiting';
+        label = tr('statusPending');
         break;
     }
 
@@ -942,45 +1002,105 @@ class DashboardScreen extends StatelessWidget {
     final decisionTimeFormatted = req.decisionTime != null
         ? DateFormat('hh:mm a, dd MMM yyyy').format(req.decisionTime!)
         : null;
+    final entryDateTime = req.entryTime ??
+        ((req.status == VisitorStatus.completed ||
+                req.status == VisitorStatus.exited)
+            ? (req.decisionTime ?? req.requestTime)
+            : null);
+    final entryTimeFormatted = entryDateTime != null
+        ? DateFormat('hh:mm a, dd MMM yyyy').format(entryDateTime)
+        : null;
+    final exitTimeFormatted = req.exitTime != null
+        ? DateFormat('hh:mm a, dd MMM yyyy').format(req.exitTime!)
+        : null;
+
+    final resolvedPhone = _resolveResidentPhone(req);
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
+      builder: (sheetCtx) {
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 1. Top Drag Handle
                 Center(
                   child: Container(
-                    width: 40,
-                    height: 5,
+                    width: 36,
+                    height: 4,
                     decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(999),
+                      color: const Color(0xFFCBD5E1),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
+                const SizedBox(height: 12),
+
+                // 2. Top Title Bar with (X) Close Button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'VISITOR DETAILS',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF64748B),
+                          letterSpacing: 0.6,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                    ),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => Navigator.of(sheetCtx).pop(),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF1F5F9),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close_rounded,
+                              size: 18, color: Color(0xFF64748B)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 16),
+
+                // 3. Visitor Profile Header
                 Row(
                   children: [
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                       child: Container(
-                        width: 52,
-                        height: 52,
+                        width: 56,
+                        height: 56,
                         color: AppColors.primaryLight,
                         child: (req.visitor.photoPath != null &&
                                 req.visitor.photoPath!.trim().isNotEmpty)
                             ? VisitorPhotoAvatar.buildImageWidget(
                                 req.visitor.photoPath,
-                                size: 52,
+                                size: 56,
                               )
                             : Center(
                                 child: Text(
@@ -1007,67 +1127,364 @@ class DashboardScreen extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
+                              color: Color(0xFF0F172A),
                               fontFamily: 'Inter',
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 3),
-                          Text(
-                            '${req.visitor.type.displayName}${req.visitor.phoneNumber != null ? " • ${req.visitor.phoneNumber!}" : ""}',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textMuted,
-                              fontFamily: 'Inter',
-                            ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.indigoTint,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  req.visitor.type.displayName,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                    fontFamily: 'Inter',
+                                  ),
+                                ),
+                              ),
+                              if (req.visitor.phoneNumber != null &&
+                                  req.visitor.phoneNumber!.trim().isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    req.visitor.phoneNumber!.trim(),
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF64748B),
+                                      fontFamily: 'Inter',
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(width: 8),
                     _buildStatusPill(req.status),
                   ],
                 ),
                 const SizedBox(height: 16),
-                const Divider(color: AppColors.border),
+
+                // 4. Destination & Host Resident Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    children: [
+                      // Destination Row
+                      Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEEF2FF),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.apartment_rounded,
+                                size: 18, color: Color(0xFF4F46E5)),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'DESTINATION RESIDENCE',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF64748B),
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Flat ${req.flatNumber} (${req.buildingWing})',
+                                  style: const TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      const SizedBox(height: 10),
+
+                      // Host Resident Row
+                      Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDCFCE7),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.person_rounded,
+                                size: 18, color: Color(0xFF16A34A)),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'HOST RESIDENT',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF64748B),
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  req.residentName,
+                                  style: const TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (resolvedPhone.isNotEmpty)
+                                  Text(
+                                    resolvedPhone,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          if (resolvedPhone.isNotEmpty)
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => PhoneService.call(
+                                  resolvedPhone,
+                                  context: context,
+                                  contactName:
+                                      '${req.buildingWing}-${req.flatNumber} · ${req.residentName}',
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF16A34A),
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF16A34A)
+                                            .withOpacity(0.25),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.phone_rounded,
+                                          size: 14, color: Colors.white),
+                                      SizedBox(width: 5),
+                                      Text(
+                                        'Call',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 12),
-                _buildModalRow(
-                    'Flat & Wing:', '${req.flatNumber} (${req.buildingWing})'),
-                const SizedBox(height: 8),
-                _buildModalRow(
-                    'Resident:', '${req.residentName} (${req.residentPhone})'),
-                const SizedBox(height: 8),
-                _buildModalRow('Purpose:', req.purpose),
-                if (req.visitor.vehicleNumber != null &&
-                    req.visitor.vehicleNumber!.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  _buildModalRow('Vehicle:', req.visitor.vehicleNumber!),
+
+                // 5. Visit Information & Timestamps Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildSheetInfoRow(
+                        icon: Icons.info_outline_rounded,
+                        iconColor: const Color(0xFF64748B),
+                        label: tr('purpose'),
+                        value: req.purpose.isNotEmpty ? req.purpose : 'Visit',
+                      ),
+                      if (req.visitor.deliveryCompany != null &&
+                          req.visitor.deliveryCompany!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        _buildSheetInfoRow(
+                          icon: Icons.local_shipping_outlined,
+                          iconColor: const Color(0xFF4F46E5),
+                          label: tr('company'),
+                          value: req.visitor.deliveryCompany!,
+                        ),
+                      ],
+                      if (req.visitor.vehicleNumber != null &&
+                          req.visitor.vehicleNumber!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        _buildSheetInfoRow(
+                          icon: Icons.directions_car_outlined,
+                          iconColor: const Color(0xFF0284C7),
+                          label: tr('vehicle'),
+                          value: req.visitor.vehicleNumber!,
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      const SizedBox(height: 10),
+
+                      // Timestamps
+                      _buildSheetInfoRow(
+                        icon: Icons.access_time_rounded,
+                        iconColor: const Color(0xFF64748B),
+                        label: tr('requestTime'),
+                        value: timeFormatted,
+                      ),
+                      if (decisionTimeFormatted != null) ...[
+                        const SizedBox(height: 8),
+                        _buildSheetInfoRow(
+                          icon: req.status == VisitorStatus.rejected
+                              ? Icons.cancel_outlined
+                              : Icons.how_to_reg_rounded,
+                          iconColor: req.status == VisitorStatus.rejected
+                              ? const Color(0xFFDC2626)
+                              : const Color(0xFF16A34A),
+                          label: req.status == VisitorStatus.rejected
+                              ? tr('rejectionTime')
+                              : tr('approvalTime'),
+                          value: req.decisionBy != null &&
+                                  req.decisionBy!.isNotEmpty
+                              ? '$decisionTimeFormatted (${req.decisionBy!})'
+                              : decisionTimeFormatted,
+                        ),
+                      ],
+                      if (entryTimeFormatted != null) ...[
+                        const SizedBox(height: 8),
+                        _buildSheetInfoRow(
+                          icon: Icons.login_rounded,
+                          iconColor: const Color(0xFF16A34A),
+                          label: tr('entryTime'),
+                          value: entryTimeFormatted,
+                        ),
+                      ],
+                      if (exitTimeFormatted != null) ...[
+                        const SizedBox(height: 8),
+                        _buildSheetInfoRow(
+                          icon: Icons.logout_rounded,
+                          iconColor: const Color(0xFF475569),
+                          label: tr('exitTime'),
+                          value: exitTimeFormatted,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                // 6. Rejection Reason Banner (if rejected)
+                if (req.status == VisitorStatus.rejected &&
+                    req.rejectionReason != null &&
+                    req.rejectionReason!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF1F2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFFECDD3)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.error_outline_rounded,
+                            size: 18, color: Color(0xFFE11D48)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${tr("rejectionReason")}: ${req.rejectionReason!}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFFBE123C),
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
-                const SizedBox(height: 8),
-                _buildModalRow('Request Time:', timeFormatted),
-                if (decisionTimeFormatted != null) ...[
-                  const SizedBox(height: 8),
-                  _buildModalRow('Completion Time:', decisionTimeFormatted),
-                ],
-                const SizedBox(height: 20),
+
+                // 7. Close Button
+                const SizedBox(height: 18),
                 SizedBox(
                   width: double.infinity,
-                  height: 52,
+                  height: 50,
                   child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () => Navigator.of(sheetCtx).pop(),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.pageBackground,
-                      foregroundColor: AppColors.textPrimary,
+                      backgroundColor: const Color(0xFF0F172A),
+                      foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
-                        side: const BorderSide(color: AppColors.border),
                       ),
                     ),
-                    child: const Text(
-                      'CLOSE',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
+                    child: Text(
+                      tr('close'),
+                      style: const TextStyle(
                         fontSize: 15,
+                        fontWeight: FontWeight.w700,
                         fontFamily: 'Inter',
                       ),
                     ),
@@ -1081,18 +1498,25 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildModalRow(String label, String value) {
+  Widget _buildSheetInfoRow({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Icon(icon, size: 16, color: iconColor),
+        const SizedBox(width: 8),
         SizedBox(
-          width: 120,
+          width: 110,
           child: Text(
             label,
             style: const TextStyle(
               fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textMuted,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF64748B),
               fontFamily: 'Inter',
             ),
           ),
@@ -1102,8 +1526,8 @@ class DashboardScreen extends StatelessWidget {
             value,
             style: const TextStyle(
               fontSize: 13,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0F172A),
               fontFamily: 'Inter',
             ),
           ),

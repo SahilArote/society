@@ -1,19 +1,93 @@
 package com.nexbuild.nexguard
 
+import android.app.role.RoleManager
+import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Build
+import android.os.Bundle
+import android.telecom.TelecomManager
+import android.util.Log
+import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.io.FileOutputStream
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.nexbuild.nexguard/image_compress"
+    companion object {
+        private const val TAG = "NexCall"
+        private const val CHANNEL_IMAGE_COMPRESS = "com.nexbuild.nexguard/image_compress"
+        private const val CHANNEL_CALL = "nexguard/call"
+        private const val CHANNEL_CALL_EVENTS = "nexguard/call_events"
+        private const val REQUEST_CODE_ROLE_DIALER = 51234
+    }
+
+    private var eventSink: EventChannel.EventSink? = null
+
+    private val callStateListener: (Map<String, Any?>) -> Unit = { stateMap ->
+        runOnUiThread {
+            try {
+                eventSink?.success(stateMap)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send call event through sink: ${e.message}", e)
+            }
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        try {
+            CallManager.init(applicationContext)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in CallManager.init: ${e.message}", e)
+        }
+        handleIncomingCallIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIncomingCallIntent(intent)
+    }
+
+    private fun handleIncomingCallIntent(intent: Intent?) {
+        if (intent == null) return
+        val isIncoming = intent.getBooleanExtra("incoming_call", false)
+        val phoneNumber = intent.getStringExtra("phone_number")
+        if (isIncoming) {
+            Log.i(TAG, "MainActivity received incoming_call intent flag for $phoneNumber")
+            turnScreenOnAndShowOverLock()
+        }
+    }
+
+    private fun turnScreenOnAndShowOverLock() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                setShowWhenLocked(true)
+                setTurnScreenOn(true)
+            } else {
+                @Suppress("DEPRECATION")
+                window.addFlags(
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                )
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error setting showWhenLocked flags: ${e.message}")
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+
+        // 1. Existing Image Compress Channel (untouched)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_IMAGE_COMPRESS).setMethodCallHandler { call, result ->
             if (call.method == "compressImage") {
                 val path = call.argument<String>("path")
                 val maxWidth = call.argument<Int>("maxWidth") ?: 600
@@ -29,7 +103,6 @@ class MainActivity : FlutterActivity() {
                         return@setMethodCallHandler
                     }
 
-                    // Decode bounds only
                     val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                     BitmapFactory.decodeFile(path, options)
                     val srcWidth = options.outWidth
@@ -40,7 +113,6 @@ class MainActivity : FlutterActivity() {
                         return@setMethodCallHandler
                     }
 
-                    // Fast sample size calculation
                     var inSampleSize = 1
                     var w = srcWidth
                     var h = srcHeight
@@ -59,7 +131,6 @@ class MainActivity : FlutterActivity() {
                         return@setMethodCallHandler
                     }
 
-                    // Write downscaled JPEG to app cache
                     val cacheDir = applicationContext.cacheDir
                     val compressedFile = File(cacheDir, "comp_${System.currentTimeMillis()}.jpg")
                     val out = FileOutputStream(compressedFile)
@@ -76,6 +147,125 @@ class MainActivity : FlutterActivity() {
                 result.notImplemented()
             }
         }
+
+        // 2. Call Spike MethodChannel: "nexguard/call"
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_CALL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "isDefaultDialer" -> {
+                    val isDefault = checkIsDefaultDialer()
+                    Log.i(TAG, "MethodChannel isDefaultDialer called -> $isDefault")
+                    result.success(isDefault)
+                }
+                "requestDialerRole" -> {
+                    val success = requestDialerRole()
+                    Log.i(TAG, "MethodChannel requestDialerRole called -> $success")
+                    result.success(success)
+                }
+                "placeCall" -> {
+                    val number = call.argument<String>("number")
+                    if (number.isNullOrEmpty()) {
+                        Log.e(TAG, "placeCall failed: number is empty or null")
+                        result.error("INVALID_ARGUMENT", "Phone number is required", null)
+                        return@setMethodCallHandler
+                    }
+                    val placed = CallManager.placeCall(this, number)
+                    result.success(placed)
+                }
+                "answer" -> {
+                    val answered = CallManager.answer()
+                    result.success(answered)
+                }
+                "reject" -> {
+                    val rejected = CallManager.reject()
+                    result.success(rejected)
+                }
+                "hangup" -> {
+                    val hungup = CallManager.hangup()
+                    result.success(hungup)
+                }
+                "setMute" -> {
+                    val muted = call.argument<Boolean>("muted") ?: false
+                    val res = CallManager.setMuted(muted)
+                    result.success(res)
+                }
+                "setSpeaker" -> {
+                    val speaker = call.argument<Boolean>("speaker") ?: false
+                    val res = CallManager.setSpeaker(speaker)
+                    result.success(res)
+                }
+                "getCallState" -> {
+                    result.success(CallManager.toStateMap())
+                }
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
+
+        // 3. Call Spike EventChannel: "nexguard/call_events"
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_CALL_EVENTS).setStreamHandler(
+            object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    Log.i(TAG, "EventChannel nexguard/call_events onListen")
+                    eventSink = events
+                    CallManager.addListener(callStateListener)
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    Log.i(TAG, "EventChannel nexguard/call_events onCancel")
+                    CallManager.removeListener(callStateListener)
+                    eventSink = null
+                }
+            }
+        )
+    }
+
+    private fun checkIsDefaultDialer(): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val roleManager = getSystemService(Context.ROLE_SERVICE) as? RoleManager
+                val isHeld = roleManager?.isRoleHeld(RoleManager.ROLE_DIALER) == true
+                Log.i(TAG, "RoleManager check: isRoleHeld(ROLE_DIALER) = $isHeld")
+                isHeld
+            } else {
+                val telecomManager = getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+                val defaultPkg = telecomManager?.defaultDialerPackage
+                val isDefault = (defaultPkg == packageName)
+                Log.i(TAG, "TelecomManager check: defaultDialerPackage = $defaultPkg -> $isDefault")
+                isDefault
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking default dialer: ${e.message}", e)
+            false
+        }
+    }
+
+    private fun requestDialerRole(): Boolean {
+        Log.i(TAG, "requestDialerRole initiated")
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val roleManager = getSystemService(Context.ROLE_SERVICE) as? RoleManager
+                if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_DIALER)) {
+                    val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER)
+                    startActivityForResult(intent, REQUEST_CODE_ROLE_DIALER)
+                    Log.i(TAG, "Launched RoleManager.createRequestRoleIntent")
+                    true
+                } else {
+                    Log.w(TAG, "ROLE_DIALER is not available on this device")
+                    false
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                val intent = Intent(TelecomManager.ACTION_CHANGE_DEFAULT_DIALER).apply {
+                    putExtra(TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, packageName)
+                }
+                startActivityForResult(intent, REQUEST_CODE_ROLE_DIALER)
+                Log.i(TAG, "Launched TelecomManager.ACTION_CHANGE_DEFAULT_DIALER")
+                true
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception requesting dialer role: ${e.message}", e)
+            false
+        }
     }
 }
-

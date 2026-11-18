@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
@@ -421,7 +421,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> with WidgetsB
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Colors.white.withValues(alpha: 0.5),
+                    Colors.white.withOpacity(0.5),
                     Colors.transparent,
                   ],
                 ),
@@ -448,7 +448,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> with WidgetsB
                           borderRadius: BorderRadius.circular(13),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                              color: const Color(0xFF2563EB).withOpacity(0.25),
                               blurRadius: 10,
                               offset: const Offset(0, 3),
                             ),
@@ -539,11 +539,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> with WidgetsB
                           width: 38,
                           height: 38,
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.8),
+                            color: Colors.white.withOpacity(0.8),
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
+                                color: Colors.black.withOpacity(0.04),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),

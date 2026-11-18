@@ -206,15 +206,15 @@ class _MainNavigationShellState extends State<MainNavigationShell> with WidgetsB
       const ProfileScreen(),
     ];
 
-    return PopScope(
-      canPop: _currentIndex == 0,
-      onPopInvokedWithResult: (bool didPop, Object? result) {
-        if (didPop) return;
+    return WillPopScope(
+      onWillPop: () async {
         if (_currentIndex != 0) {
           setState(() {
             _currentIndex = 0;
           });
+          return false;
         }
+        return true;
       },
       child: Scaffold(
         body: IndexedStack(
@@ -227,7 +227,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> with WidgetsB
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0F172A).withValues(alpha: 0.08),
+                color: const Color(0xFF0F172A).withOpacity(0.08),
                 blurRadius: 20,
                 offset: const Offset(0, -4),
               ),

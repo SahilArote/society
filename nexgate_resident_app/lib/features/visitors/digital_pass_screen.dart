@@ -199,11 +199,10 @@ Please present this pass or show the QR code at the security gate for instant en
         ? widget.invite!.flatNumber
         : (user?.flatNumber ?? 'Resident');
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (bool didPop, Object? result) {
-        if (didPop) return;
+    return WillPopScope(
+      onWillPop: () async {
         _navigateToHome();
+        return false;
       },
       child: Scaffold(
         backgroundColor: AppColors.mainBackground,
@@ -245,7 +244,7 @@ Please present this pass or show the QR code at the security gate for instant en
                                 Text(
                                   'NEXGATE PASS',
                                   style: AppTypography.caption.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.8),
+                                    color: Colors.white.withOpacity(0.8),
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: 1.0,
                                   ),
@@ -267,7 +266,7 @@ Please present this pass or show the QR code at the security gate for instant en
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
+                              color: Colors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -288,9 +287,9 @@ Please present this pass or show the QR code at the security gate for instant en
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: _getStatusColor().withValues(alpha: 0.12),
+                          color: _getStatusColor().withOpacity(0.12),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: _getStatusColor().withValues(alpha: 0.4)),
+                          border: Border.all(color: _getStatusColor().withOpacity(0.4)),
                         ),
                         child: Text(
                           _status.toUpperCase(),

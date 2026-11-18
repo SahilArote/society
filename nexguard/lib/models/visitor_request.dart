@@ -27,8 +27,19 @@ enum VisitorStatus {
     final lower = val.toLowerCase().trim();
     if (lower == 'approved') return VisitorStatus.approved;
     if (lower == 'rejected') return VisitorStatus.rejected;
-    if (lower == 'completed' || lower == 'entered') return VisitorStatus.completed;
-    if (lower == 'exited' || lower == 'checked_out') return VisitorStatus.exited;
+    if (lower == 'completed' ||
+        lower == 'entered' ||
+        lower == 'inside' ||
+        lower == 'checked_in' ||
+        lower == 'in') {
+      return VisitorStatus.completed;
+    }
+    if (lower == 'exited' ||
+        lower == 'checked_out' ||
+        lower == 'out' ||
+        lower == 'left') {
+      return VisitorStatus.exited;
+    }
     return VisitorStatus.pending;
   }
 }
@@ -44,6 +55,7 @@ class VisitorRequest {
   VisitorStatus status;
   final DateTime requestTime;
   DateTime? decisionTime;
+  DateTime? entryTime;
   DateTime? exitTime;
   String? decisionBy;
   String? rejectionReason;
@@ -59,6 +71,7 @@ class VisitorRequest {
     this.status = VisitorStatus.pending,
     required this.requestTime,
     this.decisionTime,
+    this.entryTime,
     this.exitTime,
     this.decisionBy,
     this.rejectionReason,
@@ -75,6 +88,7 @@ class VisitorRequest {
         'status': status.name,
         'requestTime': requestTime.toIso8601String(),
         'decisionTime': decisionTime?.toIso8601String(),
+        'entryTime': entryTime?.toIso8601String(),
         'exitTime': exitTime?.toIso8601String(),
         'decisionBy': decisionBy,
         'rejectionReason': rejectionReason,
@@ -129,9 +143,16 @@ class VisitorRequest {
           : (json['respondedAt'] != null
               ? DateTime.tryParse(json['respondedAt'].toString())?.toLocal()
               : null),
+      entryTime: json['entryTime'] != null
+          ? DateTime.tryParse(json['entryTime'].toString())?.toLocal()
+          : (json['checkInTime'] != null
+              ? DateTime.tryParse(json['checkInTime'].toString())?.toLocal()
+              : null),
       exitTime: json['exitTime'] != null
           ? DateTime.tryParse(json['exitTime'].toString())?.toLocal()
-          : null,
+          : (json['checkOutTime'] != null
+              ? DateTime.tryParse(json['checkOutTime'].toString())?.toLocal()
+              : null),
       decisionBy: (json['decisionBy'] ?? json['responseBy'])?.toString(),
       rejectionReason: (json['rejectionReason'] ?? json['reason'])?.toString(),
     );
@@ -148,6 +169,7 @@ class VisitorRequest {
     VisitorStatus? status,
     DateTime? requestTime,
     DateTime? decisionTime,
+    DateTime? entryTime,
     DateTime? exitTime,
     String? decisionBy,
     String? rejectionReason,
@@ -163,6 +185,7 @@ class VisitorRequest {
       status: status ?? this.status,
       requestTime: requestTime ?? this.requestTime,
       decisionTime: decisionTime ?? this.decisionTime,
+      entryTime: entryTime ?? this.entryTime,
       exitTime: exitTime ?? this.exitTime,
       decisionBy: decisionBy ?? this.decisionBy,
       rejectionReason: rejectionReason ?? this.rejectionReason,

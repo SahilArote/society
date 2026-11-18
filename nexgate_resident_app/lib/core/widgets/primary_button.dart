@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_dimensions.dart';
 import '../constants/app_typography.dart';
@@ -50,7 +50,7 @@ class PrimaryButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10),
           backgroundColor: bgColor,
           foregroundColor: fgColor,
-          disabledBackgroundColor: bgColor.withValues(alpha: 0.6),
+          disabledBackgroundColor: bgColor.withOpacity(0.6),
           shape: RoundedRectangleBorder(
             borderRadius: AppDimensions.roundedMedium,
           ),

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/theme/app_theme.dart';
@@ -13,25 +14,52 @@ final GlobalKey<NavigatorState> guardNavigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Production Error Boundary: Prevent unhandled exceptions from terminating the terminal
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('[Production FlutterError] ${details.exceptionAsString()}');
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('[Production PlatformDispatcher Error] $error\n$stack');
+    return true; // Prevents crash
+  };
+
   // Dedicated gate kiosk mobile devices run in portrait orientation
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+  try {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  } catch (_) {}
 
   // System UI Overlay styling
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-      systemNavigationBarColor: Colors.white,
-      systemNavigationBarIconBrightness: Brightness.dark,
-    ),
-  );
+  try {
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
+  } catch (_) {}
 
-  final storage = await StorageService.init();
-  LanguageService.instance.init(storage);
-  ApiService.setBaseUrl(storage.getServerUrl());
+  StorageService storage;
+  try {
+    storage = await StorageService.init().timeout(
+      const Duration(seconds: 2),
+      onTimeout: () => StorageService.fallback(),
+    );
+  } catch (_) {
+    storage = await StorageService.fallback();
+  }
+
+  try {
+    LanguageService.instance.init(storage);
+    ApiService.setBaseUrl(storage.getServerUrl());
+  } catch (_) {}
+
   final guardRepo = GuardRepository(storage);
 
   // When token is rejected (401), immediately evict cached session and route to login

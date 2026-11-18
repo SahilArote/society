@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
 import '../../repositories/guard_repository.dart';
 import '../../repositories/visitor_repository.dart';
-import '../../services/storage_service.dart';
 import '../../services/language_service.dart';
 import 'dashboard_screen.dart';
 import '../visitors/visitors_screen.dart';
@@ -27,15 +25,8 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   void initState() {
     super.initState();
-    _initVisitorRepo();
-  }
-
-  Future<void> _initVisitorRepo() async {
-    final storage = await StorageService.init();
-    setState(() {
-      _visitorRepo = VisitorRepository(storage);
-      _isInit = true;
-    });
+    _visitorRepo = VisitorRepository(widget.guardRepo.storage);
+    _isInit = true;
   }
 
   @override
@@ -69,46 +60,55 @@ class _MainNavigationState extends State<MainNavigation> {
       ),
     ];
 
-    return Scaffold(
-      backgroundColor: AppColors.pageBackground,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: screens,
-      ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            top: BorderSide(color: AppColors.border, width: 1.0),
-          ),
+    return WillPopScope(
+      onWillPop: () async {
+        if (_currentIndex != 0) {
+          setState(() => _currentIndex = 0);
+          return false;
+        }
+        return false; // Prevent accidental exit in kiosk terminal mode
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.pageBackground,
+        body: IndexedStack(
+          index: _currentIndex,
+          children: screens,
         ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 72,
-            child: Row(
-              children: [
-                _buildNavItem(
-                  index: 0,
-                  icon: Icons.shield_outlined,
-                  label: tr('navHome'),
-                ),
-                _buildNavItem(
-                  index: 1,
-                  icon: Icons.badge_outlined,
-                  label: tr('navVisitors'),
-                ),
-                _buildNavItem(
-                  index: 2,
-                  icon: Icons.history_rounded,
-                  label: tr('navLogs'),
-                ),
-                _buildNavItem(
-                  index: 3,
-                  icon: Icons.person_outline_rounded,
-                  label: tr('navProfile'),
-                ),
-              ],
+        bottomNavigationBar: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              top: BorderSide(color: AppColors.border, width: 1.0),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: SizedBox(
+              height: 72,
+              child: Row(
+                children: [
+                  _buildNavItem(
+                    index: 0,
+                    icon: Icons.shield_outlined,
+                    label: tr('navHome'),
+                  ),
+                  _buildNavItem(
+                    index: 1,
+                    icon: Icons.badge_outlined,
+                    label: tr('navVisitors'),
+                  ),
+                  _buildNavItem(
+                    index: 2,
+                    icon: Icons.history_rounded,
+                    label: tr('navLogs'),
+                  ),
+                  _buildNavItem(
+                    index: 3,
+                    icon: Icons.person_outline_rounded,
+                    label: tr('navProfile'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
