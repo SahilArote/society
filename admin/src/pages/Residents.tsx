@@ -76,7 +76,7 @@ function FlatPanel({
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {[
             { icon: Users, label: 'Members', val: flat.residents.length, color: 'var(--accent-light)', bg: 'var(--accent-bg)' },
-            { icon: Car,   label: 'Vehicles', val: flat.vehicleCount,    color: 'var(--green)', bg: 'var(--green-bg)' },
+            { icon: Car, label: 'Vehicles', val: flat.vehicleCount, color: 'var(--green)', bg: 'var(--green-bg)' },
           ].map(({ icon: Icon, label, val, color, bg }) => (
             <div key={label} style={{ padding: '14px 12px', borderRadius: 'var(--r-md)', background: 'var(--bg-elevated)', border: '1px solid var(--border)', textAlign: 'center' }}>
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
@@ -382,7 +382,7 @@ export default function Residents() {
     }
   };
 
-    const [isMerging, setIsMerging] = useState(false);
+  const [isMerging, setIsMerging] = useState(false);
 
   const handleMergeDuplicates = async () => {
     setIsMerging(true);
@@ -580,7 +580,7 @@ export default function Residents() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `NexGate_Residents_Directory_${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `NexGate_Residents_Directory_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     showToast('Downloaded residents directory CSV');
@@ -615,7 +615,7 @@ export default function Residents() {
 
   const filtered = flats.filter(f => {
     const sr = f.number.toLowerCase().includes(search.toLowerCase()) ||
-               f.residents.some(r => r.name.toLowerCase().includes(search.toLowerCase()));
+      f.residents.some(r => r.name.toLowerCase().includes(search.toLowerCase()));
     return sr &&
       (wing === 'all' || f.wing === wing) &&
       (status === 'all' || f.status === status) &&
@@ -719,262 +719,262 @@ export default function Residents() {
             <StatCard
               icon={Building2}
               label="Total Flats"
-          value={flats.length}
-          pill={{ text: 'Society Total', color: 'var(--accent)', bg: 'var(--accent-bg)' }}
-          sub="120 planned units in society"
-          accentColor="var(--accent)"
-          bgColor="var(--accent-bg)"
-          delay={0}
-        />
+              value={flats.length}
+              pill={{ text: 'Society Total', color: 'var(--accent)', bg: 'var(--accent-bg)' }}
+              sub="120 planned units in society"
+              accentColor="var(--accent)"
+              bgColor="var(--accent-bg)"
+              delay={0}
+            />
 
-        <StatCard
-          icon={Home}
-          label="Occupied"
-          value={flats.filter(f => f.status === 'occupied').length}
-          pill={{
-            text: `${flats.length ? Math.round((flats.filter(f => f.status === 'occupied').length / flats.length) * 100) : 0}% Occupancy`,
-            color: 'var(--green)',
-            bg: 'var(--green-bg)',
-          }}
-          sub="Active resident families residing"
-          accentColor="var(--green)"
-          bgColor="var(--green-bg)"
-          delay={0.06}
-        />
-
-        <StatCard
-          icon={Users}
-          label="Vacant Units"
-          value={flats.filter(f => f.status === 'vacant').length}
-          pill={{ text: 'Available', color: 'var(--sky)', bg: 'var(--sky-bg)' }}
-          sub="14 Wing A · 8 Wing B ready"
-          accentColor="var(--sky)"
-          bgColor="var(--sky-bg)"
-          delay={0.12}
-        />
-
-        <StatCard
-          icon={AlertCircle}
-          label="Maintenance Due"
-          value={flats.filter(f => f.maintenanceStatus !== 'paid').length}
-          pill={{ text: '⚡ Action Req.', color: 'var(--red)', bg: 'var(--red-bg)' }}
-          sub="₹24.5K overdue notices queued"
-          accentColor="var(--red)"
-          bgColor="var(--red-bg)"
-          delay={0.18}
-          onClick={() => setMaint('due')}
-        />
-      </div>
-
-      {/* Action bar + Filters */}
-      <motion.div className="card card-p" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 12, justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Flat Directory</span>
-            <span className="badge badge-muted">{filtered.length} of {flats.length} flats</span>
-          </div>
-
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              onClick={exportDirectory}
-              className="btn-secondary"
-              style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-            >
-              <Download size={13} /> Export Directory (.CSV)
-            </button>
-            <button
-              onClick={() => {
-                setShowBulkImport(true);
-                setImportFile(null);
-                setPreviewRows([]);
-                setImportResult(null);
-                setImportError(null);
+            <StatCard
+              icon={Home}
+              label="Occupied"
+              value={flats.filter(f => f.status === 'occupied').length}
+              pill={{
+                text: `${flats.length ? Math.round((flats.filter(f => f.status === 'occupied').length / flats.length) * 100) : 0}% Occupancy`,
+                color: 'var(--green)',
+                bg: 'var(--green-bg)',
               }}
-              className="btn-secondary"
-              style={{
-                fontSize: 12,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                cursor: 'pointer',
-                borderColor: 'var(--accent)',
-                color: 'var(--accent-light)',
-              }}
-            >
-              <UploadCloud size={13} /> Import CSV
-            </button>
-            <button
-              onClick={handleMergeDuplicates}
-              disabled={isMerging}
-              className="btn-secondary"
-              title="Automatically merge duplicate units into canonical flats (e.g. 102 into A-102)"
-              style={{
-                fontSize: 12,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                cursor: 'pointer',
-              }}
-            >
-              <RefreshCw size={13} className={isMerging ? 'anim-spin' : ''} />
-              Merge Duplicates
-            </button>
-            <button
-              onClick={() => setShowAddFlat(true)}
-              className="btn-primary"
-              style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-            >
-              <UserPlus size={13} /> Enroll Flat / Resident
-            </button>
-          </div>
-        </div>
+              sub="Active resident families residing"
+              accentColor="var(--green)"
+              bgColor="var(--green-bg)"
+              delay={0.06}
+            />
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
-            <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search flat number, resident name..."
-              className="field-input"
-              style={{ paddingLeft: 36 }}
-              id="residents-search"
+            <StatCard
+              icon={Users}
+              label="Vacant Units"
+              value={flats.filter(f => f.status === 'vacant').length}
+              pill={{ text: 'Available', color: 'var(--sky)', bg: 'var(--sky-bg)' }}
+              sub="14 Wing A · 8 Wing B ready"
+              accentColor="var(--sky)"
+              bgColor="var(--sky-bg)"
+              delay={0.12}
+            />
+
+            <StatCard
+              icon={AlertCircle}
+              label="Maintenance Due"
+              value={flats.filter(f => f.maintenanceStatus !== 'paid').length}
+              pill={{ text: '⚡ Action Req.', color: 'var(--red)', bg: 'var(--red-bg)' }}
+              sub="₹24.5K overdue notices queued"
+              accentColor="var(--red)"
+              bgColor="var(--red-bg)"
+              delay={0.18}
+              onClick={() => setMaint('due')}
             />
           </div>
-          {[
-            { val: wing,   set: setWing,   opts: [['all','All Wings'],['A','Wing A'],['B','Wing B'],['C','Wing C'],['D','Wing D']], id: 'wing-filter' },
-            { val: status, set: setStatus, opts: [['all','All Status'],['occupied','Occupied'],['vacant','Vacant']], id: 'status-filter' },
-            { val: maint,  set: setMaint,  opts: [['all','All Maintenance'],['paid','Paid'],['due','Due'],['overdue','Overdue']], id: 'maint-filter' },
-          ].map(({ val, set, opts, id }) => (
-            <select
-              key={id}
-              value={val}
-              onChange={e => set(e.target.value)}
-              className="field-select"
-              id={id}
-              style={{ width: 'auto' }}
-            >
-              {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
-          ))}
-        </div>
-      </motion.div>
 
-      {/* Table */}
-      <motion.div className="card" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Flat Number</th>
-                <th>Owner / Key Resident</th>
-                <th>Unit Configuration</th>
-                <th>Vehicles</th>
-                <th>Maintenance Dues</th>
-                <th>Occupancy Status</th>
-                <th style={{ textAlign: 'right' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(flat => {
-                const owner = flat.residents.find(r => r.isOwner) ?? flat.residents[0];
-                return (
-                  <tr key={flat.id}>
-                    <td>
-                      <p style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)' }}>{flat.number}</p>
-                      <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Wing {flat.wing} · Floor {flat.floor}</p>
-                    </td>
-                    <td>
-                      {owner ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                          <div className="avatar avatar-sm" style={{ background: 'var(--accent-bg)', color: 'var(--accent-light)' }}>
-                            {owner.name[0]}
-                          </div>
-                          <div>
-                            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{owner.name}</p>
-                            <p style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
-                              {flat.residents.length > 1 ? `+${flat.residents.length - 1} family members` : 'Primary resident'}
-                            </p>
-                          </div>
-                        </div>
-                      ) : <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Vacant Unit</span>}
-                    </td>
-                    <td><span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{flat.type}</span></td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <Car size={13} color="var(--text-muted)" />
-                        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{flat.vehicleCount}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <MaintBadge s={flat.maintenanceStatus} />
-                        {flat.maintenanceDueAmount && (
-                          <span style={{ fontSize: 11.5, color: 'var(--red)', fontWeight: 700 }}>
-                            ₹{flat.maintenanceDueAmount.toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td><StatusBadge s={flat.status} /></td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        <button
-                          onClick={() => setSelected(flat)}
-                          id={`view-flat-${flat.id}`}
-                          className="btn-secondary"
-                          style={{ padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}
-                        >
-                          Inspect Flat
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setFlatToDelete(flat); }}
-                          className="btn-icon btn-icon-red"
-                          title={`Delete Flat ${flat.number}`}
-                          style={{ width: 30, height: 30 }}
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </td>
+          {/* Action bar + Filters */}
+          <motion.div className="card card-p" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 12, justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Flat Directory</span>
+                <span className="badge badge-muted">{filtered.length} of {flats.length} flats</span>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  onClick={exportDirectory}
+                  className="btn-secondary"
+                  style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+                >
+                  <Download size={13} /> Export Directory (.CSV)
+                </button>
+                <button
+                  onClick={() => {
+                    setShowBulkImport(true);
+                    setImportFile(null);
+                    setPreviewRows([]);
+                    setImportResult(null);
+                    setImportError(null);
+                  }}
+                  className="btn-secondary"
+                  style={{
+                    fontSize: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: 'pointer',
+                    borderColor: 'var(--accent)',
+                    color: 'var(--accent-light)',
+                  }}
+                >
+                  <UploadCloud size={13} /> Import CSV
+                </button>
+                <button
+                  onClick={handleMergeDuplicates}
+                  disabled={isMerging}
+                  className="btn-secondary"
+                  title="Automatically merge duplicate units into canonical flats (e.g. 102 into A-102)"
+                  style={{
+                    fontSize: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <RefreshCw size={13} className={isMerging ? 'anim-spin' : ''} />
+                  Merge Duplicates
+                </button>
+                <button
+                  onClick={() => setShowAddFlat(true)}
+                  className="btn-primary"
+                  style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+                >
+                  <UserPlus size={13} /> Enroll Flat / Resident
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+                <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search flat number, resident name..."
+                  className="field-input"
+                  style={{ paddingLeft: 36 }}
+                  id="residents-search"
+                />
+              </div>
+              {[
+                { val: wing, set: setWing, opts: [['all', 'All Wings'], ['A', 'Wing A'], ['B', 'Wing B'], ['C', 'Wing C'], ['D', 'Wing D']], id: 'wing-filter' },
+                { val: status, set: setStatus, opts: [['all', 'All Status'], ['occupied', 'Occupied'], ['vacant', 'Vacant']], id: 'status-filter' },
+                { val: maint, set: setMaint, opts: [['all', 'All Maintenance'], ['paid', 'Paid'], ['due', 'Due'], ['overdue', 'Overdue']], id: 'maint-filter' },
+              ].map(({ val, set, opts, id }) => (
+                <select
+                  key={id}
+                  value={val}
+                  onChange={e => set(e.target.value)}
+                  className="field-select"
+                  id={id}
+                  style={{ width: 'auto' }}
+                >
+                  {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Table */}
+          <motion.div className="card" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Flat Number</th>
+                    <th>Owner / Key Resident</th>
+                    <th>Unit Configuration</th>
+                    <th>Vehicles</th>
+                    <th>Maintenance Dues</th>
+                    <th>Occupancy Status</th>
+                    <th style={{ textAlign: 'right' }}>Action</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        {filtered.length === 0 && (
-          <div className="empty-state">
-            <Home size={40} className="empty-state-icon" />
-            <p className="empty-state-text">No flats match your filters</p>
-          </div>
-        )}
-      </motion.div>
+                </thead>
+                <tbody>
+                  {filtered.map(flat => {
+                    const owner = flat.residents.find(r => r.isOwner) ?? flat.residents[0];
+                    return (
+                      <tr key={flat.id}>
+                        <td>
+                          <p style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)' }}>{flat.number}</p>
+                          <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Wing {flat.wing} · Floor {flat.floor}</p>
+                        </td>
+                        <td>
+                          {owner ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                              <div className="avatar avatar-sm" style={{ background: 'var(--accent-bg)', color: 'var(--accent-light)' }}>
+                                {owner.name[0]}
+                              </div>
+                              <div>
+                                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{owner.name}</p>
+                                <p style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                                  {flat.residents.length > 1 ? `+${flat.residents.length - 1} family members` : 'Primary resident'}
+                                </p>
+                              </div>
+                            </div>
+                          ) : <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Vacant Unit</span>}
+                        </td>
+                        <td><span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{flat.type}</span></td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <Car size={13} color="var(--text-muted)" />
+                            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{flat.vehicleCount}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <MaintBadge s={flat.maintenanceStatus} />
+                            {flat.maintenanceDueAmount && (
+                              <span style={{ fontSize: 11.5, color: 'var(--red)', fontWeight: 700 }}>
+                                ₹{flat.maintenanceDueAmount.toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td><StatusBadge s={flat.status} /></td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            <button
+                              onClick={() => setSelected(flat)}
+                              id={`view-flat-${flat.id}`}
+                              className="btn-secondary"
+                              style={{ padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}
+                            >
+                              Inspect Flat
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setFlatToDelete(flat); }}
+                              className="btn-icon btn-icon-red"
+                              title={`Delete Flat ${flat.number}`}
+                              style={{ width: 30, height: 30 }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {filtered.length === 0 && (
+              <div className="empty-state">
+                <Home size={40} className="empty-state-icon" />
+                <p className="empty-state-text">No flats match your filters</p>
+              </div>
+            )}
+          </motion.div>
 
-      {/* Detail Slide-in Panel */}
-      <AnimatePresence>
-        {selected && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="panel-overlay"
-              onClick={() => setSelected(null)}
-            />
-            <FlatPanel
-              flat={selected}
-              onClose={() => setSelected(null)}
-              onMarkPaid={handleMarkPaid}
-              onResetPayment={handleResetPayment}
-              onEditAmount={handleEditAmount}
-              onSendNotice={handleSendNotice}
-              onDeleteFlat={(flat) => setFlatToDelete(flat)}
-              onDeleteResident={(resident, flat) => setResidentToDelete({ resident, flat })}
-            />
-          </>
-        )}
-      </AnimatePresence>
+          {/* Detail Slide-in Panel */}
+          <AnimatePresence>
+            {selected && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="panel-overlay"
+                  onClick={() => setSelected(null)}
+                />
+                <FlatPanel
+                  flat={selected}
+                  onClose={() => setSelected(null)}
+                  onMarkPaid={handleMarkPaid}
+                  onResetPayment={handleResetPayment}
+                  onEditAmount={handleEditAmount}
+                  onSendNotice={handleSendNotice}
+                  onDeleteFlat={(flat) => setFlatToDelete(flat)}
+                  onDeleteResident={(resident, flat) => setResidentToDelete({ resident, flat })}
+                />
+              </>
+            )}
+          </AnimatePresence>
         </>
       )}
 
@@ -1244,8 +1244,8 @@ export default function Residents() {
                                   <td style={{ padding: '6px 10px', color: 'var(--text-secondary)' }}>{row.residentName || '—'}</td>
                                   <td style={{ padding: '6px 10px', color: 'var(--text-muted)' }}>{row.mobileNumber || '—'}</td>
                                   <td style={{ padding: '6px 10px' }}>
-                                    <span className={row.mobileNumber ? 'badge badge-success' : 'badge badge-muted'} style={{ fontSize: 9 }}>
-                                      {row.mobileNumber ? 'Occupied' : 'Vacant'}
+                                    <span className={row.residentName || row.mobileNumber ? 'badge badge-success' : 'badge badge-muted'} style={{ fontSize: 9 }}>
+                                      {row.residentName || row.mobileNumber ? 'Occupied' : 'Vacant'}
                                     </span>
                                   </td>
                                 </tr>

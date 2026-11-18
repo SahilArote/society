@@ -783,7 +783,7 @@ router.post(
       for (const item of recordsToProcess) {
         const rowNum = item.sourceRow;
         const rawFlatNumber = item.flatNumber.trim();
-        const rawWing = item.wing.trim();
+        let rawWing = item.wing.trim();
 
         if (!rawFlatNumber) {
           errors.push({ row: rowNum, reason: 'Flat number is required' });
@@ -791,16 +791,31 @@ router.post(
           continue;
         }
 
+        const cleanFlatNumber = rawFlatNumber.toUpperCase();
+        const cleanFlatAlphaNum = cleanFlatNumber.replace(/[^A-Z0-9]/g, '');
+
+        // Auto-resolve wing if missing: check existing society flats or parse flat number prefix
         if (!rawWing) {
-          errors.push({ row: rowNum, flat: rawFlatNumber, reason: 'Wing identifier is required' });
-          failedCount++;
-          continue;
+          const matchExisting = societyFlats.find(
+            (f) =>
+              f.flat_number.toUpperCase() === cleanFlatNumber ||
+              f.flat_number.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanFlatAlphaNum
+          );
+          if (matchExisting && matchExisting.wing) {
+            rawWing = matchExisting.wing;
+          } else {
+            const prefixMatch = cleanFlatNumber.match(/^([A-Za-z]+)/);
+            if (prefixMatch) {
+              rawWing = `Wing ${prefixMatch[1].toUpperCase()}`;
+            } else {
+              rawWing = 'Wing A';
+            }
+          }
         }
 
         const cleanWing = rawWing.toLowerCase().startsWith('wing')
           ? rawWing
           : `Wing ${rawWing.toUpperCase()}`;
-        const cleanFlatNumber = rawFlatNumber.toUpperCase();
 
         // Calculate floor
         let floor = parseInt(String(item.floor || ''), 10);
@@ -837,46 +852,128 @@ router.post(
 
         try {
           // Smart Normalization Matching:
-          // Match by exact string OR normalized wing + normalized digits
+          // Match by exact flat_number string, normalized alphanumeric, OR wing + normalized digits
           const inputWingNorm = normalizeWing(rawWing);
           const inputFlatNorm = normalizeFlatNum(rawFlatNumber, inputWingNorm);
           const inputDigits = rawFlatNumber.replace(/\D/g, '');
 
+          // 1. Direct exact flat_number match
           let matchedFlat = societyFlats.find((f) => {
-            // 1. Direct exact match
-            if (
-              f.flat_number.toUpperCase() === cleanFlatNumber &&
-              (f.wing.toUpperCase() === cleanWing.toUpperCase() || f.wing.toUpperCase() === rawWing.toUpperCase())
-            ) {
-              return true;
+            if (f.flat_number.toUpperCase() === cleanFlatNumber) {
+              const dbWingNorm = normalizeWing(f.wing);
+              if (
+                f.wing.toUpperCase() === cleanWing.toUpperCase() ||
+                f.wing.toUpperCase() === rawWing.toUpperCase() ||
+                (dbWingNorm && inputWingNorm && dbWingNorm === inputWingNorm)
+              ) {
+                return true;
+              }
+              const sameNumberCount = societyFlats.filter(
+                (sf) => sf.flat_number.toUpperCase() === cleanFlatNumber
+              ).length;
+              if (sameNumberCount === 1) return true;
             }
-
-            const dbWingNorm = normalizeWing(f.wing);
-            const dbFlatNorm = normalizeFlatNum(f.flat_number, dbWingNorm);
-            const dbDigits = f.flat_number.replace(/\D/g, '');
-
-            // 2. Both belong to the same wing tower/block
-            if (dbWingNorm === inputWingNorm && inputWingNorm) {
-              // Normalized numbers match (e.g. '102' vs 'A-102')
-              if (dbFlatNorm === inputFlatNorm && inputFlatNorm) return true;
-              // Pure digits match (e.g. '102' vs '102')
-              if (inputDigits && inputDigits === dbDigits) return true;
-            }
-
             return false;
           });
 
+          // 2. Alphanumeric flat_number match (e.g. A-901 vs A901)
+          if (!matchedFlat && cleanFlatAlphaNum.length > 0) {
+            matchedFlat = societyFlats.find((f) => {
+              const dbFlatAlphaNum = f.flat_number.toUpperCase().replace(/[^A-Z0-9]/g, '');
+              if (dbFlatAlphaNum === cleanFlatAlphaNum) {
+                const dbWingNorm = normalizeWing(f.wing);
+                if (
+                  f.wing.toUpperCase() === cleanWing.toUpperCase() ||
+                  (dbWingNorm && inputWingNorm && dbWingNorm === inputWingNorm)
+                ) {
+                  return true;
+                }
+                const sameAlphaNumCount = societyFlats.filter(
+                  (sf) => sf.flat_number.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanFlatAlphaNum
+                ).length;
+                if (sameAlphaNumCount === 1) return true;
+              }
+              return false;
+            });
+          }
+
+          // 3. Wing + flat digits/normalized match (e.g. '102' vs 'A-102' in Wing A)
+          if (!matchedFlat && inputWingNorm) {
+            matchedFlat = societyFlats.find((f) => {
+              const dbWingNorm = normalizeWing(f.wing);
+              const dbFlatNorm = normalizeFlatNum(f.flat_number, dbWingNorm);
+              const dbDigits = f.flat_number.replace(/\D/g, '');
+
+              if (dbWingNorm === inputWingNorm) {
+                if (dbFlatNorm === inputFlatNorm && inputFlatNorm) return true;
+                if (inputDigits && inputDigits === dbDigits) return true;
+              }
+              return false;
+            });
+          }
+
           const existing = matchedFlat;
 
+          // Resolve Resident User:
+          // Check by mobile first to obtain the existing primary key id and avoid FK violations
           let residentId: string | null = null;
           if (cleanMobile) {
-            residentId = `res_${cleanMobile}`;
-            await pool.query(
-              `INSERT INTO users (id, name, mobile, role, society_id, status)
-               VALUES (?, ?, ?, 'RESIDENT', ?, 'ACTIVE')
-               ON DUPLICATE KEY UPDATE name = VALUES(name), society_id = VALUES(society_id), status = 'ACTIVE'`,
-              [residentId, cleanResidentName, cleanMobile, societyId]
+            const [existingUsers]: any = await pool.query(
+              `SELECT id, name FROM users WHERE mobile = ? LIMIT 1`,
+              [cleanMobile]
             );
+
+            if (existingUsers && existingUsers.length > 0) {
+              residentId = existingUsers[0].id;
+              if (cleanResidentName) {
+                await pool.query(
+                  `UPDATE users 
+                   SET name = ?, society_id = ?, status = 'ACTIVE' 
+                   WHERE id = ?`,
+                  [cleanResidentName, societyId, residentId]
+                );
+              }
+            } else {
+              residentId = `res_${cleanMobile}`;
+              await pool.query(
+                `INSERT INTO users (id, name, mobile, role, society_id, status)
+                 VALUES (?, ?, ?, 'RESIDENT', ?, 'ACTIVE')
+                 ON DUPLICATE KEY UPDATE name = VALUES(name), society_id = VALUES(society_id), status = 'ACTIVE'`,
+                [residentId, cleanResidentName || `Resident ${cleanFlatNumber}`, cleanMobile, societyId]
+              );
+              // Re-fetch in case of ON DUPLICATE KEY collision
+              const [recheckUsers]: any = await pool.query(
+                `SELECT id FROM users WHERE mobile = ? LIMIT 1`,
+                [cleanMobile]
+              );
+              if (recheckUsers && recheckUsers.length > 0) {
+                residentId = recheckUsers[0].id;
+              }
+            }
+          }
+
+          // Determine final resident ID with foreign key validation
+          let finalResidentId: string | null = null;
+          const isExplicitlyVacant =
+            !cleanMobile &&
+            item.residentName !== undefined &&
+            item.residentName.trim().toLowerCase() === 'vacant';
+
+          if (isExplicitlyVacant) {
+            finalResidentId = null;
+          } else if (residentId !== null) {
+            finalResidentId = residentId;
+          } else if (existing && existing.resident_id) {
+            // Verify existing resident_id still exists in users table to prevent FK errors
+            const [validUser]: any = await pool.query(
+              `SELECT id FROM users WHERE id = ? LIMIT 1`,
+              [existing.resident_id]
+            );
+            if (validUser && validUser.length > 0) {
+              finalResidentId = existing.resident_id;
+            } else {
+              finalResidentId = null;
+            }
           }
 
           let flatId: string;
@@ -885,9 +982,8 @@ router.post(
 
           if (existing) {
             flatId = existing.id;
-            finalWing = existing.wing; // Preserve society canonical wing (e.g. "Wing Tower A")
-            finalFlatNumber = existing.flat_number; // Preserve society canonical number (e.g. "A-102")
-            const finalResidentId = residentId !== null ? residentId : existing.resident_id;
+            finalWing = existing.wing || cleanWing; // Preserve society canonical wing (e.g. "Wing Tower A")
+            finalFlatNumber = existing.flat_number || cleanFlatNumber; // Preserve society canonical number (e.g. "A-102")
 
             await pool.query(
               `UPDATE flats 
@@ -904,9 +1000,19 @@ router.post(
             flatId = `flat_${cleanFlatNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
             await pool.query(
               `INSERT INTO flats (id, society_id, flat_number, wing, floor, resident_id)
-               VALUES (?, ?, ?, ?, ?, ?)`,
-              [flatId, societyId, cleanFlatNumber, cleanWing, floor, residentId || null]
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON DUPLICATE KEY UPDATE floor = VALUES(floor), resident_id = VALUES(resident_id)`,
+              [flatId, societyId, cleanFlatNumber, cleanWing, floor, finalResidentId]
             );
+
+            // In case of duplicate key match on (society_id, wing, flat_number), retrieve actual id
+            const [actualFlat]: any = await pool.query(
+              `SELECT id FROM flats WHERE society_id = ? AND wing = ? AND flat_number = ? LIMIT 1`,
+              [societyId, cleanWing, cleanFlatNumber]
+            );
+            if (actualFlat && actualFlat.length > 0) {
+              flatId = actualFlat[0].id;
+            }
 
             // Add to in-memory list so duplicate rows in the same file also match
             societyFlats.push({
@@ -914,9 +1020,22 @@ router.post(
               flat_number: cleanFlatNumber,
               wing: cleanWing,
               floor,
-              resident_id: residentId || null,
+              resident_id: finalResidentId,
             });
             createdCount++;
+          }
+
+          let resultResidentName = cleanResidentName || undefined;
+          let resultMobile = cleanMobile || undefined;
+          if (!resultResidentName && finalResidentId) {
+            const [uRow]: any = await pool.query(
+              `SELECT name, mobile FROM users WHERE id = ? LIMIT 1`,
+              [finalResidentId]
+            );
+            if (uRow && uRow.length > 0) {
+              resultResidentName = uRow[0].name;
+              if (!resultMobile) resultMobile = uRow[0].mobile;
+            }
           }
 
           importedFlats.push({
@@ -924,9 +1043,9 @@ router.post(
             flatNumber: finalFlatNumber,
             wing: finalWing,
             floor,
-            status: residentId || (existing && existing.resident_id) ? 'occupied' : 'vacant',
-            residentName: cleanResidentName || undefined,
-            mobile: cleanMobile || undefined,
+            status: finalResidentId ? 'occupied' : 'vacant',
+            residentName: resultResidentName,
+            mobile: resultMobile,
             isUpdate: Boolean(existing),
           });
         } catch (dbErr: any) {
