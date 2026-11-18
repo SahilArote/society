@@ -15,6 +15,17 @@ const socketService_1 = require("../services/socketService");
 const pushNotificationService_1 = require("../services/pushNotificationService");
 const router = (0, express_1.Router)();
 // =============================================================
+// Clean / Normalize wing names (e.g. "Tower B", "Wing TOWER B", "Wing B" -> "Wing B")
+// =============================================================
+function cleanWingName(raw) {
+    if (!raw)
+        return 'Wing A';
+    let w = raw.trim();
+    w = w.replace(/\b(Tower|Wing|Building)\b/gi, '').trim();
+    w = w.replace(/\s+/g, ' ').trim();
+    return w.length > 0 ? `Wing ${w}` : raw.trim();
+}
+// =============================================================
 // GET /api/visitor-requests/directory
 // Returns wings and flats for the guard's society
 // =============================================================
@@ -22,15 +33,16 @@ router.get('/directory', auth_1.authenticateToken, async (req, res) => {
     try {
         const societyId = req.user?.societyId || 'soc_greengate';
         const flats = await (0, db_1.findFlatsBySociety)(societyId);
-        // Group flats by wing
+        // Group flats by normalized wing
         const wingMap = {};
         for (const f of flats) {
-            if (!wingMap[f.wing]) {
-                wingMap[f.wing] = [];
+            const normalizedWing = cleanWingName(f.wing);
+            if (!wingMap[normalizedWing]) {
+                wingMap[normalizedWing] = [];
             }
-            wingMap[f.wing].push({
+            wingMap[normalizedWing].push({
                 flatNumber: f.flatNumber,
-                buildingWing: f.wing,
+                buildingWing: normalizedWing,
                 floor: `${f.floor}${f.floor === 1 ? 'st' : f.floor === 2 ? 'nd' : f.floor === 3 ? 'rd' : 'th'} Floor`,
                 residents: f.residentName
                     ? [
@@ -39,7 +51,7 @@ router.get('/directory', auth_1.authenticateToken, async (req, res) => {
                             name: f.residentName,
                             phoneNumber: f.residentMobile,
                             flatNumber: f.flatNumber,
-                            buildingWing: f.wing,
+                            buildingWing: normalizedWing,
                         },
                     ]
                     : [],

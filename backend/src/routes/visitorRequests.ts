@@ -32,6 +32,17 @@ import { getMysqlPool } from '../database/mysql';
 const router = Router();
 
 // =============================================================
+// Clean / Normalize wing names (e.g. "Tower B", "Wing TOWER B", "Wing B" -> "Wing B")
+// =============================================================
+function cleanWingName(raw: string): string {
+  if (!raw) return 'Wing A';
+  let w = raw.trim();
+  w = w.replace(/\b(Tower|Wing|Building)\b/gi, '').trim();
+  w = w.replace(/\s+/g, ' ').trim();
+  return w.length > 0 ? `Wing ${w}` : raw.trim();
+}
+
+// =============================================================
 // GET /api/visitor-requests/directory
 // Returns wings and flats for the guard's society
 // =============================================================
@@ -40,15 +51,16 @@ router.get('/directory', authenticateToken, async (req: AuthenticatedRequest, re
     const societyId = req.user?.societyId || 'soc_greengate';
     const flats = await findFlatsBySociety(societyId);
 
-    // Group flats by wing
+    // Group flats by normalized wing
     const wingMap: Record<string, any[]> = {};
     for (const f of flats) {
-      if (!wingMap[f.wing]) {
-        wingMap[f.wing] = [];
+      const normalizedWing = cleanWingName(f.wing);
+      if (!wingMap[normalizedWing]) {
+        wingMap[normalizedWing] = [];
       }
-      wingMap[f.wing].push({
+      wingMap[normalizedWing].push({
         flatNumber: f.flatNumber,
-        buildingWing: f.wing,
+        buildingWing: normalizedWing,
         floor: `${f.floor}${f.floor === 1 ? 'st' : f.floor === 2 ? 'nd' : f.floor === 3 ? 'rd' : 'th'} Floor`,
         residents: f.residentName
           ? [
@@ -57,7 +69,7 @@ router.get('/directory', authenticateToken, async (req: AuthenticatedRequest, re
                 name: f.residentName,
                 phoneNumber: f.residentMobile,
                 flatNumber: f.flatNumber,
-                buildingWing: f.wing,
+                buildingWing: normalizedWing,
               },
             ]
           : [],

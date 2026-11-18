@@ -229,40 +229,66 @@ class VisitorRepository extends ChangeNotifier {
   List<String> wings = [];
   Map<String, List<Flat>> wingFlats = {};
 
+  String _normalizeWing(String raw) {
+    var w = raw.trim();
+    w = w.replaceAll(RegExp(r'\b(Tower|Wing|Building)\b', caseSensitive: false), '').trim();
+    w = w.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (w.isEmpty) return raw.trim();
+    return 'Wing $w';
+  }
+
   Future<void> fetchDirectoryFromBackend() async {
     try {
       final data = await ApiService.fetchDirectory();
       if (data != null && data['wings'] != null && data['wingFlats'] != null) {
-        final List<String> loadedWings = List<String>.from(data['wings']);
         final Map<String, dynamic> rawMap =
             Map<String, dynamic>.from(data['wingFlats']);
         final Map<String, List<Flat>> loadedWingFlats = {};
 
-        rawMap.forEach((wingName, flatList) {
+        rawMap.forEach((rawWingName, flatList) {
+          final normalizedWing = _normalizeWing(rawWingName);
           if (flatList is List) {
-            loadedWingFlats[wingName] = flatList.map((f) {
+            final parsed = flatList.map((f) {
+              final rawWing = f['buildingWing']?.toString() ?? rawWingName;
+              final cleanWing = _normalizeWing(rawWing);
               final residentsList = (f['residents'] as List? ?? [])
                   .map((r) => Resident(
                         id: r['id'] ?? '',
                         name: r['name'] ?? '',
                         phoneNumber: r['phoneNumber'] ?? '',
                         flatNumber: r['flatNumber'] ?? '',
-                        buildingWing: r['buildingWing'] ?? '',
+                        buildingWing: cleanWing,
                       ))
                   .toList();
 
               return Flat(
                 flatNumber: f['flatNumber'] ?? '',
-                buildingWing: f['buildingWing'] ?? wingName,
+                buildingWing: cleanWing,
                 floor: f['floor'] ?? '',
                 residents: residentsList,
               );
             }).toList();
+
+            loadedWingFlats.putIfAbsent(normalizedWing, () => []);
+            for (final item in parsed) {
+              if (!loadedWingFlats[normalizedWing]!.any((existing) =>
+                  existing.flatNumber.toLowerCase().trim() ==
+                  item.flatNumber.toLowerCase().trim())) {
+                loadedWingFlats[normalizedWing]!.add(item);
+              }
+            }
           }
         });
 
-        if (loadedWings.isNotEmpty) {
-          wings = loadedWings;
+        // Sort flats by flat number for easy reading
+        loadedWingFlats.forEach((_, list) {
+          list.sort((a, b) => a.flatNumber.compareTo(b.flatNumber));
+        });
+
+        final uniqueWings = loadedWingFlats.keys.toList()..sort();
+
+        if (uniqueWings.isNotEmpty) {
+          wings = uniqueWings;
           wingFlats = loadedWingFlats;
           notifyListeners();
         }
