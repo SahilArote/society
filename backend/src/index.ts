@@ -82,6 +82,13 @@ app.use('/api/community', communityRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/resident/maintenance', maintenanceRoutes);
 
+// Serve thumbnails directory publicly (fast avatar loading in guard/resident app)
+const thumbsDir = path.resolve(process.cwd(), 'uploads/thumbs');
+if (!fs.existsSync(thumbsDir)) {
+  fs.mkdirSync(thumbsDir, { recursive: true });
+}
+app.use('/uploads/thumbs', express.static(thumbsDir));
+
 // Serve Static Files (Landing Page, Assets, Privacy Policy)
 const getPublicDir = (): string | null => {
   const candidates = [

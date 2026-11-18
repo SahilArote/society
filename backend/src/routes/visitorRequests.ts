@@ -2,6 +2,7 @@ import { Router, Response, Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
+import sharp from 'sharp';
 import {
   findFlatByNumberAndWing,
   findFlatsBySociety,
@@ -40,6 +41,31 @@ function cleanWingName(raw: string): string {
   w = w.replace(/\b(Tower|Wing|Building)\b/gi, '').trim();
   w = w.replace(/\s+/g, ' ').trim();
   return w.length > 0 ? `Wing ${w}` : raw.trim();
+}
+
+// =============================================================
+// THUMBNAIL GENERATION HELPER
+// Generates a 200×200 JPEG thumbnail from a Buffer using sharp.
+// Returns the thumb_url (relative path) or null on failure.
+// =============================================================
+const THUMBS_DIR = path.resolve(process.cwd(), 'uploads/thumbs');
+
+async function generateThumbnail(imageBuffer: Buffer, visitorId: string): Promise<string | null> {
+  try {
+    if (!fs.existsSync(THUMBS_DIR)) {
+      fs.mkdirSync(THUMBS_DIR, { recursive: true });
+    }
+    const thumbFilename = `thumb_${visitorId}.jpg`;
+    const thumbPath = path.join(THUMBS_DIR, thumbFilename);
+    await sharp(imageBuffer)
+      .resize(200, 200, { fit: 'cover', position: 'centre' })
+      .jpeg({ quality: 70 })
+      .toFile(thumbPath);
+    return `/uploads/thumbs/${thumbFilename}`;
+  } catch (err: any) {
+    console.warn('[Thumbnail] Failed to generate thumbnail:', err.message);
+    return null;
+  }
 }
 
 // =============================================================
@@ -170,6 +196,7 @@ router.post(
 
       // 3. Process Visitor Photo Upload
       let photoStorageResult: any = null;
+      let uploadedBuffer: Buffer | null = null;
       if (req.file) {
         if (!isValidImageBuffer(req.file.buffer)) {
           return res.status(400).json({
@@ -181,6 +208,7 @@ router.post(
           });
         }
 
+        uploadedBuffer = req.file.buffer;
         photoStorageResult = await uploadToStorageVault(
           req.file.buffer,
           req.file.originalname,
@@ -188,6 +216,7 @@ router.post(
         );
       } else if (req.body.photoPath && fs.existsSync(req.body.photoPath)) {
         const fileBuffer = fs.readFileSync(req.body.photoPath);
+        uploadedBuffer = fileBuffer;
         photoStorageResult = await uploadToStorageVault(fileBuffer, path.basename(req.body.photoPath));
       } else {
         // Fallback default visitor security photo so request never fails
@@ -204,6 +233,12 @@ router.post(
       const visitorId = `vis_${uuidv4().slice(0, 8)}`;
       const requestId = `REQ-${uuidv4().slice(0, 8).toUpperCase()}`;
 
+      // Generate thumbnail from uploaded buffer (non-blocking on failure)
+      let thumbUrl: string | null = null;
+      if (uploadedBuffer) {
+        thumbUrl = await generateThumbnail(uploadedBuffer, visitorId);
+      }
+
       const { visitor: visitorRecord, request: requestRecord } = await createVisitorWithRequestTransaction(
         {
           id: visitorId,
@@ -215,6 +250,7 @@ router.post(
           photoStorageType: photoStorageResult.storageType,
           photoMimeType: photoStorageResult.mimeType,
           photoUrl: photoStorageResult.photoUrl,
+          thumbUrl: thumbUrl || undefined,
           vehicleNumber: vehicleNumber ? vehicleNumber.trim() : undefined,
           deliveryCompany: deliveryCompany ? deliveryCompany.trim() : undefined,
         },

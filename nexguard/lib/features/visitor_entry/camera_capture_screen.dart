@@ -139,8 +139,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera,
         preferredCameraDevice: CameraDevice.rear,
-        maxWidth: 600,
-        maxHeight: 600,
+        maxWidth: 1024,
+        maxHeight: 1024,
         imageQuality: 70,
       );
       if (!mounted) return;
@@ -164,7 +164,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
 
   Future<void> _pickFromGallery() async {
     try {
-      final XFile? photo = await _picker.pickImage(source: ImageSource.gallery);
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 70,
+      );
       if (photo != null && mounted) {
         setState(() => _capturedImagePath = photo.path);
       }

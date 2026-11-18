@@ -60,6 +60,7 @@ export interface VisitorRow {
   photoStorageType?: string;
   photoMimeType?: string;
   photoUrl?: string;
+  thumbUrl?: string;
   vehicleNumber?: string;
   deliveryCompany?: string;
   createdAt: string;
@@ -524,6 +525,7 @@ export async function createVisitor(data: {
   photoStorageType?: string;
   photoMimeType?: string;
   photoUrl?: string;
+  thumbUrl?: string;
   vehicleNumber?: string;
   deliveryCompany?: string;
 }): Promise<VisitorRow> {
@@ -538,8 +540,8 @@ export async function createVisitor(data: {
   const safeCompany = data.deliveryCompany ? data.deliveryCompany.trim().slice(0, 120) : null;
 
   await pool.query(
-    `INSERT INTO visitors (id, name, mobile, purpose, visitor_type, photo_key, photo_storage_type, photo_mime_type, photo_url, vehicle_number, delivery_company) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO visitors (id, name, mobile, purpose, visitor_type, photo_key, photo_storage_type, photo_mime_type, photo_url, thumb_url, vehicle_number, delivery_company) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.id,
       safeName,
@@ -550,6 +552,7 @@ export async function createVisitor(data: {
       data.photoStorageType || 'VAULT',
       data.photoMimeType || 'image/jpeg',
       data.photoUrl || null,
+      data.thumbUrl || null,
       safeVehicle,
       safeCompany,
     ]
@@ -577,6 +580,7 @@ export async function findVisitorById(id: string): Promise<VisitorRow | null> {
     photoStorageType: r.photo_storage_type,
     photoMimeType: r.photo_mime_type,
     photoUrl: r.photo_url,
+    thumbUrl: r.thumb_url,
     vehicleNumber: r.vehicle_number,
     deliveryCompany: r.delivery_company,
     createdAt: r.created_at,
@@ -628,6 +632,7 @@ export async function createVisitorWithRequestTransaction(
     photoStorageType?: string;
     photoMimeType?: string;
     photoUrl?: string;
+    thumbUrl?: string;
     vehicleNumber?: string;
     deliveryCompany?: string;
   },
@@ -649,8 +654,8 @@ export async function createVisitorWithRequestTransaction(
     await connection.beginTransaction();
 
     await connection.query(
-      `INSERT INTO visitors (id, name, mobile, purpose, visitor_type, photo_key, photo_storage_type, photo_mime_type, photo_url, vehicle_number, delivery_company) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO visitors (id, name, mobile, purpose, visitor_type, photo_key, photo_storage_type, photo_mime_type, photo_url, thumb_url, vehicle_number, delivery_company) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         visitorData.id,
         visitorData.name,
@@ -661,6 +666,7 @@ export async function createVisitorWithRequestTransaction(
         visitorData.photoStorageType || 'VAULT',
         visitorData.photoMimeType || 'image/jpeg',
         visitorData.photoUrl || null,
+        visitorData.thumbUrl || null,
         visitorData.vehicleNumber || null,
         visitorData.deliveryCompany || null,
       ]
@@ -747,6 +753,7 @@ export async function findVisitorRequestJoinedById(id: string): Promise<any | nu
       v.photo_key as photoKey,
       v.photo_storage_type as photoStorageType,
       v.photo_url as photoUrl,
+      v.thumb_url as thumbUrl,
       v.vehicle_number as vehicleNumber,
       v.delivery_company as deliveryCompany,
       f.id as flatId,
@@ -817,6 +824,7 @@ export async function findVisitorRequestsJoined(filters: {
       v.photo_key as photoKey,
       v.photo_storage_type as photoStorageType,
       v.photo_url as photoUrl,
+      v.thumb_url as thumbUrl,
       v.vehicle_number as vehicleNumber,
       v.delivery_company as deliveryCompany,
       f.id as flatId,

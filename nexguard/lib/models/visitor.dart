@@ -50,6 +50,7 @@ class Visitor {
   final String name;
   final String? phoneNumber;
   final String? photoPath;
+  final String? thumbPath; // 200x200 thumbnail for fast list rendering
   final VisitorType type;
   final String? deliveryCompany;
   final String? vehicleNumber;
@@ -58,15 +59,20 @@ class Visitor {
     required this.name,
     this.phoneNumber,
     this.photoPath,
+    this.thumbPath,
     required this.type,
     this.deliveryCompany,
     this.vehicleNumber,
   });
 
+  /// Returns thumb if available, falls back to full photo
+  String? get displayPhoto => thumbPath ?? photoPath;
+
   Visitor copyWith({
     String? name,
     String? phoneNumber,
     String? photoPath,
+    String? thumbPath,
     VisitorType? type,
     String? deliveryCompany,
     String? vehicleNumber,
@@ -75,6 +81,7 @@ class Visitor {
       name: name ?? this.name,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       photoPath: photoPath ?? this.photoPath,
+      thumbPath: thumbPath ?? this.thumbPath,
       type: type ?? this.type,
       deliveryCompany: deliveryCompany ?? this.deliveryCompany,
       vehicleNumber: vehicleNumber ?? this.vehicleNumber,
@@ -85,6 +92,7 @@ class Visitor {
         'name': name,
         'phoneNumber': phoneNumber,
         'photoPath': photoPath,
+        'thumbPath': thumbPath,
         'type': type.name,
         'deliveryCompany': deliveryCompany,
         'vehicleNumber': vehicleNumber,
@@ -96,6 +104,7 @@ class Visitor {
             ?.toString(),
         photoPath: (json['photoPath'] ?? json['photoUrl'] ?? json['photo'])
             ?.toString(),
+        thumbPath: (json['thumbPath'] ?? json['thumbUrl'])?.toString(),
         type: VisitorType.fromString(
             (json['type'] ?? json['visitorType'])?.toString()),
         deliveryCompany:

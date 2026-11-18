@@ -939,7 +939,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           color: AppColors.indigoTint,
           alignment: Alignment.center,
           child: hasPhoto
-              ? VisitorPhotoAvatar.buildImageWidget(req.visitor.photoPath,
+              ? VisitorPhotoAvatar.buildImageWidget(req.visitor.displayPhoto,
                   size: size)
               : Text(
                   req.visitor.name.isNotEmpty

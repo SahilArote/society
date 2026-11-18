@@ -128,6 +128,9 @@ class VisitorRepository extends ChangeNotifier {
       final serverPhoto =
           (serverVisitor is Map ? serverVisitor['photoUrl'] : null) ??
               map['photoUrl'];
+      final serverThumb =
+          (serverVisitor is Map ? serverVisitor['thumbUrl'] : null) ??
+              map['thumbUrl'];
 
       if (index != -1) {
         final currentReq = _requests[index];
@@ -139,19 +142,30 @@ class VisitorRepository extends ChangeNotifier {
           updatedPhoto = serverPhoto.toString();
         }
 
+        String? updatedThumb = currentReq.visitor.thumbPath;
+        if (serverThumb != null && serverThumb.toString().isNotEmpty) {
+          updatedThumb = serverThumb.toString();
+        }
+
         final photoChanged =
             updatedPhoto != null && updatedPhoto != currentReq.visitor.photoPath;
+        final thumbChanged =
+            updatedThumb != null && updatedThumb != currentReq.visitor.thumbPath;
 
         if (effectiveStatus != currentReq.status ||
             decisionBy != currentReq.decisionBy ||
             rejectionReason != currentReq.rejectionReason ||
             entryTime != currentReq.entryTime ||
             exitTime != currentReq.exitTime ||
-            photoChanged) {
+            photoChanged ||
+            thumbChanged) {
           _requests[index] = VisitorRequest(
             id: currentReq.id,
-            visitor: photoChanged
-                ? currentReq.visitor.copyWith(photoPath: updatedPhoto)
+            visitor: (photoChanged || thumbChanged)
+                ? currentReq.visitor.copyWith(
+                    photoPath: photoChanged ? updatedPhoto : null,
+                    thumbPath: thumbChanged ? updatedThumb : null,
+                  )
                 : currentReq.visitor,
             flatNumber: currentReq.flatNumber,
             buildingWing: currentReq.buildingWing,
@@ -480,12 +494,20 @@ class VisitorRepository extends ChangeNotifier {
       resolvedPhoto = serverPhoto.toString();
     }
 
+    // Capture thumbnail URL returned by server (if thumbnail was generated)
+    String? resolvedThumb;
+    final serverThumb = (serverVisitor is Map ? serverVisitor['thumbUrl'] : null) ?? apiResult['thumbUrl'];
+    if (serverThumb != null && serverThumb.toString().isNotEmpty) {
+      resolvedThumb = serverThumb.toString();
+    }
+
     final request = VisitorRequest(
       id: newId,
       visitor: Visitor(
         name: name,
         phoneNumber: phoneNumber,
         photoPath: resolvedPhoto,
+        thumbPath: resolvedThumb,
         type: type,
         deliveryCompany: deliveryCompany,
         vehicleNumber: vehicleNumber,

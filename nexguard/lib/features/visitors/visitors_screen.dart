@@ -341,10 +341,10 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                                   height: 60,
                                   color: const Color(0xFFEEF2FF),
                                   alignment: Alignment.center,
-                                  child: (req.visitor.photoPath != null &&
-                                          req.visitor.photoPath!.isNotEmpty)
+                                  child: (req.visitor.displayPhoto != null &&
+                                          req.visitor.displayPhoto!.isNotEmpty)
                                       ? VisitorPhotoAvatar.buildImageWidget(
-                                          req.visitor.photoPath,
+                                          req.visitor.displayPhoto,
                                           size: 60,
                                         )
                                       : Text(

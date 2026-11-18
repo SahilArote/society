@@ -208,6 +208,9 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
       final XFile? photo = await picker.pickImage(
         source: source,
         preferredCameraDevice: CameraDevice.rear,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 70,
       );
       if (photo != null && mounted) {
         final compressed = await ImageCompressService.compress(photo.path);
