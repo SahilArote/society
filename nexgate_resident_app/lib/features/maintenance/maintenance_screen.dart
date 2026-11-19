@@ -148,16 +148,7 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
     }
 
     if (mounted) {
-      final appLabel = package != null
-          ? (package.contains('paisa')
-              ? 'Google Pay'
-              : package.contains('phonepe')
-                  ? 'PhonePe'
-                  : package.contains('paytm')
-                      ? 'Paytm'
-                      : 'UPI App')
-          : 'UPI App';
-      _showPaymentConfirmationSheet(appLabel);
+      _showPaymentConfirmationSheet('Google Pay');
     }
   }
 
@@ -185,21 +176,35 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
               ),
               const SizedBox(height: 18),
               Container(
-                padding: const EdgeInsets.all(12),
-                decoration: const BoxDecoration(
-                  color: RefferTheme.amberLight,
+                width: 56,
+                height: 56,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
                   shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                child: const Icon(
-                  Icons.account_balance_wallet_rounded,
-                  color: RefferTheme.amber,
-                  size: 32,
+                child: Image.asset(
+                  'assets/images/gpay.png',
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => const Icon(
+                    Icons.account_balance_wallet_rounded,
+                    color: Color(0xFF4285F4),
+                    size: 30,
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
-              Text(
-                'Opened $appName',
-                style: const TextStyle(
+              const Text(
+                'Opened Google Pay',
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: RefferTheme.textPrimary,
@@ -207,7 +212,7 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Did you complete the payment of ${_formatINR(_bill!.totalAmount)} in $appName?',
+                'Did you complete the payment of ${_formatINR(_bill!.totalAmount)} in Google Pay?',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 14, color: RefferTheme.textMuted),
               ),
@@ -246,7 +251,7 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text(
-                    'Didn\'t Pay Yet / Choose Another App',
+                    'Didn\'t Pay Yet / Try Again',
                     style: TextStyle(
                       fontSize: 14,
                       color: RefferTheme.textMuted,
@@ -635,7 +640,7 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
         const SizedBox(height: 10),
         _buildHistoryCard(
           month: 'September 2026',
-          paidDate: '08 Sep · UPI (PhonePe)',
+          paidDate: '08 Sep · Google Pay',
           amount: 2500,
           receiptCode: 'RCPT-A101-039B',
         ),
@@ -754,17 +759,40 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
         ),
         const SizedBox(height: 10),
 
-        // Method 1: Instant UPI Apps
+        // Method 1: Google Pay (GPay)
         _buildMethodOptionCard(
           id: 'upi',
-          title: 'Instant UPI Apps',
-          subtitle: 'Google Pay, PhonePe, Paytm, BHIM',
-          icon: Icons.flash_on_rounded,
-          iconColor: RefferTheme.amber,
-          iconBg: RefferTheme.amberLight,
+          title: 'Google Pay',
+          subtitle: 'Instant 1-tap payment via Google Pay',
+          customLeading: Container(
+            width: 42,
+            height: 42,
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Image.asset(
+              'assets/images/gpay.png',
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => const Icon(
+                Icons.account_balance_wallet_rounded,
+                color: Color(0xFF4285F4),
+                size: 22,
+              ),
+            ),
+          ),
         ),
 
-        // Inside UPI expanded options:
+        // Inside Google Pay expanded options:
         if (_selectedPaymentType == 'upi') ...[
           const SizedBox(height: 12),
           Container(
@@ -777,42 +805,91 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Tap your preferred app to pay:',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: RefferTheme.textSecondary),
-                ),
-                const SizedBox(height: 12),
-
-                // Fast App Launch Grid
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildAppButton(
-                        label: 'GPay',
-                        icon: Icons.account_balance_wallet_rounded,
-                        color: const Color(0xFF4285F4),
-                        onTap: () => _launchUpiIntent(package: 'com.google.android.apps.nbu.paisa.user'),
-                      ),
+                // Clean prominent Google Pay Button
+                InkWell(
+                  onTap: () => _launchUpiIntent(package: 'com.google.android.apps.nbu.paisa.user'),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFF4285F4), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF4285F4).withValues(alpha: 0.08),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildAppButton(
-                        label: 'PhonePe',
-                        icon: Icons.send_to_mobile_rounded,
-                        color: const Color(0xFF5F259F),
-                        onTap: () => _launchUpiIntent(package: 'com.phonepe.app'),
-                      ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Image.asset(
+                            'assets/images/gpay.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, _, _) => const Icon(
+                              Icons.account_balance_wallet_rounded,
+                              color: Color(0xFF4285F4),
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'Pay with Google Pay',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF1F2937),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Tap to open GPay (${_formatINR(bill.totalAmount)})',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: RefferTheme.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4285F4),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'PAY',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildAppButton(
-                        label: 'Paytm',
-                        icon: Icons.payments_rounded,
-                        color: const Color(0xFF00B9F1),
-                        onTap: () => _launchUpiIntent(package: 'net.one97.paytm'),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
                 const SizedBox(height: 14),
 
@@ -987,9 +1064,10 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
     required String id,
     required String title,
     required String subtitle,
-    required IconData icon,
-    required Color iconColor,
-    required Color iconBg,
+    IconData? icon,
+    Color? iconColor,
+    Color? iconBg,
+    Widget? customLeading,
   }) {
     final isSelected = _selectedPaymentType == id;
 
@@ -1011,15 +1089,16 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
         ),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: iconColor, size: 20),
-            ),
+            customLeading ??
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: iconBg ?? RefferTheme.surface,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 20),
+                ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -1045,36 +1124,6 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
               isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
               color: isSelected ? RefferTheme.navy : RefferTheme.border,
               size: 20,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAppButton({
-    required String label,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: RefferTheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: RefferTheme.border),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: RefferTheme.textPrimary),
             ),
           ],
         ),
@@ -1351,7 +1400,12 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
             child: OutlinedButton.icon(
               onPressed: () {
                 final text = 'Payment Receipt\nReceipt No: $receiptNo\nSociety: ${bill.societyName}\nFlat: ${bill.flatNumber}\nAmount: ${_formatINR(bill.totalAmount)}\nUTR: ${bill.submittedUtr ?? "N/A"}\nStatus: ${isApproved ? "PAID" : "SUBMITTED"}';
-                Share.share(text, subject: 'Payment Receipt - ${bill.flatNumber}');
+                SharePlus.instance.share(
+                  ShareParams(
+                    text: text,
+                    subject: 'Payment Receipt - ${bill.flatNumber}',
+                  ),
+                );
               },
               icon: const Icon(Icons.download_rounded, size: 18, color: RefferTheme.navy),
               label: const Text(
