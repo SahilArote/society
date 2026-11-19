@@ -289,15 +289,75 @@ router.put('/societies/:id', auth_1.authenticateToken, (0, auth_1.authorizeRoles
         if (!updated) {
             return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Society not found' } });
         }
+        // If admin credentials fields are provided, update admin user as well
+        let updatedAdmin = null;
+        if (payload.adminEmail !== undefined ||
+            payload.adminPassword !== undefined ||
+            payload.adminName !== undefined ||
+            payload.adminMobile !== undefined) {
+            try {
+                updatedAdmin = await (0, db_1.updateSocietyAdminCredentials)(id, {
+                    email: payload.adminEmail,
+                    password: payload.adminPassword,
+                    name: payload.adminName,
+                    mobile: payload.adminMobile,
+                });
+            }
+            catch (adminErr) {
+                return res.status(400).json({
+                    success: false,
+                    error: { code: 'ADMIN_UPDATE_FAILED', message: adminErr.message || 'Failed to update admin credentials' },
+                });
+            }
+        }
         return res.json({
             success: true,
-            message: 'Society configuration updated successfully',
-            data: updated,
+            message: 'Society configuration and admin details updated successfully',
+            data: {
+                ...updated,
+                admin: updatedAdmin,
+            },
         });
     }
     catch (error) {
         console.error('Error updating society details:', error);
         return res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to update society' } });
+    }
+});
+// PATCH /api/super-admin/societies/:id/admin-credentials
+// Dedicated endpoint to update society admin login email, password, name, and mobile
+router.patch('/societies/:id/admin-credentials', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('SUPER_ADMIN'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { email, password, name, mobile } = req.body;
+        if (!email && !password && !name && !mobile) {
+            return res.status(400).json({
+                success: false,
+                error: { code: 'INVALID_INPUT', message: 'At least one field (email, password, name, or mobile) must be provided' },
+            });
+        }
+        const society = await (0, db_1.findSocietyById)(id);
+        if (!society) {
+            return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Society not found' } });
+        }
+        const updatedAdmin = await (0, db_1.updateSocietyAdminCredentials)(id, {
+            email,
+            password,
+            name,
+            mobile,
+        });
+        return res.json({
+            success: true,
+            message: `Admin credentials for '${society.name}' updated successfully`,
+            data: updatedAdmin,
+        });
+    }
+    catch (error) {
+        console.error('Error updating society admin credentials:', error);
+        return res.status(400).json({
+            success: false,
+            error: { code: 'UPDATE_FAILED', message: error.message || 'Failed to update admin credentials' },
+        });
     }
 });
 // POST /api/super-admin/societies/:id/renew
@@ -349,6 +409,58 @@ router.post('/societies/:id/renew', auth_1.authenticateToken, (0, auth_1.authori
     catch (error) {
         console.error('Error renewing society subscription:', error);
         return res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to renew subscription' } });
+    }
+});
+// GET /api/super-admin/societies/:id/backup
+// Full society-wise data backup export for Super Admin only
+router.get('/societies/:id/backup', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('SUPER_ADMIN'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const society = await (0, db_1.findSocietyById)(id);
+        if (!society) {
+            return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Society not found' } });
+        }
+        const pool = await (0, mysql_1.getMysqlPool)();
+        if (!pool)
+            throw new Error('Database pool unavailable');
+        const [flats] = await pool.query('SELECT * FROM flats WHERE society_id = ? ORDER BY flat_number ASC', [id]);
+        const [residents] = await pool.query('SELECT * FROM residents WHERE society_id = ?', [id]);
+        const [guards] = await pool.query('SELECT * FROM guards WHERE society_id = ?', [id]);
+        const [gates] = await pool.query('SELECT * FROM gates WHERE society_id = ?', [id]);
+        const [admins] = await pool.query('SELECT id, name, email, mobile, role, status, created_at FROM users WHERE society_id = ?', [id]);
+        const [visitors] = await pool.query('SELECT * FROM visitors WHERE society_id = ? ORDER BY created_at DESC LIMIT 500', [id]);
+        const [announcements] = await pool.query('SELECT * FROM announcements WHERE society_id = ?', [id]).catch(() => [[]]);
+        const [recharges] = await pool.query('SELECT * FROM subscription_recharges WHERE society_id = ? ORDER BY created_at DESC', [id]).catch(() => [[]]);
+        const backup = {
+            exportVersion: '2.0-ENTERPRISE',
+            exportedAt: new Date().toISOString(),
+            exportedBy: req.user?.email || 'Super Admin',
+            society,
+            summary: {
+                totalFlats: flats.length,
+                totalResidents: residents.length,
+                totalGuards: guards.length,
+                totalGates: gates.length,
+                totalAdmins: admins.length,
+                totalVisitorsLogged: visitors.length,
+            },
+            flats,
+            residents,
+            guards,
+            gates,
+            admins,
+            visitors,
+            announcements,
+            recharges,
+        };
+        return res.json({
+            success: true,
+            data: backup,
+        });
+    }
+    catch (error) {
+        console.error('Error generating society backup:', error);
+        return res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to generate society backup' } });
     }
 });
 exports.default = router;

@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const multer_1 = __importDefault(require("multer"));
+const uuid_1 = require("uuid");
 const db_1 = require("../database/db");
 const mysql_1 = require("../database/mysql");
 const auth_1 = require("../middleware/auth");
@@ -1319,10 +1320,19 @@ router.patch('/gates/:id/toggle', auth_1.authenticateToken, (0, auth_1.authorize
 router.get('/guards', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
     try {
         const societyId = req.user.societyId;
+        const society = await (0, db_1.findSocietyById)(societyId);
+        const maxDevices = society?.maxDevices ?? 1;
+        const planName = society?.planName ?? 'STANDARD_1_DEVICE';
         const guards = await (0, db_1.findGuardsWithDetails)(societyId);
         return res.json({
             success: true,
             data: guards,
+            meta: {
+                maxDevices,
+                currentDevices: guards.length,
+                planName,
+                canAddGuard: guards.length < maxDevices,
+            },
         });
     }
     catch (error) {
@@ -1385,6 +1395,54 @@ router.post('/guards', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADM
         });
     }
 });
+// PUT /api/admin/guards/:id
+router.put('/guards/:id', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const societyId = req.user.societyId || '';
+        const { id } = req.params;
+        const { name, phone, mobile, pin, status } = req.body;
+        const updated = await (0, db_1.updateGuardRecord)(id, societyId, {
+            name,
+            phone: phone || mobile,
+            pin,
+            status,
+        });
+        return res.json({
+            success: true,
+            message: 'Guard device updated successfully',
+            data: updated,
+        });
+    }
+    catch (error) {
+        console.error('Error updating guard:', error);
+        return res.status(400).json({
+            success: false,
+            error: { code: 'UPDATE_FAILED', message: error.message || 'Failed to update guard device' },
+        });
+    }
+});
+// DELETE /api/admin/guards/:id
+router.delete('/guards/:id', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const societyId = req.user.societyId || '';
+        const { id } = req.params;
+        const ok = await (0, db_1.deleteGuardRecord)(id, societyId);
+        if (!ok) {
+            return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Guard device not found' } });
+        }
+        return res.json({
+            success: true,
+            message: 'Guard device removed successfully',
+        });
+    }
+    catch (error) {
+        console.error('Error deleting guard:', error);
+        return res.status(500).json({
+            success: false,
+            error: { code: 'SERVER_ERROR', message: error.message || 'Failed to delete guard' },
+        });
+    }
+});
 // =============================================================
 // SOCIETY SETTINGS & SUBSCRIPTION (ADMIN)
 // =============================================================
@@ -1412,6 +1470,64 @@ router.get('/subscription', auth_1.authenticateToken, (0, auth_1.authorizeRoles)
     catch (error) {
         console.error('Error fetching subscription:', error);
         return res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to fetch subscription status' } });
+    }
+});
+// POST /api/admin/subscription/recharge-proof
+// Submit UPI payment UTR and screenshot for plan renewal verification
+router.post('/subscription/recharge-proof', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const societyId = req.user.societyId;
+        const { utrNumber, screenshotUrl, planName, amount, notes } = req.body;
+        if (!utrNumber || !String(utrNumber).trim()) {
+            return res.status(400).json({ success: false, error: { code: 'INVALID_INPUT', message: 'UTR / Transaction Reference number is required' } });
+        }
+        const society = await (0, db_1.findSocietyById)(societyId);
+        if (!society) {
+            return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Society not found' } });
+        }
+        const pool = await (0, mysql_1.getMysqlPool)();
+        if (!pool)
+            throw new Error('Database pool unavailable');
+        const rechargeId = `rech_${(0, uuid_1.v4)().replace(/-/g, '').slice(0, 16)}`;
+        const targetPlan = planName || society.planName || 'STANDARD_1_DEVICE';
+        const rechargeAmount = Number(amount) || society.planAmount || 1999;
+        await pool.query(`INSERT INTO subscription_recharges (id, society_id, plan_name, amount, utr_number, screenshot_url, status, admin_notes)
+       VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?)`, [rechargeId, societyId, targetPlan, rechargeAmount, String(utrNumber).trim(), screenshotUrl || null, notes || null]);
+        return res.json({
+            success: true,
+            message: 'Payment proof submitted successfully. Super admin will verify and renew your subscription within 2 hours.',
+            data: {
+                rechargeId,
+                societyId,
+                planName: targetPlan,
+                amount: rechargeAmount,
+                utrNumber: String(utrNumber).trim(),
+                status: 'PENDING',
+                createdAt: new Date().toISOString(),
+            },
+        });
+    }
+    catch (error) {
+        console.error('Error submitting recharge proof:', error);
+        return res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to submit payment proof' } });
+    }
+});
+// GET /api/admin/subscription/recharges
+router.get('/subscription/recharges', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const societyId = req.user.societyId;
+        const pool = await (0, mysql_1.getMysqlPool)();
+        if (!pool)
+            throw new Error('Database pool unavailable');
+        const [rows] = await pool.query('SELECT * FROM subscription_recharges WHERE society_id = ? ORDER BY created_at DESC LIMIT 10', [societyId]);
+        return res.json({
+            success: true,
+            data: rows,
+        });
+    }
+    catch (error) {
+        console.error('Error fetching recharge history:', error);
+        return res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to fetch recharge history' } });
     }
 });
 // GET /api/admin/settings

@@ -129,15 +129,52 @@ async function runMysqlMigrations() {
                 }
             }
         }
+        // Helper to add missing columns idempotently
+        const addCol = async (table, col, colDef) => {
+            try {
+                const [c] = await pool.query(`SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`, [table, col]);
+                if (!c || c.length === 0) {
+                    await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${col}\` ${colDef}`);
+                }
+            }
+            catch (_) { }
+        };
         // Auto-migrate schema columns if table already exists
+        await addCol('societies', 'subdomain', 'VARCHAR(64) UNIQUE NULL');
+        await addCol('societies', 'city', 'VARCHAR(128) DEFAULT NULL');
+        await addCol('societies', 'state', 'VARCHAR(128) DEFAULT NULL');
+        await addCol('societies', 'pincode', 'VARCHAR(16) DEFAULT NULL');
+        await addCol('societies', 'contact_email', 'VARCHAR(255) DEFAULT NULL');
+        await addCol('societies', 'contact_phone', 'VARCHAR(32) DEFAULT NULL');
+        await addCol('societies', 'logo_url', 'TEXT DEFAULT NULL');
+        await addCol('societies', 'upi_id', 'VARCHAR(128) DEFAULT NULL');
+        await addCol('societies', 'maintenance_amount', 'DECIMAL(10,2) DEFAULT 0.00');
+        await addCol('societies', 'maintenance_due_day', 'INT DEFAULT 5');
+        await addCol('societies', 'plan_name', "VARCHAR(64) DEFAULT 'STANDARD_1_DEVICE'");
+        await addCol('societies', 'max_devices', 'INT DEFAULT 1');
+        await addCol('societies', 'plan_amount', 'DECIMAL(10,2) DEFAULT 1999.00');
+        await addCol('societies', 'billing_cycle', "VARCHAR(32) DEFAULT 'MONTHLY'");
+        await addCol('societies', 'subscription_status', "VARCHAR(32) DEFAULT 'ACTIVE'");
+        await addCol('societies', 'subscription_expires_at', 'DATETIME DEFAULT NULL');
+        await addCol('societies', 'trial_ends_at', 'DATETIME DEFAULT NULL');
+        await addCol('societies', 'updated_at', 'DATETIME DEFAULT NULL');
+        try {
+            await pool.query(`ALTER TABLE users MODIFY COLUMN role ENUM('RESIDENT', 'GUARD', 'ADMIN', 'SUPER_ADMIN') NOT NULL`);
+        }
+        catch (_) { }
         try {
             await pool.query('ALTER TABLE visitors MODIFY COLUMN purpose VARCHAR(255) NOT NULL');
         }
         catch (_) { }
-        // Auto-update society name to official real name
+        // Auto-seed default Super Admin if not present
         try {
-            await pool.query("UPDATE societies SET name = 'Eco Residency Co-operative Housing Society Ltd' WHERE name = 'Green Gate Residency' OR name = 'NexGate Residency' OR id = 'soc_greengate'");
-            await pool.query("UPDATE users SET email = 'admin@nexgate.co.in' WHERE id = 'admin_user' AND (email = 'admin@greengate.in' OR email IS NULL)");
+            const [superAdmin] = await pool.query("SELECT id FROM users WHERE role = 'SUPER_ADMIN' OR email = 'superadmin@nexgate.co.in' LIMIT 1");
+            if (!superAdmin || superAdmin.length === 0) {
+                const superHash = bcryptjs_1.default.hashSync('superadmin123', 10);
+                await pool.query(`INSERT INTO users (id, name, mobile, email, password_hash, role, status)
+           VALUES (?, ?, ?, ?, ?, 'SUPER_ADMIN', 'ACTIVE')`, ['superadmin_user', 'Super Administrator', '9999900000', 'superadmin@nexgate.co.in', superHash]);
+                console.log('[MySQL] Super Admin account created: superadmin@nexgate.co.in / superadmin123');
+            }
         }
         catch (_) { }
         console.log('[MySQL] Schema migrations execution cycle complete.');

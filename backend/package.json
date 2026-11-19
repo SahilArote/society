@@ -9,7 +9,8 @@
     "package": "npm run build && powershell -Command \"Compress-Archive -Path dist, package.json, package-lock.json, ecosystem.config.js, .env -DestinationPath backend-deploy.zip -Force\"",
     "start": "node dist/index.js",
     "deploy:local": "powershell -ExecutionPolicy Bypass -File ./deploy-local.ps1",
-    "db:migrate": "ts-node -e \"import { runMysqlMigrations } from './src/database/mysql'; runMysqlMigrations().then(() => process.exit(0));\"",
+    "db:migrate": "ts-node scripts/migrate_and_verify.ts",
+    "db:verify": "ts-node scripts/migrate_and_verify.ts",
     "db:reset": "ts-node reset_and_migrate.ts"
   },
   "dependencies": {

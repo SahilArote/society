@@ -17,6 +17,7 @@ exports.findAllSocietiesWithUsage = findAllSocietiesWithUsage;
 exports.createSocietyRecord = createSocietyRecord;
 exports.updateSocietyStatus = updateSocietyStatus;
 exports.updateSociety = updateSociety;
+exports.updateSocietyAdminCredentials = updateSocietyAdminCredentials;
 exports.findFlatByNumberAndWing = findFlatByNumberAndWing;
 exports.findFlatByResidentId = findFlatByResidentId;
 exports.findFlatById = findFlatById;
@@ -45,6 +46,8 @@ exports.findGatesBySociety = findGatesBySociety;
 exports.toggleGateStatus = toggleGateStatus;
 exports.findGuardsWithDetails = findGuardsWithDetails;
 exports.createGuardRecord = createGuardRecord;
+exports.updateGuardRecord = updateGuardRecord;
+exports.deleteGuardRecord = deleteGuardRecord;
 exports.findFlatsWithResidents = findFlatsWithResidents;
 exports.createFlatRecord = createFlatRecord;
 exports.findAdminVisitorLogs = findAdminVisitorLogs;
@@ -283,6 +286,7 @@ async function findAllSocietiesWithUsage() {
       COALESCE(gd.total_guards, 0) AS total_guards,
       COALESCE(fl.total_flats, 0) AS total_flats,
       COALESCE(res.total_residents, 0) AS total_residents,
+      u.id AS admin_id,
       u.name AS admin_name,
       u.email AS admin_email,
       u.mobile AS admin_mobile
@@ -291,12 +295,22 @@ async function findAllSocietiesWithUsage() {
     LEFT JOIN (SELECT u2.society_id, COUNT(*) AS total_guards FROM guards g2 JOIN users u2 ON g2.user_id = u2.id GROUP BY u2.society_id) gd ON s.id = gd.society_id
     LEFT JOIN (SELECT society_id, COUNT(*) AS total_flats FROM flats GROUP BY society_id) fl ON s.id = fl.society_id
     LEFT JOIN (SELECT society_id, COUNT(*) AS total_residents FROM users WHERE role = 'RESIDENT' GROUP BY society_id) res ON s.id = res.society_id
-    LEFT JOIN (SELECT id, society_id, name, email, mobile FROM users WHERE role = 'ADMIN' GROUP BY society_id) u ON s.id = u.society_id
+    LEFT JOIN (
+      SELECT u1.id, u1.society_id, u1.name, u1.email, u1.mobile
+      FROM users u1
+      INNER JOIN (
+        SELECT society_id, MIN(id) AS min_id
+        FROM users
+        WHERE role = 'ADMIN'
+        GROUP BY society_id
+      ) u2 ON u1.id = u2.min_id
+    ) u ON s.id = u.society_id
     ORDER BY s.created_at DESC
   `);
     return rows.map((r) => {
         const mapped = mapSocietyRow(r);
         const subInfo = (0, subscription_1.computeSocietySubscriptionStatus)(mapped);
+        const hasAdmin = Boolean(r.admin_id || r.admin_name || r.admin_email || r.admin_mobile || r.contact_email);
         return {
             ...mapped,
             subscription: subInfo,
@@ -305,10 +319,11 @@ async function findAllSocietiesWithUsage() {
             activeDevices: Number(r.total_guards || 0),
             totalFlats: Number(r.total_flats || 0),
             totalResidents: Number(r.total_residents || 0),
-            admin: r.admin_name ? {
-                name: r.admin_name,
-                email: r.admin_email,
-                mobile: r.admin_mobile,
+            admin: hasAdmin ? {
+                id: r.admin_id || null,
+                name: r.admin_name || 'Society Admin',
+                email: r.admin_email || r.contact_email || null,
+                mobile: r.admin_mobile || r.contact_phone || null,
             } : null,
         };
     });
@@ -403,6 +418,103 @@ async function updateSociety(societyId, data) {
         await pool.query(`UPDATE societies SET ${updates.join(', ')} WHERE id = ?`, params);
     }
     return findSocietyById(societyId);
+}
+async function updateSocietyAdminCredentials(societyId, data) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        throw new Error('Database pool unavailable');
+    // Find existing admin for this society
+    const [admins] = await pool.query('SELECT * FROM users WHERE society_id = ? AND role = "ADMIN" ORDER BY created_at ASC LIMIT 1', [societyId]);
+    const admin = admins[0] || null;
+    // Clean email
+    let cleanEmail = null;
+    if (data.email !== undefined) {
+        cleanEmail = data.email && data.email.trim() ? data.email.trim().toLowerCase() : null;
+        if (cleanEmail) {
+            const [existing] = await pool.query('SELECT id FROM users WHERE LOWER(email) = ? AND id != ? LIMIT 1', [cleanEmail, admin ? admin.id : '']);
+            if (existing.length > 0) {
+                throw new Error(`Email '${cleanEmail}' is already registered to another account.`);
+            }
+        }
+    }
+    // Clean mobile
+    let cleanMobile = null;
+    if (data.mobile !== undefined) {
+        const rawDigits = String(data.mobile).replace(/\D/g, '');
+        if (rawDigits.length > 0) {
+            cleanMobile = rawDigits.slice(-10);
+            if (cleanMobile.length < 10) {
+                throw new Error('Mobile number must be a valid 10-digit number');
+            }
+            const [existingMobile] = await pool.query('SELECT id FROM users WHERE mobile = ? AND id != ? LIMIT 1', [cleanMobile, admin ? admin.id : '']);
+            if (existingMobile.length > 0) {
+                throw new Error(`Mobile number '${cleanMobile}' is already assigned to another user account.`);
+            }
+        }
+    }
+    // Password hash
+    let pwdHash = null;
+    if (data.password !== undefined && data.password !== null && String(data.password).trim() !== '') {
+        const trimmed = String(data.password).trim();
+        if (trimmed.length < 6) {
+            throw new Error('Password must be at least 6 characters long');
+        }
+        pwdHash = bcryptjs_1.default.hashSync(trimmed, 10);
+    }
+    if (admin) {
+        const updates = [];
+        const params = [];
+        if (cleanEmail !== null) {
+            updates.push('email = ?');
+            params.push(cleanEmail);
+        }
+        if (pwdHash) {
+            updates.push('password_hash = ?');
+            params.push(pwdHash);
+        }
+        if (data.name && data.name.trim()) {
+            updates.push('name = ?');
+            params.push(data.name.trim());
+        }
+        if (cleanMobile && cleanMobile.length === 10) {
+            updates.push('mobile = ?');
+            params.push(cleanMobile);
+        }
+        if (updates.length > 0) {
+            updates.push('updated_at = NOW()');
+            params.push(admin.id);
+            await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
+        }
+        // Also update society contact_email / contact_phone if updated
+        if (cleanEmail) {
+            await pool.query('UPDATE societies SET contact_email = ? WHERE id = ?', [cleanEmail, societyId]);
+        }
+        if (cleanMobile && cleanMobile.length === 10) {
+            await pool.query('UPDATE societies SET contact_phone = ? WHERE id = ?', [cleanMobile, societyId]);
+        }
+        const [updatedAdmin] = await pool.query('SELECT id, name, email, mobile FROM users WHERE id = ?', [admin.id]);
+        return updatedAdmin[0];
+    }
+    else {
+        // Create new admin user for this society
+        const adminId = 'adm_' + (0, uuid_1.v4)().replace(/-/g, '').slice(0, 12);
+        const finalName = data.name?.trim() || 'Society Admin';
+        const finalMobile = cleanMobile && cleanMobile.length === 10 ? cleanMobile : ('9' + Math.floor(100000000 + Math.random() * 900000000));
+        const finalHash = pwdHash || bcryptjs_1.default.hashSync('admin123', 10);
+        await pool.query('INSERT INTO users (id, name, mobile, email, password_hash, role, society_id, status) VALUES (?, ?, ?, ?, ?, "ADMIN", ?, "ACTIVE")', [adminId, finalName, finalMobile, cleanEmail, finalHash, societyId]);
+        if (cleanEmail) {
+            await pool.query('UPDATE societies SET contact_email = ? WHERE id = ?', [cleanEmail, societyId]);
+        }
+        if (cleanMobile) {
+            await pool.query('UPDATE societies SET contact_phone = ? WHERE id = ?', [cleanMobile, societyId]);
+        }
+        return {
+            id: adminId,
+            name: finalName,
+            email: cleanEmail,
+            mobile: finalMobile,
+        };
+    }
 }
 // -------------------------------------------------------------
 // FLAT QUERIES
@@ -1267,6 +1379,82 @@ async function createGuardRecord(data) {
         status: 'on_duty',
         joinedDate: new Date().toISOString().slice(0, 10),
     };
+}
+async function updateGuardRecord(guardId, societyId, data) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        throw new Error('Database pool unavailable');
+    // Verify guard exists and belongs to this society
+    const [rows] = await pool.query(`SELECT g.id, g.user_id, u.mobile, u.name, g.status
+     FROM guards g
+     INNER JOIN users u ON g.user_id = u.id
+     WHERE g.id = ? AND u.society_id = ?
+     LIMIT 1`, [guardId, societyId]);
+    if (!rows || rows.length === 0) {
+        throw new Error('Guard device not found in your society');
+    }
+    const guard = rows[0];
+    const userId = guard.user_id;
+    const rawPhone = data.phone || data.mobile;
+    let cleanMobile = null;
+    if (rawPhone !== undefined && rawPhone !== null && String(rawPhone).trim() !== '') {
+        cleanMobile = String(rawPhone).replace(/\D/g, '').slice(-10);
+        if (cleanMobile.length < 10) {
+            throw new Error('Device login mobile must be a valid 10-digit number');
+        }
+        // Check if another user already has this mobile
+        const [existing] = await pool.query('SELECT id FROM users WHERE mobile = ? AND id != ? LIMIT 1', [cleanMobile, userId]);
+        if (existing.length > 0) {
+            throw new Error(`Mobile number '${cleanMobile}' is already assigned to another account.`);
+        }
+    }
+    // Pin update (4 digits)
+    let pinHash = null;
+    if (data.pin && String(data.pin).trim()) {
+        const cleanPin = String(data.pin).trim();
+        if (cleanPin.length < 4) {
+            throw new Error('Security PIN must be at least 4 digits');
+        }
+        pinHash = bcryptjs_1.default.hashSync(cleanPin, 10);
+    }
+    // Update user fields
+    const userUpdates = [];
+    const userParams = [];
+    if (data.name && data.name.trim()) {
+        userUpdates.push('name = ?');
+        userParams.push(data.name.trim());
+    }
+    if (cleanMobile) {
+        userUpdates.push('mobile = ?');
+        userParams.push(cleanMobile);
+    }
+    if (pinHash) {
+        userUpdates.push('pin_hash = ?');
+        userParams.push(pinHash);
+    }
+    if (userUpdates.length > 0) {
+        userUpdates.push('updated_at = NOW()');
+        userParams.push(userId);
+        await pool.query(`UPDATE users SET ${userUpdates.join(', ')} WHERE id = ?`, userParams);
+    }
+    // Update guard status
+    if (data.status) {
+        const sUpper = String(data.status).toUpperCase();
+        const dbStatus = sUpper.includes('OFF') ? 'OFF_DUTY' : sUpper.includes('LEAVE') ? 'ON_LEAVE' : 'ON_DUTY';
+        await pool.query('UPDATE guards SET status = ? WHERE id = ?', [dbStatus, guardId]);
+    }
+    const guards = await findGuardsWithDetails(societyId);
+    return guards.find((g) => g.id === guardId) || null;
+}
+async function deleteGuardRecord(guardId, societyId) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return false;
+    const [rows] = await pool.query(`SELECT g.id FROM guards g JOIN users u ON g.user_id = u.id WHERE g.id = ? AND u.society_id = ? LIMIT 1`, [guardId, societyId]);
+    if (!rows || rows.length === 0)
+        return false;
+    await pool.query('DELETE FROM guards WHERE id = ?', [guardId]);
+    return true;
 }
 async function findFlatsWithResidents(societyId) {
     const pool = await (0, mysql_1.getMysqlPool)();

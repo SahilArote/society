@@ -55,11 +55,15 @@ exports.PLANS_CONFIG = {
 };
 exports.PLANS_LIST = Object.values(exports.PLANS_CONFIG);
 function normalizePlan(planName, maxDevices) {
-    if (planName === 'ENTERPRISE_3_DEVICE' || planName === 'PRO_3_DEVICE' || planName === 'ENTERPRISE_CUSTOM' || maxDevices === 3 || (maxDevices && maxDevices > 2)) {
-        return exports.PLANS_CONFIG.ENTERPRISE_3_DEVICE;
+    const p = (planName || '').toUpperCase();
+    if (p === 'STANDARD_1_DEVICE' || p === 'STANDARD' || p === 'STARTER_1_DEVICE' || p.includes('STANDARD') || p.includes('STARTER') || maxDevices === 1) {
+        return exports.PLANS_CONFIG.STANDARD_1_DEVICE;
     }
-    if (planName === 'PREMIUM_2_DEVICE' || planName === 'DUAL_2_DEVICE' || maxDevices === 2) {
+    if (p === 'PREMIUM_2_DEVICE' || p === 'PREMIUM' || p === 'DUAL_2_DEVICE' || p.includes('PREMIUM') || p.includes('DUAL') || maxDevices === 2) {
         return exports.PLANS_CONFIG.PREMIUM_2_DEVICE;
+    }
+    if (p === 'ENTERPRISE_3_DEVICE' || p === 'ENTERPRISE' || p === 'PRO_3_DEVICE' || p.includes('ENTERPRISE') || p.includes('PRO') || (maxDevices && maxDevices >= 3)) {
+        return exports.PLANS_CONFIG.ENTERPRISE_3_DEVICE;
     }
     return exports.PLANS_CONFIG.STANDARD_1_DEVICE;
 }

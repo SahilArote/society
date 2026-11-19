@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS `societies` (
   `billing_cycle` VARCHAR(32) DEFAULT 'MONTHLY',
   `subscription_status` VARCHAR(32) DEFAULT 'ACTIVE',
   `subscription_expires_at` DATETIME DEFAULT NULL,
+  `trial_ends_at` DATETIME DEFAULT NULL,
   `status` VARCHAR(32) DEFAULT 'ACTIVE',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT NULL
@@ -352,5 +353,44 @@ CREATE TABLE IF NOT EXISTS `event_registrations` (
 
 CREATE INDEX idx_event_reg_user ON event_registrations(user_id);
 CREATE INDEX idx_event_reg_event ON event_registrations(event_id, status);
+
+-- 19. FCM Tokens Table
+CREATE TABLE IF NOT EXISTS `fcm_tokens` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `user_id` VARCHAR(64) NOT NULL,
+  `token` VARCHAR(512) NOT NULL,
+  `device_type` VARCHAR(32) DEFAULT 'android',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `uk_fcm_token` (`token`(190)),
+  KEY `idx_fcm_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 20. Push Subscriptions Table
+CREATE TABLE IF NOT EXISTS `push_subscriptions` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `user_id` VARCHAR(64) NOT NULL,
+  `endpoint` TEXT NOT NULL,
+  `p256dh` VARCHAR(255) NOT NULL,
+  `auth` VARCHAR(255) NOT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY `idx_push_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 21. Subscription Recharges Table
+CREATE TABLE IF NOT EXISTS `subscription_recharges` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `society_id` VARCHAR(64) NOT NULL,
+  `plan_name` VARCHAR(64) NOT NULL,
+  `amount` DECIMAL(10,2) NOT NULL,
+  `utr_number` VARCHAR(128) NOT NULL,
+  `screenshot_url` LONGTEXT DEFAULT NULL,
+  `status` ENUM('PENDING','VERIFIED','REJECTED') DEFAULT 'PENDING',
+  `admin_notes` TEXT DEFAULT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY `idx_recharge_society` (`society_id`),
+  FOREIGN KEY (`society_id`) REFERENCES `societies` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 
 
