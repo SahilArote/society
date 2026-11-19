@@ -1201,7 +1201,7 @@ async function createGuardRecord(data) {
     if (!pool)
         throw new Error('Database pool unavailable');
     const cleanMobile = data.mobile.replace(/\D/g, '').slice(-10);
-    const userId = `guard_${cleanMobile}`;
+    let userId = `guard_${cleanMobile}`;
     const guardId = `grd_${Date.now()}`;
     let targetGateId = data.gateId;
     if (!targetGateId && data.gateName) {
@@ -1213,10 +1213,21 @@ async function createGuardRecord(data) {
     }
     if (!targetGateId)
         targetGateId = 'gate_main';
-    // 1. Insert User
-    await pool.query(`INSERT INTO users (id, name, mobile, role, society_id, status)
-     VALUES (?, ?, ?, 'GUARD', ?, 'ACTIVE')
-     ON DUPLICATE KEY UPDATE name = VALUES(name)`, [userId, data.name.trim(), cleanMobile, data.societyId]);
+    // 1. Insert or update User
+    const [existingGuardUser] = await pool.query('SELECT id FROM users WHERE mobile = ? LIMIT 1', [cleanMobile]);
+    if (existingGuardUser && existingGuardUser.length > 0) {
+        userId = existingGuardUser[0].id;
+        await pool.query(`UPDATE users SET name = ?, society_id = ?, role = 'GUARD', status = 'ACTIVE' WHERE id = ?`, [data.name.trim(), data.societyId, userId]);
+    }
+    else {
+        await pool.query(`INSERT INTO users (id, name, mobile, role, society_id, status)
+       VALUES (?, ?, ?, 'GUARD', ?, 'ACTIVE')
+       ON DUPLICATE KEY UPDATE name = VALUES(name), role = 'GUARD', status = 'ACTIVE'`, [userId, data.name.trim(), cleanMobile, data.societyId]);
+        const [recheckGuard] = await pool.query('SELECT id FROM users WHERE mobile = ? LIMIT 1', [cleanMobile]);
+        if (recheckGuard && recheckGuard.length > 0) {
+            userId = recheckGuard[0].id;
+        }
+    }
     // 2. Insert Guard
     const shiftText = data.shift === 'evening' ? 'Evening Shift (02:00 PM - 10:00 PM)' :
         data.shift === 'night' ? 'Night Shift (10:00 PM - 06:00 AM)' :
@@ -1344,10 +1355,21 @@ async function createFlatRecord(data) {
     if (data.ownerName && data.ownerPhone) {
         const cleanDigits = data.ownerPhone.replace(/\D/g, '').slice(-10);
         if (cleanDigits.length === 10) {
-            residentId = `res_${cleanDigits}`;
-            await pool.query(`INSERT INTO users (id, name, mobile, role, society_id, status)
-         VALUES (?, ?, ?, 'RESIDENT', ?, 'ACTIVE')
-         ON DUPLICATE KEY UPDATE name = VALUES(name)`, [residentId, data.ownerName.trim(), cleanDigits, data.societyId]);
+            const [existingUser] = await pool.query('SELECT id FROM users WHERE mobile = ? LIMIT 1', [cleanDigits]);
+            if (existingUser && existingUser.length > 0) {
+                residentId = existingUser[0].id;
+                await pool.query(`UPDATE users SET name = COALESCE(NULLIF(?, ''), name), society_id = ?, status = 'ACTIVE' WHERE id = ?`, [data.ownerName.trim(), data.societyId, residentId]);
+            }
+            else {
+                residentId = `res_${cleanDigits}`;
+                await pool.query(`INSERT INTO users (id, name, mobile, role, society_id, status)
+           VALUES (?, ?, ?, 'RESIDENT', ?, 'ACTIVE')
+           ON DUPLICATE KEY UPDATE name = VALUES(name), status = 'ACTIVE'`, [residentId, data.ownerName.trim(), cleanDigits, data.societyId]);
+                const [recheck] = await pool.query('SELECT id FROM users WHERE mobile = ? LIMIT 1', [cleanDigits]);
+                if (recheck && recheck.length > 0) {
+                    residentId = recheck[0].id;
+                }
+            }
         }
     }
     await pool.query(`INSERT INTO flats (id, society_id, flat_number, wing, floor, resident_id)

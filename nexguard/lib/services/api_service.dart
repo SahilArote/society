@@ -302,10 +302,10 @@ class ApiService {
     return null;
   }
 
-  // Verify Pre-Approved Visitor Pass (Invite Code)
-  static Future<Map<String, dynamic>> verifyPassCode(String passCode) async {
+  // Lookup Pre-Approved Visitor Pass (Inspects details without check-in/consuming)
+  static Future<Map<String, dynamic>> lookupPassCode(String passCode) async {
     final token = await ensureAuthToken();
-    final url = Uri.parse('$baseUrl/invites/guard/verify');
+    final url = Uri.parse('$baseUrl/invites/guard/lookup');
 
     final response = await http
         .post(
@@ -328,9 +328,95 @@ class ApiService {
     } else {
       final msg = data['error']?['message'] ??
           data['message'] ??
-          'Failed to verify pass';
+          'Invalid or expired pass code';
       throw Exception(msg);
     }
+  }
+
+  // Check-In Pre-Approved Visitor Pass (With captured gate photo and optional vehicle/phone)
+  static Future<Map<String, dynamic>> checkInPassCode({
+    required String passCode,
+    String? photoPath,
+    String? vehicleNumber,
+    String? visitorPhone,
+  }) async {
+    final token = await ensureAuthToken();
+    final url = Uri.parse('$baseUrl/invites/guard/verify');
+
+    if (photoPath != null && photoPath.trim().isNotEmpty) {
+      final request = http.MultipartRequest('POST', url);
+      request.headers['Authorization'] = 'Bearer $token';
+      request.fields['passCode'] = passCode.trim();
+      if (vehicleNumber != null && vehicleNumber.trim().isNotEmpty) {
+        request.fields['vehicleNumber'] = vehicleNumber.trim();
+      }
+      if (visitorPhone != null && visitorPhone.trim().isNotEmpty) {
+        request.fields['visitorPhone'] = visitorPhone.trim();
+      }
+
+      final file = File(photoPath);
+      if (await file.exists()) {
+        final length = await file.length();
+        final stream = http.ByteStream(file.openRead());
+        final multipartFile = http.MultipartFile(
+          'photo',
+          stream,
+          length,
+          filename: photoPath.split(Platform.pathSeparator).last,
+          contentType: MediaType('image', 'jpeg'),
+        );
+        request.files.add(multipartFile);
+      }
+
+      final streamedResponse =
+          await request.send().timeout(const Duration(seconds: 30));
+      final response = await http.Response.fromStream(streamedResponse);
+      final data = jsonDecode(response.body);
+      if (response.statusCode >= 200 &&
+          response.statusCode < 300 &&
+          data['success'] == true) {
+        return data;
+      } else {
+        final msg = data['error']?['message'] ??
+            data['message'] ??
+            'Failed to check-in pass visitor';
+        throw Exception(msg);
+      }
+    } else {
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'passCode': passCode.trim(),
+              if (vehicleNumber != null && vehicleNumber.trim().isNotEmpty)
+                'vehicleNumber': vehicleNumber.trim(),
+              if (visitorPhone != null && visitorPhone.trim().isNotEmpty)
+                'visitorPhone': visitorPhone.trim(),
+            }),
+          )
+          .timeout(timeoutDuration);
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode >= 200 &&
+          response.statusCode < 300 &&
+          data['success'] == true) {
+        return data;
+      } else {
+        final msg = data['error']?['message'] ??
+            data['message'] ??
+            'Failed to check-in pass visitor';
+        throw Exception(msg);
+      }
+    }
+  }
+
+  // Verify Pre-Approved Visitor Pass (Invite Code) - Backward compatible
+  static Future<Map<String, dynamic>> verifyPassCode(String passCode) async {
+    return checkInPassCode(passCode: passCode);
   }
 
   // Record Visitor Entry (Gate Check-in / Inside)
