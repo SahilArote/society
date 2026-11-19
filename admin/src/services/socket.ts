@@ -6,7 +6,7 @@ function resolveSocketUrl(): string {
   if (url.endsWith('/')) {
     url = url.slice(0, -1);
   }
-  if (url.startsWith('http://')) {
+  if (url.startsWith('http://') && !url.includes('localhost') && !url.includes('127.0.0.1')) {
     url = url.replace(/^http:\/\//, 'https://');
   }
   return url;

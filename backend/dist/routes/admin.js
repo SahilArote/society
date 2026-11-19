@@ -5,10 +5,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const multer_1 = __importDefault(require("multer"));
+const uuid_1 = require("uuid");
 const db_1 = require("../database/db");
 const mysql_1 = require("../database/mysql");
 const auth_1 = require("../middleware/auth");
 const socketService_1 = require("../services/socketService");
+const subscription_1 = require("../utils/subscription");
 const router = (0, express_1.Router)();
 // GET /api/admin/activity
 // Live activity feed for admin (METADATA ONLY, STRICTLY NO VISITOR PHOTO)
@@ -22,10 +24,10 @@ router.get('/activity', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('AD
             visitorName: r.visitorName || 'Visitor',
             purpose: r.purpose || 'Personal',
             visitorType: r.visitorType || 'guest',
-            flatNumber: r.flatNumber || 'A-402',
-            residentName: r.residentName || 'Sahil Arote',
-            gateName: r.gateName || 'Main Gate',
-            guardName: r.guardName || 'Gate Security',
+            flatNumber: r.flatNumber || '—',
+            residentName: r.residentName || 'Resident',
+            gateName: r.gateName || 'Gate',
+            guardName: r.guardName || 'Security',
             status: r.status,
             requestedAt: r.requestedAt,
             respondedAt: r.respondedAt,
@@ -63,13 +65,73 @@ router.get('/stats', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN
         for (const r of requestRows) {
             statusCounts[r.status] = Number(r.cnt || 0);
         }
-        // 7-day visitor traffic trend
-        let visitorTrend = [];
+        // 1. Today's visitor status breakdown
+        let insideToday = 0;
+        let exitedToday = 0;
+        try {
+            const [todayStatusRows] = await pool.query('SELECT status, COUNT(*) as cnt FROM visitor_requests WHERE society_id = ? AND DATE(requested_at) = CURRENT_DATE() GROUP BY status', [societyId]);
+            for (const ts of todayStatusRows) {
+                const st = String(ts.status || '').toUpperCase();
+                if (st === 'INSIDE')
+                    insideToday += Number(ts.cnt || 0);
+                if (st === 'EXITED')
+                    exitedToday += Number(ts.cnt || 0);
+            }
+        }
+        catch (todayErr) {
+            console.warn('[ADMIN_STATS] Error querying todayStatus:', todayErr);
+        }
+        // 2. Flagged entries today (denied/rejected or flagged with note)
+        let flaggedToday = 0;
+        try {
+            const [flaggedRows] = await pool.query("SELECT COUNT(*) as cnt FROM visitor_requests WHERE society_id = ? AND DATE(requested_at) = CURRENT_DATE() AND (UPPER(status) IN ('REJECTED', 'DENIED') OR rejection_reason IS NOT NULL)", [societyId]);
+            flaggedToday = Number(flaggedRows[0]?.cnt || 0);
+        }
+        catch (flagErr) {
+            console.warn('[ADMIN_STATS] Error querying flaggedToday:', flagErr);
+        }
+        // 3. Average entry turnaround time (in minutes/seconds)
+        let avgEntryTime = '—';
+        try {
+            const [avgTimeRows] = await pool.query("SELECT AVG(TIMESTAMPDIFF(SECOND, requested_at, COALESCE(entry_time, responded_at))) as avg_sec FROM visitor_requests WHERE society_id = ? AND (entry_time IS NOT NULL OR responded_at IS NOT NULL) AND requested_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)", [societyId]);
+            const avgSec = Number(avgTimeRows[0]?.avg_sec || 0);
+            if (avgSec > 0) {
+                if (avgSec < 60) {
+                    avgEntryTime = `${Math.round(avgSec)}s`;
+                }
+                else {
+                    avgEntryTime = `${(avgSec / 60).toFixed(1)} min`;
+                }
+            }
+        }
+        catch (avgErr) {
+            console.warn('[ADMIN_STATS] Error querying avgEntryTime:', avgErr);
+        }
+        // 4. Family members count
+        let totalFamily = 0;
+        try {
+            const [famRows] = await pool.query('SELECT COUNT(*) as cnt FROM family_members WHERE society_id = ?', [societyId]);
+            totalFamily = Number(famRows[0]?.cnt || 0);
+        }
+        catch (famErr) {
+            console.warn('[ADMIN_STATS] Error querying family members:', famErr);
+        }
+        // 5. 7-day visitor traffic trend (real calendar dates with real counts, no fake static values)
+        const trendMap = {};
+        const visitorTrend = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateKey = d.toISOString().slice(0, 10);
+            const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+            const item = { day: dayName, guests: 0, deliveries: 0, cabs: 0, services: 0, total: 0 };
+            trendMap[dateKey] = item;
+            visitorTrend.push(item);
+        }
         try {
             const [trendRows] = await pool.query(`
         SELECT 
-          DATE_FORMAT(vr.requested_at, '%a') as day_name,
-          DATE(vr.requested_at) as req_date,
+          DATE_FORMAT(vr.requested_at, '%Y-%m-%d') as req_date,
           SUM(CASE WHEN LOWER(v.visitor_type) = 'guest' OR LOWER(v.purpose) LIKE '%guest%' THEN 1 ELSE 0 END) as guests,
           SUM(CASE WHEN LOWER(v.visitor_type) = 'delivery' OR LOWER(v.purpose) LIKE '%delivery%' THEN 1 ELSE 0 END) as deliveries,
           SUM(CASE WHEN LOWER(v.visitor_type) = 'cab' OR LOWER(v.purpose) LIKE '%cab%' THEN 1 ELSE 0 END) as cabs,
@@ -79,38 +141,71 @@ router.get('/stats', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN
         JOIN visitors v ON vr.visitor_id = v.id
         WHERE vr.society_id = ? 
           AND vr.requested_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 DAY)
-        GROUP BY DATE(vr.requested_at), DATE_FORMAT(vr.requested_at, '%a')
+        GROUP BY DATE_FORMAT(vr.requested_at, '%Y-%m-%d')
         ORDER BY req_date ASC
       `, [societyId]);
             if (trendRows && trendRows.length > 0) {
-                visitorTrend = trendRows.map((tr) => ({
-                    day: tr.day_name,
-                    guests: Number(tr.guests || 0),
-                    deliveries: Number(tr.deliveries || 0),
-                    cabs: Number(tr.cabs || 0),
-                    services: Number(tr.services || 0),
-                    total: Number(tr.total || 0),
-                }));
+                for (const tr of trendRows) {
+                    const dateStr = String(tr.req_date || '').slice(0, 10);
+                    if (trendMap[dateStr]) {
+                        trendMap[dateStr].guests = Number(tr.guests || 0);
+                        trendMap[dateStr].deliveries = Number(tr.deliveries || 0);
+                        trendMap[dateStr].cabs = Number(tr.cabs || 0);
+                        trendMap[dateStr].services = Number(tr.services || 0);
+                        trendMap[dateStr].total = Number(tr.total || 0);
+                    }
+                }
             }
         }
         catch (trendErr) {
-            console.warn('[ADMIN_STATS] Error querying trend, fallback:', trendErr);
+            console.warn('[ADMIN_STATS] Error querying trend:', trendErr);
         }
-        if (visitorTrend.length === 0) {
-            visitorTrend = [
-                { day: 'Mon', guests: 2, deliveries: 3, cabs: 1, services: 0, total: 6 },
-                { day: 'Tue', guests: 3, deliveries: 4, cabs: 2, services: 1, total: 10 },
-                { day: 'Wed', guests: 4, deliveries: 5, cabs: 2, services: 1, total: 12 },
-                { day: 'Thu', guests: 3, deliveries: 4, cabs: 1, services: 0, total: 8 },
-                { day: 'Fri', guests: 5, deliveries: 6, cabs: 3, services: 2, total: 16 },
-                { day: 'Sat', guests: 6, deliveries: 5, cabs: 4, services: 2, total: 17 },
-                { day: 'Sun', guests: 7, deliveries: 4, cabs: 3, services: 1, total: 15 },
-            ];
+        // 6. Monthly trend for past 6 months (dynamically aggregated)
+        const monthlyTrendMap = {};
+        const monthlyTrend = [];
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date();
+            d.setMonth(d.getMonth() - i);
+            const mName = d.toLocaleDateString('en-US', { month: 'short' });
+            const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const entry = { month: mName, total: 0, approved: 0, rejected: 0 };
+            monthlyTrendMap[mKey] = entry;
+            monthlyTrend.push(entry);
+        }
+        try {
+            const [monthlyRows] = await pool.query(`
+        SELECT 
+          DATE_FORMAT(requested_at, '%Y-%m') as m_key,
+          COUNT(*) as total,
+          SUM(CASE WHEN UPPER(status) IN ('APPROVED', 'INSIDE', 'EXITED') THEN 1 ELSE 0 END) as approved,
+          SUM(CASE WHEN UPPER(status) IN ('REJECTED', 'DENIED') THEN 1 ELSE 0 END) as rejected
+        FROM visitor_requests
+        WHERE society_id = ? AND requested_at >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)
+        GROUP BY DATE_FORMAT(requested_at, '%Y-%m')
+        ORDER BY m_key ASC
+      `, [societyId]);
+            if (monthlyRows) {
+                for (const mr of monthlyRows) {
+                    if (monthlyTrendMap[mr.m_key]) {
+                        monthlyTrendMap[mr.m_key].total = Number(mr.total || 0);
+                        monthlyTrendMap[mr.m_key].approved = Number(mr.approved || 0);
+                        monthlyTrendMap[mr.m_key].rejected = Number(mr.rejected || 0);
+                    }
+                }
+            }
+        }
+        catch (mErr) {
+            console.warn('[ADMIN_STATS] Error querying monthly trend:', mErr);
         }
         const totalFlats = Number(flatRows[0]?.total || 0);
         const occupiedFlats = Number(flatRows[0]?.occupied || 0);
         const vacantFlats = Math.max(0, totalFlats - occupiedFlats);
         const occupancyRate = totalFlats > 0 ? Math.round((occupiedFlats / totalFlats) * 100) : 0;
+        let subscriptionInfo = null;
+        const society = await (0, db_1.findSocietyById)(societyId);
+        if (society) {
+            subscriptionInfo = (0, subscription_1.computeSocietySubscriptionStatus)(society);
+        }
         return res.json({
             success: true,
             data: {
@@ -119,7 +214,12 @@ router.get('/stats', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN
                 vacantFlats,
                 occupancyRate,
                 totalResidents: Number(residentRows[0]?.cnt || 0),
+                totalFamily,
                 visitorsToday: Number(todayReqRows[0]?.cnt || 0),
+                insideToday,
+                exitedToday,
+                flaggedToday,
+                avgEntryTime,
                 pendingApprovals: (statusCounts['PENDING'] || 0) + (statusCounts['pending'] || 0),
                 approvedCount: (statusCounts['APPROVED'] || 0) + (statusCounts['INSIDE'] || 0) + (statusCounts['EXITED'] || 0),
                 rejectedCount: (statusCounts['REJECTED'] || 0) + (statusCounts['denied'] || 0),
@@ -129,6 +229,12 @@ router.get('/stats', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN
                 activeGuards: Number(guardRows[0]?.active || 0),
                 totalGuards: Number(guardRows[0]?.total || 0),
                 visitorTrend,
+                monthlyTrend,
+                maintenanceAmount: society ? Number(society.maintenanceAmount || 0) : 0,
+                maintenanceDueDay: society ? Number(society.maintenanceDueDay || 5) : 5,
+                billingCycle: society?.billingCycle || 'MONTHLY',
+                societyName: society?.name || 'Society',
+                subscription: subscriptionInfo,
             },
         });
     }
@@ -411,29 +517,29 @@ router.get('/flats/csv-template', async (req, res) => {
             const societyId = req.user?.societyId || 'soc_greengate';
             const [dbFlats] = await pool.query(`SELECT flat_number, wing, floor FROM flats WHERE society_id = ? LIMIT 6`, [societyId]);
             if (dbFlats && dbFlats.length > 0) {
-                sampleRows.push('FlatNumber,Wing,Floor,ResidentName,MobileNumber,FlatType');
+                sampleRows.push('FlatNumber,Wing,Floor,ResidentName,MobileNumber,FlatType,VehicleNumber');
                 const sampleResidents = [
-                    { name: 'Aarav Sharma', phone: '9876543210' },
-                    { name: 'Priya Mehta', phone: '9876543211' },
-                    { name: 'Vikram Malhotra', phone: '9876543212' },
-                    { name: '', phone: '' }, // sample vacant
-                    { name: 'Neha Verma', phone: '9876543214' },
-                    { name: 'Rohan Desai', phone: '9876543215' },
+                    { name: 'Aarav Sharma', phone: '9876543210', vehicle: 'MH02AB1234' },
+                    { name: 'Priya Mehta', phone: '9876543211', vehicle: 'MH02CD5678' },
+                    { name: 'Vikram Malhotra', phone: '9876543212', vehicle: 'MH02EF9012' },
+                    { name: '', phone: '', vehicle: '' }, // sample vacant
+                    { name: 'Neha Verma', phone: '9876543214', vehicle: 'MH02GH3456' },
+                    { name: 'Rohan Desai', phone: '9876543215', vehicle: 'MH02IJ7890' },
                 ];
                 dbFlats.forEach((f, i) => {
-                    const sample = sampleResidents[i] || { name: '', phone: '' };
-                    sampleRows.push(`${f.flat_number},${f.wing},${f.floor || 1},${sample.name},${sample.phone},2BHK`);
+                    const sample = sampleResidents[i] || { name: '', phone: '', vehicle: '' };
+                    sampleRows.push(`${f.flat_number},${f.wing},${f.floor || 1},${sample.name},${sample.phone},2BHK,${sample.vehicle}`);
                 });
             }
         }
         if (sampleRows.length === 0) {
             sampleRows = [
-                'FlatNumber,Wing,Floor,ResidentName,MobileNumber,FlatType',
-                'A-101,Wing Tower A,1,Aarav Sharma,9876543210,2BHK',
-                'A-102,Wing Tower A,1,Priya Mehta,9876543211,2BHK',
-                'B-101,Wing Tower B,1,Vikram Malhotra,9876543212,3BHK',
-                'B-102,Wing Tower B,1,,,2BHK',
-                'C-101,Wing Tower C,1,Neha Verma,9876543214,1BHK',
+                'FlatNumber,Wing,Floor,ResidentName,MobileNumber,FlatType,VehicleNumber',
+                'A-101,Wing Tower A,1,Aarav Sharma,9876543210,2BHK,MH02AB1234',
+                'A-102,Wing Tower A,1,Priya Mehta,9876543211,2BHK,MH02CD5678',
+                'B-101,Wing Tower B,1,Vikram Malhotra,9876543212,3BHK,MH02EF9012',
+                'B-102,Wing Tower B,1,,,,',
+                'C-101,Wing Tower C,1,Neha Verma,9876543214,1BHK,MH02GH3456',
             ];
         }
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -442,10 +548,10 @@ router.get('/flats/csv-template', async (req, res) => {
     }
     catch (err) {
         const fallback = [
-            'FlatNumber,Wing,Floor,ResidentName,MobileNumber,FlatType',
-            'A-101,Wing Tower A,1,Aarav Sharma,9876543210,2BHK',
-            'A-102,Wing Tower A,1,Priya Mehta,9876543211,2BHK',
-            'B-101,Wing Tower B,1,,,2BHK',
+            'FlatNumber,Wing,Floor,ResidentName,MobileNumber,FlatType,VehicleNumber',
+            'A-101,Wing Tower A,1,Aarav Sharma,9876543210,2BHK,MH02AB1234',
+            'A-102,Wing Tower A,1,Priya Mehta,9876543211,2BHK,MH02CD5678',
+            'B-101,Wing Tower B,1,,,,',
         ].join('\r\n');
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', 'attachment; filename="greengate_flats_template.csv"');
@@ -545,6 +651,7 @@ router.post('/flats/bulk-import', auth_1.authenticateToken, (0, auth_1.authorize
             let colResident = 3;
             let colMobile = 4;
             let colType = 5;
+            let colVehicle = -1;
             let hasHeader = false;
             const firstRow = parsedRows[0];
             firstRow.forEach((col, idx) => {
@@ -569,6 +676,9 @@ router.post('/flats/bulk-import', auth_1.authenticateToken, (0, auth_1.authorize
                 else if (['flattype', 'type', 'config', 'configuration'].includes(norm)) {
                     colType = idx;
                 }
+                else if (['vehiclenumber', 'vehicleno', 'vehicle', 'vehicles', 'carno', 'vehiclenumbers', 'vehicleplate'].includes(norm)) {
+                    colVehicle = idx;
+                }
             });
             const startIdx = hasHeader ? 1 : 0;
             for (let r = startIdx; r < parsedRows.length; r++) {
@@ -582,6 +692,7 @@ router.post('/flats/bulk-import', auth_1.authenticateToken, (0, auth_1.authorize
                     residentName: row[colResident] || '',
                     mobileNumber: row[colMobile] || '',
                     flatType: row[colType] || '',
+                    vehicleNumber: colVehicle !== -1 ? (row[colVehicle] || '') : '',
                     sourceRow: r + 1,
                 });
             }
@@ -595,6 +706,7 @@ router.post('/flats/bulk-import', auth_1.authenticateToken, (0, auth_1.authorize
             let colResident = 3;
             let colMobile = 4;
             let colType = 5;
+            let colVehicle = -1;
             let hasHeader = false;
             if (parsedRows.length > 0) {
                 parsedRows[0].forEach((col, idx) => {
@@ -619,6 +731,9 @@ router.post('/flats/bulk-import', auth_1.authenticateToken, (0, auth_1.authorize
                     else if (['flattype', 'type', 'config', 'configuration'].includes(norm)) {
                         colType = idx;
                     }
+                    else if (['vehiclenumber', 'vehicleno', 'vehicle', 'vehicles', 'carno', 'vehiclenumbers', 'vehicleplate'].includes(norm)) {
+                        colVehicle = idx;
+                    }
                 });
                 const startIdx = hasHeader ? 1 : 0;
                 for (let r = startIdx; r < parsedRows.length; r++) {
@@ -632,6 +747,7 @@ router.post('/flats/bulk-import', auth_1.authenticateToken, (0, auth_1.authorize
                         residentName: row[colResident] || '',
                         mobileNumber: row[colMobile] || '',
                         flatType: row[colType] || '',
+                        vehicleNumber: colVehicle !== -1 ? (row[colVehicle] || '') : '',
                         sourceRow: r + 1,
                     });
                 }
@@ -646,6 +762,7 @@ router.post('/flats/bulk-import', auth_1.authenticateToken, (0, auth_1.authorize
                 residentName: String(rec.residentName || rec.ownerName || rec.name || '').trim(),
                 mobileNumber: String(rec.mobileNumber || rec.mobile || rec.phone || '').trim(),
                 flatType: String(rec.flatType || rec.type || '').trim(),
+                vehicleNumber: String(rec.vehicleNumber || rec.vehicleNo || rec.vehicle || rec.vehicles || '').trim(),
                 sourceRow: idx + 1,
             }));
         }
@@ -672,21 +789,41 @@ router.post('/flats/bulk-import', auth_1.authenticateToken, (0, auth_1.authorize
         for (const item of recordsToProcess) {
             const rowNum = item.sourceRow;
             const rawFlatNumber = item.flatNumber.trim();
-            const rawWing = item.wing.trim();
+            let rawWing = item.wing.trim();
             if (!rawFlatNumber) {
                 errors.push({ row: rowNum, reason: 'Flat number is required' });
                 failedCount++;
                 continue;
             }
-            if (!rawWing) {
-                errors.push({ row: rowNum, flat: rawFlatNumber, reason: 'Wing identifier is required' });
-                failedCount++;
-                continue;
-            }
-            const cleanWing = rawWing.toLowerCase().startsWith('wing')
-                ? rawWing
-                : `Wing ${rawWing.toUpperCase()}`;
             const cleanFlatNumber = rawFlatNumber.toUpperCase();
+            const cleanFlatAlphaNum = cleanFlatNumber.replace(/[^A-Z0-9]/g, '');
+            // Auto-extract wing from flat number if wing is missing (e.g. "A-101" -> wing "A")
+            if (!rawWing) {
+                const match = rawFlatNumber.match(/^([A-Za-z]+)[-\s]?\d+/);
+                if (match) {
+                    rawWing = match[1].toUpperCase();
+                }
+            }
+            // Auto-resolve wing if missing: check existing society flats or parse flat number prefix
+            if (!rawWing) {
+                const matchExisting = societyFlats.find((f) => f.flat_number.toUpperCase() === cleanFlatNumber ||
+                    f.flat_number.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanFlatAlphaNum);
+                if (matchExisting && matchExisting.wing) {
+                    rawWing = matchExisting.wing;
+                }
+                else {
+                    const prefixMatch = cleanFlatNumber.match(/^([A-Za-z]+)/);
+                    if (prefixMatch) {
+                        rawWing = `Wing ${prefixMatch[1].toUpperCase()}`;
+                    }
+                    else {
+                        rawWing = 'Wing A';
+                    }
+                }
+            }
+            const inputWingNorm = normalizeWing(rawWing);
+            const matchedSocietyWing = societyFlats.find(f => normalizeWing(f.wing) === inputWingNorm)?.wing;
+            const cleanWing = matchedSocietyWing || (rawWing.toLowerCase().startsWith('wing') ? rawWing : `Wing ${rawWing.toUpperCase()}`);
             // Calculate floor
             let floor = parseInt(String(item.floor || ''), 10);
             if (isNaN(floor) || floor <= 0) {
@@ -720,46 +857,109 @@ router.post('/flats/bulk-import', auth_1.authenticateToken, (0, auth_1.authorize
             }
             try {
                 // Smart Normalization Matching:
-                // Match by exact string OR normalized wing + normalized digits
-                const inputWingNorm = normalizeWing(rawWing);
+                // Match by exact flat_number string, normalized alphanumeric, OR wing + normalized digits
                 const inputFlatNorm = normalizeFlatNum(rawFlatNumber, inputWingNorm);
                 const inputDigits = rawFlatNumber.replace(/\D/g, '');
+                // 1. Direct exact flat_number match
                 let matchedFlat = societyFlats.find((f) => {
-                    // 1. Direct exact match
-                    if (f.flat_number.toUpperCase() === cleanFlatNumber &&
-                        (f.wing.toUpperCase() === cleanWing.toUpperCase() || f.wing.toUpperCase() === rawWing.toUpperCase())) {
-                        return true;
-                    }
-                    const dbWingNorm = normalizeWing(f.wing);
-                    const dbFlatNorm = normalizeFlatNum(f.flat_number, dbWingNorm);
-                    const dbDigits = f.flat_number.replace(/\D/g, '');
-                    // 2. Both belong to the same wing tower/block
-                    if (dbWingNorm === inputWingNorm && inputWingNorm) {
-                        // Normalized numbers match (e.g. '102' vs 'A-102')
-                        if (dbFlatNorm === inputFlatNorm && inputFlatNorm)
+                    if (f.flat_number.toUpperCase() === cleanFlatNumber) {
+                        const dbWingNorm = normalizeWing(f.wing);
+                        if (f.wing.toUpperCase() === cleanWing.toUpperCase() ||
+                            f.wing.toUpperCase() === rawWing.toUpperCase() ||
+                            (dbWingNorm && inputWingNorm && dbWingNorm === inputWingNorm)) {
                             return true;
-                        // Pure digits match (e.g. '102' vs '102')
-                        if (inputDigits && inputDigits === dbDigits)
+                        }
+                        const sameNumberCount = societyFlats.filter((sf) => sf.flat_number.toUpperCase() === cleanFlatNumber).length;
+                        if (sameNumberCount === 1)
                             return true;
                     }
                     return false;
                 });
+                // 2. Alphanumeric flat_number match (e.g. A-901 vs A901)
+                if (!matchedFlat && cleanFlatAlphaNum.length > 0) {
+                    matchedFlat = societyFlats.find((f) => {
+                        const dbFlatAlphaNum = f.flat_number.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                        if (dbFlatAlphaNum === cleanFlatAlphaNum) {
+                            const dbWingNorm = normalizeWing(f.wing);
+                            if (f.wing.toUpperCase() === cleanWing.toUpperCase() ||
+                                (dbWingNorm && inputWingNorm && dbWingNorm === inputWingNorm)) {
+                                return true;
+                            }
+                            const sameAlphaNumCount = societyFlats.filter((sf) => sf.flat_number.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanFlatAlphaNum).length;
+                            if (sameAlphaNumCount === 1)
+                                return true;
+                        }
+                        return false;
+                    });
+                }
+                // 3. Wing + flat digits/normalized match (e.g. '102' vs 'A-102' in Wing A)
+                if (!matchedFlat && inputWingNorm) {
+                    matchedFlat = societyFlats.find((f) => {
+                        const dbWingNorm = normalizeWing(f.wing);
+                        const dbFlatNorm = normalizeFlatNum(f.flat_number, dbWingNorm);
+                        const dbDigits = f.flat_number.replace(/\D/g, '');
+                        if (dbWingNorm === inputWingNorm) {
+                            if (dbFlatNorm === inputFlatNorm && inputFlatNorm)
+                                return true;
+                            if (inputDigits && inputDigits === dbDigits)
+                                return true;
+                        }
+                        return false;
+                    });
+                }
                 const existing = matchedFlat;
+                // Safe Resident ID Resolution (prevent foreign key constraint failure on flats.resident_id)
                 let residentId = null;
                 if (cleanMobile) {
-                    residentId = `res_${cleanMobile}`;
-                    await pool.query(`INSERT INTO users (id, name, mobile, role, society_id, status)
-               VALUES (?, ?, ?, 'RESIDENT', ?, 'ACTIVE')
-               ON DUPLICATE KEY UPDATE name = VALUES(name), society_id = VALUES(society_id), status = 'ACTIVE'`, [residentId, cleanResidentName, cleanMobile, societyId]);
+                    const [existingUsers] = await pool.query(`SELECT id, name FROM users WHERE mobile = ? LIMIT 1`, [cleanMobile]);
+                    if (existingUsers && existingUsers.length > 0) {
+                        residentId = existingUsers[0].id;
+                        if (cleanResidentName) {
+                            await pool.query(`UPDATE users 
+                   SET name = ?, society_id = ?, status = 'ACTIVE' 
+                   WHERE id = ?`, [cleanResidentName, societyId, residentId]);
+                        }
+                    }
+                    else {
+                        residentId = `res_${cleanMobile}`;
+                        await pool.query(`INSERT INTO users (id, name, mobile, role, society_id, status)
+                 VALUES (?, ?, ?, 'RESIDENT', ?, 'ACTIVE')
+                 ON DUPLICATE KEY UPDATE name = VALUES(name), society_id = VALUES(society_id), status = 'ACTIVE'`, [residentId, cleanResidentName || `Resident ${cleanFlatNumber}`, cleanMobile, societyId]);
+                        // Fetch the actual ID in case ON DUPLICATE KEY fired on mobile
+                        const [recheckUsers] = await pool.query(`SELECT id FROM users WHERE mobile = ? LIMIT 1`, [cleanMobile]);
+                        if (recheckUsers && recheckUsers.length > 0) {
+                            residentId = recheckUsers[0].id;
+                        }
+                    }
+                }
+                // Determine final resident ID with foreign key validation
+                let finalResidentId = null;
+                const isExplicitlyVacant = !cleanMobile &&
+                    item.residentName !== undefined &&
+                    item.residentName.trim().toLowerCase() === 'vacant';
+                if (isExplicitlyVacant) {
+                    finalResidentId = null;
+                }
+                else if (residentId !== null) {
+                    finalResidentId = residentId;
+                }
+                else if (existing && existing.resident_id) {
+                    // Verify existing resident_id still exists in users table to prevent FK errors
+                    const [validUser] = await pool.query(`SELECT id FROM users WHERE id = ? LIMIT 1`, [existing.resident_id]);
+                    if (validUser && validUser.length > 0) {
+                        finalResidentId = existing.resident_id;
+                    }
+                    else {
+                        finalResidentId = null;
+                    }
                 }
                 let flatId;
                 let finalWing = cleanWing;
                 let finalFlatNumber = cleanFlatNumber;
                 if (existing) {
                     flatId = existing.id;
-                    finalWing = existing.wing; // Preserve society canonical wing (e.g. "Wing Tower A")
-                    finalFlatNumber = existing.flat_number; // Preserve society canonical number (e.g. "A-102")
-                    const finalResidentId = residentId !== null ? residentId : existing.resident_id;
+                    finalWing = existing.wing || cleanWing; // Preserve society canonical wing (e.g. "Wing Tower A")
+                    finalFlatNumber = existing.flat_number || cleanFlatNumber; // Preserve society canonical number (e.g. "A-102")
                     await pool.query(`UPDATE flats 
                SET floor = ?, resident_id = ?
                WHERE id = ?`, [floor, finalResidentId, flatId]);
@@ -769,27 +969,78 @@ router.post('/flats/bulk-import', auth_1.authenticateToken, (0, auth_1.authorize
                     updatedCount++;
                 }
                 else {
-                    flatId = `flat_${cleanFlatNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-                    await pool.query(`INSERT INTO flats (id, society_id, flat_number, wing, floor, resident_id)
-               VALUES (?, ?, ?, ?, ?, ?)`, [flatId, societyId, cleanFlatNumber, cleanWing, floor, residentId || null]);
-                    // Add to in-memory list so duplicate rows in the same file also match
-                    societyFlats.push({
-                        id: flatId,
-                        flat_number: cleanFlatNumber,
-                        wing: cleanWing,
-                        floor,
-                        resident_id: residentId || null,
-                    });
-                    createdCount++;
+                    // Check directly in database for matching flat
+                    const [dbDirect] = await pool.query(`SELECT id, wing, flat_number, resident_id FROM flats WHERE society_id = ? AND (flat_number = ? OR (wing = ? AND flat_number = ?)) LIMIT 1`, [societyId, cleanFlatNumber, cleanWing, cleanFlatNumber]);
+                    if (dbDirect && dbDirect.length > 0) {
+                        flatId = dbDirect[0].id;
+                        finalWing = dbDirect[0].wing;
+                        finalFlatNumber = dbDirect[0].flat_number;
+                        await pool.query(`UPDATE flats 
+                 SET floor = ?, resident_id = ?
+                 WHERE id = ?`, [floor, finalResidentId, flatId]);
+                        updatedCount++;
+                    }
+                    else {
+                        flatId = `flat_${cleanFlatNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+                        await pool.query(`INSERT INTO flats (id, society_id, flat_number, wing, floor, resident_id)
+                 VALUES (?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE floor = VALUES(floor), resident_id = VALUES(resident_id)`, [flatId, societyId, cleanFlatNumber, cleanWing, floor, finalResidentId]);
+                        // In case of duplicate key match on (society_id, wing, flat_number), retrieve actual id
+                        const [actualFlat] = await pool.query(`SELECT id FROM flats WHERE society_id = ? AND wing = ? AND flat_number = ? LIMIT 1`, [societyId, cleanWing, cleanFlatNumber]);
+                        if (actualFlat && actualFlat.length > 0) {
+                            flatId = actualFlat[0].id;
+                        }
+                        // Add to in-memory list so duplicate rows in the same file also match
+                        societyFlats.push({
+                            id: flatId,
+                            flat_number: cleanFlatNumber,
+                            wing: cleanWing,
+                            floor,
+                            resident_id: finalResidentId,
+                        });
+                        createdCount++;
+                    }
+                }
+                // Import Vehicle Number(s) if provided
+                if (item.vehicleNumber && item.vehicleNumber.trim()) {
+                    const rawVehicles = item.vehicleNumber
+                        .split(/[,;\/]/)
+                        .map((v) => v.trim().toUpperCase())
+                        .filter((v) => v.length > 0);
+                    const targetResidentId = finalResidentId || residentId;
+                    if (targetResidentId) {
+                        for (const vNo of rawVehicles) {
+                            const [exVeh] = await pool.query(`SELECT id FROM vehicles WHERE society_id = ? AND vehicle_number = ? LIMIT 1`, [societyId, vNo]);
+                            if (exVeh && exVeh.length > 0) {
+                                await pool.query(`UPDATE vehicles SET flat_id = ?, resident_id = ? WHERE id = ?`, [flatId, targetResidentId, exVeh[0].id]);
+                            }
+                            else {
+                                const vehId = `veh_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+                                await pool.query(`INSERT INTO vehicles (id, society_id, resident_id, flat_id, vehicle_number, type, brand, model, color, status)
+                     VALUES (?, ?, ?, ?, ?, 'car', '', '', '#000000', 'ACTIVE')`, [vehId, societyId, targetResidentId, flatId, vNo]);
+                            }
+                        }
+                    }
+                }
+                let resultResidentName = cleanResidentName || undefined;
+                let resultMobile = cleanMobile || undefined;
+                if (!resultResidentName && finalResidentId) {
+                    const [uRow] = await pool.query(`SELECT name, mobile FROM users WHERE id = ? LIMIT 1`, [finalResidentId]);
+                    if (uRow && uRow.length > 0) {
+                        resultResidentName = uRow[0].name;
+                        if (!resultMobile)
+                            resultMobile = uRow[0].mobile;
+                    }
                 }
                 importedFlats.push({
                     id: flatId,
                     flatNumber: finalFlatNumber,
                     wing: finalWing,
                     floor,
-                    status: residentId || (existing && existing.resident_id) ? 'occupied' : 'vacant',
-                    residentName: cleanResidentName || undefined,
-                    mobile: cleanMobile || undefined,
+                    status: finalResidentId ? 'occupied' : 'vacant',
+                    residentName: resultResidentName,
+                    mobile: resultMobile,
+                    vehicleNumber: item.vehicleNumber || undefined,
                     isUpdate: Boolean(existing),
                 });
             }
@@ -822,6 +1073,120 @@ router.post('/flats/bulk-import', auth_1.authenticateToken, (0, auth_1.authorize
         return res.status(500).json({
             success: false,
             error: { code: 'SERVER_ERROR', message: err.message || 'Failed to process bulk import' },
+        });
+    }
+});
+// PUT /api/admin/flats/:id
+// Update resident and flat details, excluding flat number
+router.put('/flats/:id', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const societyId = req.user?.societyId || 'soc_greengate';
+        const flatId = req.params.id;
+        const { wing, floor, residentName, residentMobile, residentEmail, vehicleNumbers, status, } = req.body;
+        const pool = await (0, mysql_1.getMysqlPool)();
+        if (!pool) {
+            return res.status(500).json({
+                success: false,
+                error: { code: 'DATABASE_ERROR', message: 'Database pool unavailable' },
+            });
+        }
+        const [flatRows] = await pool.query(`SELECT id, flat_number, wing, floor, resident_id FROM flats WHERE id = ? AND society_id = ?`, [flatId, societyId]);
+        if (!flatRows || flatRows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: { code: 'NOT_FOUND', message: 'Flat not found' },
+            });
+        }
+        const flat = flatRows[0];
+        // Update wing and floor (flat number is strictly preserved and cannot be edited)
+        let updatedWing = flat.wing;
+        if (wing && typeof wing === 'string' && wing.trim()) {
+            const cleanW = wing.trim();
+            updatedWing = cleanW.toLowerCase().startsWith('wing') ? cleanW : `Wing ${cleanW.toUpperCase()}`;
+        }
+        let updatedFloor = flat.floor;
+        if (floor !== undefined && !isNaN(Number(floor))) {
+            updatedFloor = Number(floor);
+        }
+        await pool.query(`UPDATE flats SET wing = ?, floor = ? WHERE id = ?`, [updatedWing, updatedFloor, flatId]);
+        let targetResidentId = flat.resident_id;
+        // Handle Occupancy Status & Resident Information
+        if (status === 'vacant') {
+            // Flat is marked vacant -> clear resident_id from flat
+            await pool.query(`UPDATE flats SET resident_id = NULL WHERE id = ?`, [flatId]);
+            targetResidentId = null;
+        }
+        else if (residentMobile && residentMobile.trim()) {
+            const digits = residentMobile.replace(/\D/g, '');
+            const cleanMobile = digits.slice(-10);
+            const cleanName = residentName?.trim() || `Resident ${flat.flat_number}`;
+            const cleanEmail = residentEmail?.trim() || null;
+            // Check if user with this mobile exists
+            const [existingUsers] = await pool.query(`SELECT id FROM users WHERE mobile = ? LIMIT 1`, [cleanMobile]);
+            if (existingUsers && existingUsers.length > 0) {
+                targetResidentId = existingUsers[0].id;
+                await pool.query(`UPDATE users SET name = ?, email = COALESCE(?, email), society_id = ?, status = 'ACTIVE' WHERE id = ?`, [cleanName, cleanEmail, societyId, targetResidentId]);
+            }
+            else if (flat.resident_id) {
+                const [chkCurr] = await pool.query(`SELECT id FROM users WHERE id = ? LIMIT 1`, [flat.resident_id]);
+                if (chkCurr && chkCurr.length > 0) {
+                    targetResidentId = flat.resident_id;
+                    await pool.query(`UPDATE users SET name = ?, mobile = ?, email = ?, society_id = ?, status = 'ACTIVE' WHERE id = ?`, [cleanName, cleanMobile, cleanEmail, societyId, targetResidentId]);
+                }
+                else {
+                    targetResidentId = `res_${cleanMobile}`;
+                    await pool.query(`INSERT INTO users (id, name, mobile, email, role, society_id, status)
+               VALUES (?, ?, ?, ?, 'RESIDENT', ?, 'ACTIVE')`, [targetResidentId, cleanName, cleanMobile, cleanEmail, societyId]);
+                }
+            }
+            else {
+                targetResidentId = `res_${cleanMobile}`;
+                await pool.query(`INSERT INTO users (id, name, mobile, email, role, society_id, status)
+             VALUES (?, ?, ?, ?, 'RESIDENT', ?, 'ACTIVE')`, [targetResidentId, cleanName, cleanMobile, cleanEmail, societyId]);
+            }
+            await pool.query(`UPDATE flats SET resident_id = ? WHERE id = ?`, [targetResidentId, flatId]);
+        }
+        else if (residentName && residentName.trim() && flat.resident_id) {
+            // Name or email updated without mobile change
+            await pool.query(`UPDATE users SET name = ?, email = COALESCE(?, email) WHERE id = ?`, [residentName.trim(), residentEmail?.trim() || null, flat.resident_id]);
+        }
+        // Handle Vehicle updates
+        if (vehicleNumbers !== undefined) {
+            let vList = [];
+            if (Array.isArray(vehicleNumbers)) {
+                vList = vehicleNumbers.map((v) => String(v).trim().toUpperCase()).filter(Boolean);
+            }
+            else if (typeof vehicleNumbers === 'string') {
+                vList = vehicleNumbers.split(/[,;\/]/).map((v) => v.trim().toUpperCase()).filter(Boolean);
+            }
+            // Delete existing vehicles linked to this flat
+            await pool.query(`DELETE FROM vehicles WHERE flat_id = ?`, [flatId]);
+            // Insert new vehicles if target resident exists
+            if (targetResidentId) {
+                for (const vNo of vList) {
+                    const vId = `veh_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+                    await pool.query(`INSERT INTO vehicles (id, society_id, resident_id, flat_id, vehicle_number, type, brand, model, color, status)
+               VALUES (?, ?, ?, ?, ?, 'car', '', '', '#000000', 'ACTIVE')`, [vId, societyId, targetResidentId, flatId, vNo]);
+                }
+            }
+        }
+        return res.json({
+            success: true,
+            message: `Flat ${flat.flat_number} details updated successfully`,
+            data: {
+                id: flatId,
+                number: flat.flat_number,
+                wing: updatedWing,
+                floor: updatedFloor,
+                residentId: targetResidentId,
+            },
+        });
+    }
+    catch (error) {
+        console.error('Error updating flat:', error);
+        return res.status(500).json({
+            success: false,
+            error: { code: 'SERVER_ERROR', message: error.message || 'Failed to update flat details' },
         });
     }
 });
@@ -1021,10 +1386,19 @@ router.patch('/gates/:id/toggle', auth_1.authenticateToken, (0, auth_1.authorize
 router.get('/guards', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
     try {
         const societyId = req.user.societyId;
+        const society = await (0, db_1.findSocietyById)(societyId);
+        const maxDevices = society?.maxDevices ?? 1;
+        const planName = society?.planName ?? 'STANDARD_1_DEVICE';
         const guards = await (0, db_1.findGuardsWithDetails)(societyId);
         return res.json({
             success: true,
             data: guards,
+            meta: {
+                maxDevices,
+                currentDevices: guards.length,
+                planName,
+                canAddGuard: guards.length < maxDevices,
+            },
         });
     }
     catch (error) {
@@ -1038,20 +1412,40 @@ router.get('/guards', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMI
 // POST /api/admin/guards
 router.post('/guards', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
     try {
-        const societyId = req.user.societyId;
-        const { name, phone, assignedGate, shift } = req.body;
-        if (!name || !phone) {
+        const societyId = req.user.societyId || '';
+        const { name, phone, mobile, pin, assignedGate, shift } = req.body;
+        const cleanPhone = phone || mobile;
+        if (!name || !cleanPhone) {
             return res.status(400).json({
                 success: false,
-                error: { code: 'INVALID_INPUT', message: 'Guard name and phone number are required' },
+                error: { code: 'INVALID_INPUT', message: 'Device/Guard name and login mobile number are required' },
+            });
+        }
+        // Device limit check based on society plan
+        const society = await (0, db_1.findSocietyById)(societyId);
+        const maxDevices = society?.maxDevices ?? 1;
+        const existingGuards = await (0, db_1.findGuardsWithDetails)(societyId);
+        if (existingGuards.length >= maxDevices) {
+            return res.status(403).json({
+                success: false,
+                error: {
+                    code: 'DEVICE_LIMIT_REACHED',
+                    message: `Your society plan (${society?.planName || 'Standard'}) allows a maximum of ${maxDevices} guard device(s). Currently active: ${existingGuards.length}. Please upgrade your plan in Super Admin to register more devices.`,
+                    data: {
+                        currentDevices: existingGuards.length,
+                        maxDevices,
+                        planName: society?.planName,
+                    },
+                },
             });
         }
         const guard = await (0, db_1.createGuardRecord)({
             societyId,
             name,
-            mobile: phone,
+            mobile: cleanPhone,
             gateName: assignedGate,
             shift,
+            pin,
         });
         return res.status(201).json({
             success: true,
@@ -1067,9 +1461,141 @@ router.post('/guards', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADM
         });
     }
 });
+// PUT /api/admin/guards/:id
+router.put('/guards/:id', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const societyId = req.user.societyId || '';
+        const { id } = req.params;
+        const { name, phone, mobile, pin, status } = req.body;
+        const updated = await (0, db_1.updateGuardRecord)(id, societyId, {
+            name,
+            phone: phone || mobile,
+            pin,
+            status,
+        });
+        return res.json({
+            success: true,
+            message: 'Guard device updated successfully',
+            data: updated,
+        });
+    }
+    catch (error) {
+        console.error('Error updating guard:', error);
+        return res.status(400).json({
+            success: false,
+            error: { code: 'UPDATE_FAILED', message: error.message || 'Failed to update guard device' },
+        });
+    }
+});
+// DELETE /api/admin/guards/:id
+router.delete('/guards/:id', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const societyId = req.user.societyId || '';
+        const { id } = req.params;
+        const ok = await (0, db_1.deleteGuardRecord)(id, societyId);
+        if (!ok) {
+            return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Guard device not found' } });
+        }
+        return res.json({
+            success: true,
+            message: 'Guard device removed successfully',
+        });
+    }
+    catch (error) {
+        console.error('Error deleting guard:', error);
+        return res.status(500).json({
+            success: false,
+            error: { code: 'SERVER_ERROR', message: error.message || 'Failed to delete guard' },
+        });
+    }
+});
 // =============================================================
-// SOCIETY SETTINGS (ADMIN)
+// SOCIETY SETTINGS & SUBSCRIPTION (ADMIN)
 // =============================================================
+// GET /api/admin/subscription
+router.get('/subscription', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const societyId = req.user.societyId;
+        const society = await (0, db_1.findSocietyById)(societyId);
+        if (!society) {
+            return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Society not found' } });
+        }
+        const subInfo = (0, subscription_1.computeSocietySubscriptionStatus)(society);
+        return res.json({
+            success: true,
+            data: {
+                ...subInfo,
+                societyId: society.id,
+                societyName: society.name,
+                subdomain: society.subdomain,
+                upiId: society.upiId,
+                maintenanceAmount: society.maintenanceAmount,
+            },
+        });
+    }
+    catch (error) {
+        console.error('Error fetching subscription:', error);
+        return res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to fetch subscription status' } });
+    }
+});
+// POST /api/admin/subscription/recharge-proof
+// Submit UPI payment UTR and screenshot for plan renewal verification
+router.post('/subscription/recharge-proof', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const societyId = req.user.societyId;
+        const { utrNumber, screenshotUrl, planName, amount, notes } = req.body;
+        if (!utrNumber || !String(utrNumber).trim()) {
+            return res.status(400).json({ success: false, error: { code: 'INVALID_INPUT', message: 'UTR / Transaction Reference number is required' } });
+        }
+        const society = await (0, db_1.findSocietyById)(societyId);
+        if (!society) {
+            return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Society not found' } });
+        }
+        const pool = await (0, mysql_1.getMysqlPool)();
+        if (!pool)
+            throw new Error('Database pool unavailable');
+        const rechargeId = `rech_${(0, uuid_1.v4)().replace(/-/g, '').slice(0, 16)}`;
+        const targetPlan = planName || society.planName || 'STANDARD_1_DEVICE';
+        const rechargeAmount = Number(amount) || society.planAmount || 1999;
+        await pool.query(`INSERT INTO subscription_recharges (id, society_id, plan_name, amount, utr_number, screenshot_url, status, admin_notes)
+       VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?)`, [rechargeId, societyId, targetPlan, rechargeAmount, String(utrNumber).trim(), screenshotUrl || null, notes || null]);
+        return res.json({
+            success: true,
+            message: 'Payment proof submitted successfully. Super admin will verify and renew your subscription within 2 hours.',
+            data: {
+                rechargeId,
+                societyId,
+                planName: targetPlan,
+                amount: rechargeAmount,
+                utrNumber: String(utrNumber).trim(),
+                status: 'PENDING',
+                createdAt: new Date().toISOString(),
+            },
+        });
+    }
+    catch (error) {
+        console.error('Error submitting recharge proof:', error);
+        return res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to submit payment proof' } });
+    }
+});
+// GET /api/admin/subscription/recharges
+router.get('/subscription/recharges', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
+    try {
+        const societyId = req.user.societyId;
+        const pool = await (0, mysql_1.getMysqlPool)();
+        if (!pool)
+            throw new Error('Database pool unavailable');
+        const [rows] = await pool.query('SELECT * FROM subscription_recharges WHERE society_id = ? ORDER BY created_at DESC LIMIT 10', [societyId]);
+        return res.json({
+            success: true,
+            data: rows,
+        });
+    }
+    catch (error) {
+        console.error('Error fetching recharge history:', error);
+        return res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to fetch recharge history' } });
+    }
+});
 // GET /api/admin/settings
 router.get('/settings', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
     try {
@@ -1087,14 +1613,30 @@ router.get('/settings', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('AD
                 },
             });
         }
+        const subInfo = (0, subscription_1.computeSocietySubscriptionStatus)(society);
         return res.json({
             success: true,
             data: {
                 id: society.id,
                 name: society.name,
+                subdomain: society.subdomain,
+                fullDomain: society.subdomain ? `${society.subdomain}.nexgate.co.in` : null,
                 address: society.address,
-                city: society.address?.includes(',') ? society.address.split(',').pop()?.trim() : 'Mumbai, MH',
-                totalFlats: 120,
+                city: society.city || (society.address?.includes(',') ? society.address.split(',').pop()?.trim() : 'Mumbai, MH'),
+                state: society.state,
+                pincode: society.pincode,
+                contactEmail: society.contactEmail,
+                contactPhone: society.contactPhone,
+                logoUrl: society.logoUrl,
+                upiId: society.upiId,
+                maintenanceAmount: society.maintenanceAmount,
+                maintenanceDueDay: society.maintenanceDueDay,
+                planName: society.planName,
+                maxDevices: society.maxDevices,
+                planAmount: society.planAmount,
+                billingCycle: society.billingCycle,
+                subscriptionStatus: society.subscriptionStatus,
+                subscription: subInfo,
             },
         });
     }
@@ -1110,7 +1652,7 @@ router.get('/settings', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('AD
 router.patch('/settings', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('ADMIN'), async (req, res) => {
     try {
         const societyId = req.user.societyId;
-        const { name, address, city } = req.body;
+        const { name, address, city, state, pincode, contactEmail, contactPhone, upiId, maintenanceAmount, maintenanceDueDay, } = req.body;
         let fullAddress = address;
         if (city && address && !address.toLowerCase().includes(city.toLowerCase())) {
             fullAddress = `${address.trim()}, ${city.trim()}`;
@@ -1118,19 +1660,32 @@ router.patch('/settings', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('
         else if (city && !address) {
             fullAddress = city.trim();
         }
-        const updated = await (0, db_1.updateSociety)(societyId, {
-            name: name?.trim(),
-            address: fullAddress?.trim(),
-        });
+        const updatePayload = {};
+        if (name !== undefined)
+            updatePayload.name = name?.trim();
+        if (fullAddress !== undefined)
+            updatePayload.address = fullAddress?.trim();
+        if (city !== undefined)
+            updatePayload.city = city?.trim();
+        if (state !== undefined)
+            updatePayload.state = state?.trim();
+        if (pincode !== undefined)
+            updatePayload.pincode = pincode?.trim();
+        if (contactEmail !== undefined)
+            updatePayload.contactEmail = contactEmail?.trim()?.toLowerCase();
+        if (contactPhone !== undefined)
+            updatePayload.contactPhone = contactPhone?.trim();
+        if (upiId !== undefined)
+            updatePayload.upiId = upiId?.trim();
+        if (maintenanceAmount !== undefined)
+            updatePayload.maintenanceAmount = Number(maintenanceAmount || 0);
+        if (maintenanceDueDay !== undefined)
+            updatePayload.maintenanceDueDay = Number(maintenanceDueDay || 5);
+        const updated = await (0, db_1.updateSociety)(societyId, updatePayload);
         return res.json({
             success: true,
             message: 'Society configuration updated successfully',
-            data: updated || {
-                id: societyId,
-                name: name || 'GreenGate Residency',
-                address: fullAddress || 'Mumbai, MH',
-                city: city || 'Mumbai, MH',
-            },
+            data: updated,
         });
     }
     catch (error) {

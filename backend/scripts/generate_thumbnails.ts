@@ -7,7 +7,10 @@
  * Run with:
  *   npx ts-node scripts/generate_thumbnails.ts
  */
-import sharp from 'sharp';
+let sharp: any;
+try {
+  sharp = require('sharp');
+} catch (_) {}
 import fs from 'fs';
 import path from 'path';
 import https from 'https';

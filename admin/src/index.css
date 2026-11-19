@@ -222,14 +222,16 @@ html, body, #root {
 }
 
 .sidebar-society {
-  margin: 12px 14px 4px;
-  padding: 9px 12px;
+  margin: 10px 12px 6px;
+  padding: 10px 12px;
   border-radius: var(--r-md);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 .sidebar-society-name {
   font-size: 12px;
@@ -289,6 +291,7 @@ html, body, #root {
 .sidebar-user {
   padding: 12px 14px;
   border-top: 1px solid var(--border);
+  margin-top: auto;
 }
 .sidebar-user-card {
   display: flex;
@@ -298,6 +301,49 @@ html, body, #root {
   border-radius: var(--r-md);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
+  transition: all 0.15s ease;
+}
+.sidebar-user-info {
+  min-width: 0;
+  flex: 1;
+}
+.sidebar-user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-user-role {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+  line-height: 1.2;
+}
+.sidebar-logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+.sidebar-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--red);
+  border-color: rgba(239, 68, 68, 0.25);
 }
 .sidebar-avatar {
   width: 32px;
@@ -601,7 +647,8 @@ html, body, #root {
 }
 
 /* ─── Inputs & Form Controls ─────────────────────────────── */
-.field-input {
+.field-input,
+.input-field {
   width: 100%;
   background: var(--bg-input);
   border: 1px solid var(--border);
@@ -614,13 +661,22 @@ html, body, #root {
   box-shadow: var(--shadow-xs);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-.field-input:focus {
+.field-input:focus,
+.input-field:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
-.field-input::placeholder {
+.field-input::placeholder,
+.input-field::placeholder {
   color: var(--text-subtle);
 }
+textarea.field-input,
+textarea.input-field {
+  resize: vertical;
+  min-height: 72px;
+  line-height: 1.5;
+}
+
 .field-label {
   display: block;
   font-size: 12px;
@@ -898,8 +954,9 @@ html, body, #root {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 1000;
   background: var(--bg-backdrop);
+  overflow-y: auto;
   backdrop-filter: blur(2px);
   display: flex;
   align-items: center;

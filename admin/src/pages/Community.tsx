@@ -583,7 +583,7 @@ export default function Community() {
                   value={lfSearch}
                   onChange={e => setLfSearch(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && loadLostFound()}
-                  className="input-field"
+                  className="field-input"
                   style={{ paddingLeft: 30, fontSize: 13, height: 36, width: 220 }}
                 />
               </div>
@@ -731,188 +731,217 @@ export default function Community() {
       {/* ======================================================== */}
       <AnimatePresence>
         {isCreateEventOpen && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0, 0, 0, 0.6)',
-              backdropFilter: 'blur(4px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 999,
-              padding: 16,
-            }}
+          <motion.div
+            className="modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={(e) => { if (e.target === e.currentTarget) setIsCreateEventOpen(false); }}
+            style={{ zIndex: 1000 }}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ scale: 0.94, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.94, y: 15 }}
               style={{
                 width: '100%',
-                maxWidth: 560,
-                background: 'var(--bg-elevated)',
+                maxWidth: 580,
+                maxHeight: '90vh',
+                background: 'var(--bg-card)',
                 borderRadius: 'var(--r-xl)',
                 border: '1px solid var(--border)',
-                boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+                boxShadow: 'var(--shadow-xl)',
+                display: 'flex',
+                flexDirection: 'column',
                 overflow: 'hidden',
               }}
             >
+              {/* Header */}
               <div
+                className="modal-header"
                 style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '18px 24px',
+                  padding: '16px 20px',
                   borderBottom: '1px solid var(--border)',
+                  flexShrink: 0,
                 }}
               >
-                <div>
-                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    Create Official Society Event
-                  </h3>
-                  <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
-                    Residents will receive notification & can RSVP directly through the app.
-                  </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 8,
+                      background: 'var(--accent-glow)',
+                      color: 'var(--accent-light)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <CalendarDays size={18} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Create Official Society Event
+                    </h3>
+                    <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
+                      Residents will receive notification & can RSVP directly through the app.
+                    </p>
+                  </div>
                 </div>
-                <button className="btn-icon" onClick={() => setIsCreateEventOpen(false)}>
+                <button className="btn-icon" onClick={() => setIsCreateEventOpen(false)} title="Close">
                   <X size={16} />
                 </button>
               </div>
 
-              <form onSubmit={handleCreateEvent} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                    Event Title *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Annual Independence Day & Flag Hoisting"
-                    value={eventForm.title}
-                    onChange={e => setEventForm({ ...eventForm, title: e.target.value })}
-                    className="input-field"
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <form
+                onSubmit={handleCreateEvent}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  flex: 1,
+                  minHeight: 0,
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Scrollable Form Body */}
+                <div
+                  style={{
+                    padding: '20px 24px',
+                    overflowY: 'auto',
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 14,
+                  }}
+                >
                   <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                      Category *
-                    </label>
-                    <select
-                      value={eventForm.category}
-                      onChange={e => setEventForm({ ...eventForm, category: e.target.value })}
-                      className="input-field"
-                    >
-                      <option value="Celebration">Celebration / Festival</option>
-                      <option value="Cultural">Cultural Programme</option>
-                      <option value="Sports">Sports / Fitness</option>
-                      <option value="General Meeting">Society AGM / Meeting</option>
-                      <option value="Workshop">Workshop & Kids Camp</option>
-                      <option value="Charity">Charity / Health Drive</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                      Event Date *
-                    </label>
-                    <input
-                      type="date"
-                      required
-                      value={eventForm.eventDate}
-                      onChange={e => setEventForm({ ...eventForm, eventDate: e.target.value })}
-                      className="input-field"
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                      Timing *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 6:00 PM - 10:00 PM"
-                      value={eventForm.timeStr}
-                      onChange={e => setEventForm({ ...eventForm, timeStr: e.target.value })}
-                      className="input-field"
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                      Max Attendee Capacity (0 for unlimited)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={eventForm.capacity}
-                      onChange={e => setEventForm({ ...eventForm, capacity: parseInt(e.target.value, 10) || 0 })}
-                      className="input-field"
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                      Venue / Location in Society *
-                    </label>
+                    <label className="field-label">Event Title *</label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Society Central Amphitheatre"
-                      value={eventForm.venue}
-                      onChange={e => setEventForm({ ...eventForm, venue: e.target.value })}
-                      className="input-field"
+                      placeholder="e.g. Annual Independence Day & Flag Hoisting"
+                      value={eventForm.title}
+                      onChange={e => setEventForm({ ...eventForm, title: e.target.value })}
+                      className="field-input"
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                    <div>
+                      <label className="field-label">Category *</label>
+                      <select
+                        value={eventForm.category}
+                        onChange={e => setEventForm({ ...eventForm, category: e.target.value })}
+                        className="field-select"
+                      >
+                        <option value="Celebration">Celebration / Festival</option>
+                        <option value="Cultural">Cultural Programme</option>
+                        <option value="Sports">Sports / Fitness</option>
+                        <option value="General Meeting">Society AGM / Meeting</option>
+                        <option value="Workshop">Workshop & Kids Camp</option>
+                        <option value="Charity">Charity / Health Drive</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="field-label">Event Date *</label>
+                      <input
+                        type="date"
+                        required
+                        value={eventForm.eventDate}
+                        onChange={e => setEventForm({ ...eventForm, eventDate: e.target.value })}
+                        className="field-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                    <div>
+                      <label className="field-label">Timing *</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 6:00 PM - 10:00 PM"
+                        value={eventForm.timeStr}
+                        onChange={e => setEventForm({ ...eventForm, timeStr: e.target.value })}
+                        className="field-input"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="field-label">Max Attendee Capacity (0 for unlimited)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={eventForm.capacity}
+                        onChange={e => setEventForm({ ...eventForm, capacity: parseInt(e.target.value, 10) || 0 })}
+                        className="field-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                    <div>
+                      <label className="field-label">Venue / Location in Society *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Society Central Amphitheatre"
+                        value={eventForm.venue}
+                        onChange={e => setEventForm({ ...eventForm, venue: e.target.value })}
+                        className="field-input"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="field-label">Organizing Committee</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Cultural & Youth Committee"
+                        value={eventForm.organizer}
+                        onChange={e => setEventForm({ ...eventForm, organizer: e.target.value })}
+                        className="field-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="field-label">Cover Banner Image URL (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="https://images.unsplash.com/..."
+                      value={eventForm.coverImage}
+                      onChange={e => setEventForm({ ...eventForm, coverImage: e.target.value })}
+                      className="field-input"
                     />
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                      Organizing Committee
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Cultural & Youth Committee"
-                      value={eventForm.organizer}
-                      onChange={e => setEventForm({ ...eventForm, organizer: e.target.value })}
-                      className="input-field"
+                    <label className="field-label">Description & Highlights</label>
+                    <textarea
+                      rows={3}
+                      placeholder="Describe program schedule, chief guests, food arrangements, or what residents need to bring."
+                      value={eventForm.description}
+                      onChange={e => setEventForm({ ...eventForm, description: e.target.value })}
+                      className="field-input"
+                      style={{ resize: 'vertical', minHeight: 68 }}
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                    Cover Banner Image URL (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="https://images.unsplash.com/..."
-                    value={eventForm.coverImage}
-                    onChange={e => setEventForm({ ...eventForm, coverImage: e.target.value })}
-                    className="input-field"
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                    Description & Highlights
-                  </label>
-                  <textarea
-                    rows={2}
-                    placeholder="Describe program schedule, chief guests, food arrangements, or what residents need to bring."
-                    value={eventForm.description}
-                    onChange={e => setEventForm({ ...eventForm, description: e.target.value })}
-                    className="input-field"
-                    style={{ resize: 'none' }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+                {/* Fixed Actions Footer */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: 10,
+                    padding: '14px 20px',
+                    borderTop: '1px solid var(--border)',
+                    background: 'var(--bg-elevated)',
+                    flexShrink: 0,
+                  }}
+                >
                   <button type="button" className="btn-secondary" onClick={() => setIsCreateEventOpen(false)}>
                     Cancel
                   </button>
@@ -923,7 +952,7 @@ export default function Community() {
                 </div>
               </form>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

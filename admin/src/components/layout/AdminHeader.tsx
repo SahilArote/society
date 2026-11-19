@@ -4,9 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bell, Search, RefreshCw, CheckCircle2, Shield,
   Users, UserCheck, DoorOpen, Megaphone, Settings,
-  ArrowRight, X, Sparkles
+  ArrowRight, X, Sparkles, User, LogOut, ChevronDown,
+  Palette, Building2, Plus
 } from 'lucide-react';
-import { mockFlats, mockVisitors, mockGuards } from '../../data/mockData';
+import { fetchAdminActivity, fetchAdminFlats, getAdminUser, clearAdminSession } from '../../services/api';
+import { initAdminSocket } from '../../services/socket';
 import { ThemeToggle } from '../ThemeToggle';
 
 const PAGE_META: Record<string, { title: string; sub: string }> = {
@@ -18,6 +20,8 @@ const PAGE_META: Record<string, { title: string; sub: string }> = {
   '/notifications': { title: 'Notifications',    sub: 'Broadcast push alerts to residents' },
   '/reports':       { title: 'Reports',          sub: 'Analytics, insights & data exports' },
   '/settings':      { title: 'Settings',         sub: 'Society configuration & admin users' },
+  '/super/societies': { title: 'Societies Directory', sub: 'Platform-level multi-tenant management & device plans' },
+  '/super/onboard': { title: 'Onboard Society', sub: 'Deploy new society infrastructure, subdomains & initial admin' },
 };
 
 export function AdminHeader() {
@@ -31,14 +35,63 @@ export function AdminHeader() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [showNotifPopover, setShowNotifPopover] = useState(false);
+  const [showProfilePopover, setShowProfilePopover] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [cmdSearch, setCmdSearch] = useState('');
-  const [notifList, setNotifList] = useState([
-    { id: 1, title: 'Visitor waiting at Main Gate', sub: 'Raj Sharma · Flat A-402', time: '2m ago', unread: true, type: 'visitor' },
-    { id: 2, title: 'Overdue Maintenance Alert', sub: '4 flats pending past due date', time: '18m ago', unread: true, type: 'billing' },
-    { id: 3, title: 'East Gate opened by guard', sub: 'Guard Suresh Yadav · Normal shift', time: '34m ago', unread: false, type: 'gate' },
-    { id: 4, title: 'Water supply notice read by 78%', sub: 'Published by Secretary', time: '1h ago', unread: false, type: 'notice' },
-  ]);
+  const [notifList, setNotifList] = useState<any[]>([]);
+  const [searchFlats, setSearchFlats] = useState<any[]>([]);
+
+  const profileRef = useRef<HTMLDivElement>(null);
+  const currentUser = getAdminUser();
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+  const displayName = currentUser?.name || 'Administrator';
+  const displayRole = (currentUser?.role || 'ADMIN').replace('_', ' ');
+  const avatarInitials = displayName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'A';
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchAdminActivity().then((items: any[]) => {
+      if (isMounted && Array.isArray(items) && items.length > 0) {
+        const list = items.slice(0, 8).map((act: any, idx: number) => ({
+          id: act.id || idx,
+          title: act.visitorName ? `Visitor ${act.visitorName}` : 'Gate Activity',
+          sub: `Flat ${act.flatNumber || 'N/A'} · ${act.purpose || 'Visitor'} · Status: ${act.status || 'LOGGED'}`,
+          time: act.entryTime || act.createdAt ? new Date(act.entryTime || act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent',
+          unread: idx < 2,
+          type: 'visitor',
+        }));
+        setNotifList(list);
+      }
+    }).catch(() => {});
+
+    initAdminSocket((event: any) => {
+      if (isMounted && event) {
+        setNotifList(prev => [
+          {
+            id: event.id || Date.now(),
+            title: `Visitor: ${event.visitorName || 'Guest'}`,
+            sub: `Flat ${event.flatNumber || 'N/A'} · ${event.purpose || 'Visit'}`,
+            time: 'Just now',
+            unread: true,
+            type: 'visitor',
+          },
+          ...prev.slice(0, 15),
+        ]);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (showCommandPalette && searchFlats.length === 0) {
+      fetchAdminFlats().then(flats => {
+        if (Array.isArray(flats)) setSearchFlats(flats);
+      }).catch(() => {});
+    }
+  }, [showCommandPalette, searchFlats.length]);
 
   // Live ticking clock
   useEffect(() => {
@@ -54,20 +107,23 @@ export function AdminHeader() {
 
   const notifRef = useRef<HTMLDivElement>(null);
 
-  // Close notification popover on outside click
+  // Close popovers on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setShowNotifPopover(false);
       }
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setShowProfilePopover(false);
+      }
     };
-    if (showNotifPopover) {
+    if (showNotifPopover || showProfilePopover) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showNotifPopover]);
+  }, [showNotifPopover, showProfilePopover]);
 
   // Keyboard shortcut for Cmd+K / Ctrl+K
   useEffect(() => {
@@ -79,6 +135,7 @@ export function AdminHeader() {
       if (e.key === 'Escape') {
         setShowCommandPalette(false);
         setShowNotifPopover(false);
+        setShowProfilePopover(false);
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -102,38 +159,32 @@ export function AdminHeader() {
 
   // Command palette search results
   const q = cmdSearch.toLowerCase().trim();
+  const basePages = isSuperAdmin
+    ? [
+        { type: 'Page', title: 'Societies Directory', sub: 'Platform multi-tenant directory & devices', icon: Building2, link: '/admin/super/societies' },
+        { type: 'Page', title: 'Onboard Society', sub: 'Deploy new society infrastructure & initial admin', icon: Plus, link: '/admin/super/onboard' },
+        { type: 'Page', title: 'Platform Settings', sub: 'System configuration & preferences', icon: Settings, link: '/admin/settings' },
+      ]
+    : [
+        { type: 'Page', title: 'Dashboard', sub: 'Society overview & live gate activity', icon: Shield, link: '/admin/dashboard' },
+        { type: 'Page', title: 'Residents Management', sub: 'Manage flats, residents & directory', icon: Users, link: '/admin/residents' },
+        { type: 'Page', title: 'Visitors Log', sub: 'Society-wide gate visitor logs', icon: UserCheck, link: '/admin/visitors' },
+        { type: 'Page', title: 'Gates & CCTV Guard Roster', sub: 'Gate operations & guard roster', icon: DoorOpen, link: '/admin/gates' },
+        { type: 'Page', title: 'Services & Directory', sub: 'Society vendors & utility contacts', icon: Shield, link: '/admin/services' },
+        { type: 'Page', title: 'Events & Community', sub: 'Society noticeboard & lost items', icon: Megaphone, link: '/admin/community' },
+        { type: 'Page', title: 'Society Settings', sub: 'Society configuration & admin users', icon: Settings, link: '/admin/settings' },
+      ];
+
   const searchResults = [
-    // Navigation items
-    { type: 'Page', title: 'Dashboard', sub: '', icon: Shield, link: '/admin/dashboard' },
-    { type: 'Page', title: 'Residents Management', sub: '', icon: Users, link: '/admin/residents' },
-    { type: 'Page', title: 'Visitors Log', sub: '', icon: UserCheck, link: '/admin/visitors' },
-    { type: 'Page', title: 'Gates & CCTV Guard Roster', sub: '', icon: DoorOpen, link: '/admin/gates' },
-    { type: 'Page', title: 'Announcements', sub: '', icon: Megaphone, link: '/admin/announcements' },
-    { type: 'Page', title: 'Society Settings', sub: '', icon: Settings, link: '/admin/settings' },
-    // Flats
-    ...mockFlats.map(f => ({
+    ...basePages,
+    // Live flats from database (only for society admin)
+    ...(!isSuperAdmin ? searchFlats.map((f: any) => ({
       type: 'Flat',
-      title: `Flat ${f.number} (${f.type})`,
-      sub: `${f.residents.map(r => r.name).join(', ') || 'Vacant'} · ${f.status}`,
+      title: `Flat ${f.number || f.flatNumber || ''} ${f.wing ? `(${f.wing})` : ''}`,
+      sub: `${f.residents?.map((r: any) => r.name).join(', ') || f.ownerName || 'Vacant'} · ${f.status || 'Active'}`,
       icon: Users,
-      link: '/residents',
-    })),
-    // Visitors
-    ...mockVisitors.map(v => ({
-      type: 'Visitor',
-      title: `${v.name} (${v.purpose})`,
-      sub: `Visiting ${v.flatNumber} · Status: ${v.status}`,
-      icon: UserCheck,
-      link: '/visitors',
-    })),
-    // Guards
-    ...mockGuards.map(g => ({
-      type: 'Guard',
-      title: `${g.name} (${g.assignedGate})`,
-      sub: `Shift: ${g.shift} · ${g.phone}`,
-      icon: DoorOpen,
-      link: '/gates',
-    })),
+      link: '/admin/residents',
+    })) : []),
   ].filter(item => {
     if (!q) return true;
     return item.title.toLowerCase().includes(q) || (item.sub && item.sub.toLowerCase().includes(q)) || item.type.toLowerCase().includes(q);
@@ -149,7 +200,7 @@ export function AdminHeader() {
         </div>
 
         {/* Right */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {/* Live Ticking Time */}
           <div style={{ textAlign: 'right', marginRight: 4 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace', letterSpacing: '0.04em', lineHeight: 1.3 }}>
@@ -158,26 +209,7 @@ export function AdminHeader() {
             <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{date}</div>
           </div>
 
-          {/* Theme Selector (Light / Dark / System) */}
-          <ThemeToggle variant="segmented" />
-
-          {/* Search / Command Palette trigger */}
-          <button
-            id="header-search-btn"
-            className="header-btn"
-            onClick={() => setShowCommandPalette(true)}
-            style={{ cursor: 'pointer' }}
-          >
-            <Search size={14} />
-            <span style={{ color: 'var(--text-secondary)' }}>Quick Search</span>
-            <span style={{
-              fontSize: 10, padding: '2px 6px', borderRadius: 5,
-              background: 'var(--bg-elevated)', color: 'var(--accent)',
-              border: '1px solid var(--border)', fontWeight: 600
-            }}>⌘K</span>
-          </button>
-
-          {/* Refresh button */}
+          {/* Sync Refresh button */}
           <button
             id="header-refresh-btn"
             className="header-icon-btn"
@@ -194,136 +226,332 @@ export function AdminHeader() {
             />
           </button>
 
-          {/* Notifications bell with Popover */}
-          <div ref={notifRef} style={{ position: 'relative' }}>
+          {/* Live pill with Pulse */}
+          <div className="live-pill" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span className="live-dot" />
+            <span style={{ fontWeight: 700, letterSpacing: '0.06em' }}>LIVE</span>
+          </div>
+
+          {/* Profile Button & Menu Popover */}
+          <div ref={profileRef} style={{ position: 'relative' }}>
             <button
-              id="header-notifications-btn"
-              className="header-icon-btn"
-              style={{ position: 'relative', cursor: 'pointer' }}
-              onClick={() => setShowNotifPopover(prev => !prev)}
+              id="header-profile-btn"
+              onClick={() => setShowProfilePopover(prev => !prev)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '4px 10px 4px 5px',
+                borderRadius: 'var(--r-full, 9999px)',
+                background: showProfilePopover ? 'var(--accent-bg)' : 'var(--bg-elevated)',
+                border: `1px solid ${showProfilePopover ? 'var(--accent)' : 'var(--border)'}`,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                color: 'var(--text-primary)',
+              }}
             >
-              <Bell size={14} />
-              {unreadCount > 0 && (
-                <span style={{
-                  position: 'absolute', top: -3, right: -3,
-                  minWidth: 16, height: 16, borderRadius: '50%',
-                  background: 'var(--red)',
-                  border: '2px solid var(--bg-surface)',
-                  fontSize: 9, fontWeight: 800, color: '#fff',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                  {unreadCount}
+              <div style={{
+                width: 28,
+                height: 28,
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, var(--accent) 0%, #4338ca 100%)',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                fontSize: 12,
+                letterSpacing: '0.02em',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.18)'
+              }}>
+                {avatarInitials}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.15 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {displayName}
                 </span>
-              )}
+                <span style={{ fontSize: 9.5, color: 'var(--text-muted)', textTransform: 'capitalize' }}>
+                  {displayRole.toLowerCase()}
+                </span>
+              </div>
+              <ChevronDown
+                size={13}
+                color="var(--text-muted)"
+                style={{
+                  transform: showProfilePopover ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 0.15s ease'
+                }}
+              />
             </button>
 
-            {/* Notification Popover */}
+            {/* Profile Popover */}
             <AnimatePresence>
-              {showNotifPopover && (
+              {showProfilePopover && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.96 }}
                   transition={{ duration: 0.15 }}
                   style={{
                     position: 'absolute',
-                    top: 'calc(100% + 10px)',
+                    top: 'calc(100% + 8px)',
                     right: 0,
-                    width: 340,
+                    width: 290,
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border-strong)',
                     borderRadius: 'var(--r-lg)',
                     boxShadow: 'var(--shadow-xl)',
-                    zIndex: 100,
+                    zIndex: 110,
                     overflow: 'hidden'
                   }}
                 >
+                  {/* User Profile Header */}
                   <div style={{
-                    padding: '12px 16px',
+                    padding: '14px 16px',
                     borderBottom: '1px solid var(--border)',
+                    background: 'var(--bg-elevated)',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    background: 'var(--bg-elevated)'
+                    gap: 12
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Bell size={14} color="var(--accent-light)" />
-                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Live Alerts</span>
-                      {unreadCount > 0 && (
-                        <span className="badge badge-danger" style={{ fontSize: 10, padding: '1px 6px' }}>{unreadCount} new</span>
-                      )}
+                    <div style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, var(--accent) 0%, #4338ca 100%)',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 800,
+                      fontSize: 15,
+                      flexShrink: 0,
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                    }}>
+                      {avatarInitials}
                     </div>
-                    {unreadCount > 0 && (
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {displayName}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
+                        {currentUser?.email || 'admin@nexgate.co.in'}
+                      </div>
+                      <div style={{ marginTop: 4 }}>
+                        <span className="badge badge-accent" style={{ fontSize: 9.5, padding: '1px 6px', textTransform: 'uppercase' }}>
+                          {displayRole}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Action Navigation */}
+                  <div style={{ padding: '6px' }}>
+                    {/* Quick Search */}
+                    <button
+                      onClick={() => {
+                        setShowProfilePopover(false);
+                        setShowCommandPalette(true);
+                      }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '9px 12px',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: 'var(--r-md)',
+                        color: 'var(--text-primary)',
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'background 0.15s ease'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                        <Search size={14} color="var(--accent-light)" />
+                        <span>Quick Spotlight Search</span>
+                      </div>
+                      <span style={{
+                        fontSize: 10, padding: '1px 5px', borderRadius: 4,
+                        background: 'var(--bg-elevated)', color: 'var(--accent)',
+                        border: '1px solid var(--border)', fontWeight: 600
+                      }}>⌘K</span>
+                    </button>
+
+                    {/* Super Admin specific navigation vs Society Admin */}
+                    {isSuperAdmin ? (
+                      <>
+                        <button
+                          onClick={() => {
+                            setShowProfilePopover(false);
+                            navigate('/admin/super/societies');
+                          }}
+                          style={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 9,
+                            padding: '9px 12px',
+                            background: 'transparent',
+                            border: 'none',
+                            borderRadius: 'var(--r-md)',
+                            color: 'var(--text-primary)',
+                            fontSize: 12.5,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'background 0.15s ease'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <Building2 size={14} color="var(--accent-light)" />
+                          <span>Societies Directory</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setShowProfilePopover(false);
+                            navigate('/admin/super/onboard');
+                          }}
+                          style={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 9,
+                            padding: '9px 12px',
+                            background: 'transparent',
+                            border: 'none',
+                            borderRadius: 'var(--r-md)',
+                            color: 'var(--text-primary)',
+                            fontSize: 12.5,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'background 0.15s ease'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <Plus size={14} color="var(--accent-light)" />
+                          <span>Onboard New Society</span>
+                        </button>
+                      </>
+                    ) : (
                       <button
-                        onClick={markAllRead}
-                        style={{
-                          background: 'none', border: 'none', color: 'var(--accent-light)',
-                          fontSize: 11, cursor: 'pointer', fontWeight: 600
+                        onClick={() => {
+                          setShowProfilePopover(false);
+                          navigate('/admin/notifications');
                         }}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '9px 12px',
+                          background: 'transparent',
+                          border: 'none',
+                          borderRadius: 'var(--r-md)',
+                          color: 'var(--text-primary)',
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'background 0.15s ease'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
-                        Mark all read
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                          <Bell size={14} color="var(--accent-light)" />
+                          <span>Society Alerts & Broadcasts</span>
+                        </div>
+                        {unreadCount > 0 && (
+                          <span className="badge badge-danger" style={{ fontSize: 9.5, padding: '1px 6px' }}>
+                            {unreadCount}
+                          </span>
+                        )}
                       </button>
                     )}
-                  </div>
 
-                  <div style={{ maxHeight: 300, overflowY: 'auto', padding: '6px 0' }}>
-                    {notifList.map(n => (
-                      <div
-                        key={n.id}
-                        style={{
-                          padding: '10px 16px',
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: 12,
-                          background: n.unread ? 'rgba(99,102,241,0.05)' : 'transparent',
-                          borderBottom: '1px solid rgba(255,255,255,0.03)',
-                          cursor: 'pointer',
-                          transition: 'background 0.15s'
-                        }}
-                        onClick={() => {
-                          setNotifList(prev => prev.map(x => x.id === n.id ? { ...x, unread: false } : x));
-                        }}
-                      >
-                        <div style={{
-                          width: 8, height: 8, borderRadius: '50%',
-                          background: n.unread ? 'var(--accent)' : 'transparent',
-                          marginTop: 5, flexShrink: 0
-                        }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{n.title}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{n.sub}</div>
-                        </div>
-                        <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>{n.time}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{
-                    padding: '8px 16px',
-                    borderTop: '1px solid var(--border)',
-                    background: 'var(--bg-elevated)',
-                    textAlign: 'center'
-                  }}>
+                    {/* Settings */}
                     <button
-                      onClick={() => { setShowNotifPopover(false); navigate('/admin/notifications'); }}
-                      style={{
-                        background: 'none', border: 'none', color: 'var(--accent-light)',
-                        fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex',
-                        alignItems: 'center', gap: 6
+                      onClick={() => {
+                        setShowProfilePopover(false);
+                        navigate('/admin/settings');
                       }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 9,
+                        padding: '9px 12px',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: 'var(--r-md)',
+                        color: 'var(--text-primary)',
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'background 0.15s ease'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
-                      View All Broadcasts <ArrowRight size={12} />
+                      <Settings size={14} color="var(--accent-light)" />
+                      <span>{isSuperAdmin ? 'Platform Settings' : 'Society Settings & Billing'}</span>
+                    </button>
+                  </div>
+
+                  {/* Theme Selector Section */}
+                  <div style={{
+                    padding: '10px 14px',
+                    borderTop: '1px solid var(--border)',
+                    borderBottom: '1px solid var(--border)',
+                    background: 'var(--bg-surface)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Interface Theme
+                      </span>
+                    </div>
+                    <ThemeToggle variant="segmented" />
+                  </div>
+
+                  {/* Logout Row */}
+                  <div style={{ padding: '6px' }}>
+                    <button
+                      onClick={() => {
+                        setShowProfilePopover(false);
+                        clearAdminSession();
+                        navigate('/admin/login');
+                      }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 9,
+                        padding: '9px 12px',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: 'var(--r-md)',
+                        color: 'var(--red)',
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'background 0.15s ease'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <LogOut size={14} color="var(--red)" />
+                      <span>Sign Out</span>
                     </button>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-
-          {/* Live pill with Pulse */}
-          <div className="live-pill" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span className="live-dot" />
-            <span style={{ fontWeight: 700, letterSpacing: '0.06em' }}>LIVE</span>
           </div>
         </div>
       </header>
@@ -352,7 +580,7 @@ export function AdminHeader() {
           >
             <CheckCircle2 size={16} color="var(--green)" />
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-              Society data synced successfully · 120 flats active
+              Society data synchronized successfully
             </span>
           </motion.div>
         )}

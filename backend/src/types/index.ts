@@ -1,4 +1,4 @@
-export type UserRole = 'RESIDENT' | 'GUARD' | 'ADMIN';
+export type UserRole = 'RESIDENT' | 'GUARD' | 'ADMIN' | 'SUPER_ADMIN';
 
 export type VisitorStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
 
@@ -10,14 +10,13 @@ export interface AuthUser {
   mobile: string;
   email?: string;
   role: UserRole;
-  societyId: string;
+  societyId?: string;
   flatId?: string;
   flatNumber?: string;
   wing?: string;
   gateId?: string;
   gateName?: string;
 }
-
 
 export interface VisitorPayload {
   name: string;

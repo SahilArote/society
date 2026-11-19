@@ -2,7 +2,10 @@ import { Router, Response, Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
-import sharp from 'sharp';
+let sharp: any;
+try {
+  sharp = require('sharp');
+} catch (_) {}
 import {
   findFlatByNumberAndWing,
   findFlatsBySociety,
@@ -52,6 +55,7 @@ const THUMBS_DIR = path.resolve(process.cwd(), 'uploads/thumbs');
 
 async function generateThumbnail(imageBuffer: Buffer, visitorId: string): Promise<string | null> {
   try {
+    if (!sharp) return null;
     if (!fs.existsSync(THUMBS_DIR)) {
       fs.mkdirSync(THUMBS_DIR, { recursive: true });
     }

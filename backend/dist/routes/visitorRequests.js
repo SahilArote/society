@@ -7,7 +7,11 @@ const express_1 = require("express");
 const uuid_1 = require("uuid");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
-const sharp_1 = __importDefault(require("sharp"));
+let sharp;
+try {
+    sharp = require('sharp');
+}
+catch (_) { }
 const db_1 = require("../database/db");
 const auth_1 = require("../middleware/auth");
 const upload_1 = require("../middleware/upload");
@@ -34,12 +38,14 @@ function cleanWingName(raw) {
 const THUMBS_DIR = path_1.default.resolve(process.cwd(), 'uploads/thumbs');
 async function generateThumbnail(imageBuffer, visitorId) {
     try {
+        if (!sharp)
+            return null;
         if (!fs_1.default.existsSync(THUMBS_DIR)) {
             fs_1.default.mkdirSync(THUMBS_DIR, { recursive: true });
         }
         const thumbFilename = `thumb_${visitorId}.jpg`;
         const thumbPath = path_1.default.join(THUMBS_DIR, thumbFilename);
-        await (0, sharp_1.default)(imageBuffer)
+        await sharp(imageBuffer)
             .resize(200, 200, { fit: 'cover', position: 'centre' })
             .jpeg({ quality: 70 })
             .toFile(thumbPath);

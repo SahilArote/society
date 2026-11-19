@@ -1,4 +1,7 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.initDb = initDb;
 exports.findUserByMobile = findUserByMobile;
@@ -6,9 +9,15 @@ exports.findUserByEmail = findUserByEmail;
 exports.findUserById = findUserById;
 exports.findGuardByUserId = findGuardByUserId;
 exports.findGateById = findGateById;
+exports.mapSocietyRow = mapSocietyRow;
 exports.findSocietyById = findSocietyById;
+exports.findSocietyBySubdomain = findSocietyBySubdomain;
 exports.getDefaultSociety = getDefaultSociety;
+exports.findAllSocietiesWithUsage = findAllSocietiesWithUsage;
+exports.createSocietyRecord = createSocietyRecord;
+exports.updateSocietyStatus = updateSocietyStatus;
 exports.updateSociety = updateSociety;
+exports.updateSocietyAdminCredentials = updateSocietyAdminCredentials;
 exports.findFlatByNumberAndWing = findFlatByNumberAndWing;
 exports.findFlatByResidentId = findFlatByResidentId;
 exports.findFlatById = findFlatById;
@@ -40,6 +49,8 @@ exports.findGatesBySociety = findGatesBySociety;
 exports.toggleGateStatus = toggleGateStatus;
 exports.findGuardsWithDetails = findGuardsWithDetails;
 exports.createGuardRecord = createGuardRecord;
+exports.updateGuardRecord = updateGuardRecord;
+exports.deleteGuardRecord = deleteGuardRecord;
 exports.findFlatsWithResidents = findFlatsWithResidents;
 exports.createFlatRecord = createFlatRecord;
 exports.findAdminVisitorLogs = findAdminVisitorLogs;
@@ -80,7 +91,9 @@ exports.createSocietyEvent = createSocietyEvent;
 exports.updateSocietyEvent = updateSocietyEvent;
 exports.deleteSocietyEvent = deleteSocietyEvent;
 const uuid_1 = require("uuid");
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const mysql_1 = require("./mysql");
+const subscription_1 = require("../utils/subscription");
 async function initDb() {
     await (0, mysql_1.runMysqlMigrations)();
 }
@@ -211,6 +224,33 @@ async function findGateById(gateId) {
         status: r.status,
     };
 }
+function mapSocietyRow(r) {
+    return {
+        id: r.id,
+        name: r.name,
+        subdomain: r.subdomain || null,
+        address: r.address,
+        city: r.city || null,
+        state: r.state || null,
+        pincode: r.pincode || null,
+        contactEmail: r.contact_email || null,
+        contactPhone: r.contact_phone || null,
+        logoUrl: r.logo_url || null,
+        upiId: r.upi_id || null,
+        maintenanceAmount: r.maintenance_amount !== null && r.maintenance_amount !== undefined ? Number(r.maintenance_amount) : 0,
+        maintenanceDueDay: r.maintenance_due_day !== null && r.maintenance_due_day !== undefined ? Number(r.maintenance_due_day) : 5,
+        planName: r.plan_name || 'STANDARD_1_DEVICE',
+        maxDevices: r.max_devices !== null && r.max_devices !== undefined ? Number(r.max_devices) : 1,
+        planAmount: r.plan_amount !== null && r.plan_amount !== undefined ? Number(r.plan_amount) : 1999,
+        billingCycle: r.billing_cycle || 'MONTHLY',
+        subscriptionStatus: r.subscription_status || 'TRIAL',
+        subscriptionExpiresAt: r.subscription_expires_at || null,
+        trialEndsAt: r.trial_ends_at || null,
+        status: r.status,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at || null,
+    };
+}
 async function findSocietyById(societyId) {
     const pool = await (0, mysql_1.getMysqlPool)();
     if (!pool)
@@ -218,14 +258,17 @@ async function findSocietyById(societyId) {
     const [rows] = await pool.query('SELECT * FROM societies WHERE id = ? LIMIT 1', [societyId]);
     if (!rows[0])
         return null;
-    const r = rows[0];
-    return {
-        id: r.id,
-        name: r.name,
-        address: r.address,
-        status: r.status,
-        createdAt: r.created_at,
-    };
+    return mapSocietyRow(rows[0]);
+}
+async function findSocietyBySubdomain(subdomain) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return null;
+    const cleanSub = String(subdomain).trim().toLowerCase();
+    const [rows] = await pool.query('SELECT * FROM societies WHERE LOWER(subdomain) = ? LIMIT 1', [cleanSub]);
+    if (!rows[0])
+        return null;
+    return mapSocietyRow(rows[0]);
 }
 async function getDefaultSociety() {
     const pool = await (0, mysql_1.getMysqlPool)();
@@ -234,14 +277,109 @@ async function getDefaultSociety() {
     const [rows] = await pool.query('SELECT * FROM societies ORDER BY created_at ASC LIMIT 1');
     if (!rows[0])
         return null;
-    const r = rows[0];
-    return {
-        id: r.id,
-        name: r.name,
-        address: r.address,
-        status: r.status,
-        createdAt: r.created_at,
-    };
+    return mapSocietyRow(rows[0]);
+}
+async function findAllSocietiesWithUsage() {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return [];
+    const [rows] = await pool.query(`
+    SELECT s.*,
+      COALESCE(g.total_gates, 0) AS total_gates,
+      COALESCE(gd.total_guards, 0) AS total_guards,
+      COALESCE(fl.total_flats, 0) AS total_flats,
+      COALESCE(res.total_residents, 0) AS total_residents,
+      u.id AS admin_id,
+      u.name AS admin_name,
+      u.email AS admin_email,
+      u.mobile AS admin_mobile
+    FROM societies s
+    LEFT JOIN (SELECT society_id, COUNT(*) AS total_gates FROM gates GROUP BY society_id) g ON s.id = g.society_id
+    LEFT JOIN (SELECT u2.society_id, COUNT(*) AS total_guards FROM guards g2 JOIN users u2 ON g2.user_id = u2.id GROUP BY u2.society_id) gd ON s.id = gd.society_id
+    LEFT JOIN (SELECT society_id, COUNT(*) AS total_flats FROM flats GROUP BY society_id) fl ON s.id = fl.society_id
+    LEFT JOIN (SELECT society_id, COUNT(*) AS total_residents FROM users WHERE role = 'RESIDENT' GROUP BY society_id) res ON s.id = res.society_id
+    LEFT JOIN (
+      SELECT u1.id, u1.society_id, u1.name, u1.email, u1.mobile
+      FROM users u1
+      INNER JOIN (
+        SELECT society_id, MIN(id) AS min_id
+        FROM users
+        WHERE role = 'ADMIN'
+        GROUP BY society_id
+      ) u2 ON u1.id = u2.min_id
+    ) u ON s.id = u.society_id
+    ORDER BY s.created_at DESC
+  `);
+    return rows.map((r) => {
+        const mapped = mapSocietyRow(r);
+        const subInfo = (0, subscription_1.computeSocietySubscriptionStatus)(mapped);
+        const hasAdmin = Boolean(r.admin_id || r.admin_name || r.admin_email || r.admin_mobile || r.contact_email);
+        return {
+            ...mapped,
+            subscription: subInfo,
+            totalGates: Number(r.total_gates || 0),
+            totalGuards: Number(r.total_guards || 0),
+            activeDevices: Number(r.total_guards || 0),
+            totalFlats: Number(r.total_flats || 0),
+            totalResidents: Number(r.total_residents || 0),
+            admin: hasAdmin ? {
+                id: r.admin_id || null,
+                name: r.admin_name || 'Society Admin',
+                email: r.admin_email || r.contact_email || null,
+                mobile: r.admin_mobile || r.contact_phone || null,
+            } : null,
+        };
+    });
+}
+async function createSocietyRecord(data) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        throw new Error('Database pool unavailable');
+    const societyId = data.id || ('soc_' + (0, uuid_1.v4)().replace(/-/g, '').slice(0, 12));
+    const plan = (0, subscription_1.normalizePlan)(data.planName, data.maxDevices);
+    await pool.query(`
+    INSERT INTO societies (
+      id, name, subdomain, address, city, state, pincode, contact_email, contact_phone,
+      logo_url, upi_id, maintenance_amount, maintenance_due_day, plan_name, max_devices,
+      plan_amount, billing_cycle, subscription_status, trial_ends_at, subscription_expires_at, status
+    ) VALUES (
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+      COALESCE(?, DATE_ADD(NOW(), INTERVAL 30 DAY)),
+      COALESCE(?, DATE_ADD(NOW(), INTERVAL 30 DAY)),
+      ?
+    )
+  `, [
+        societyId,
+        data.name.trim(),
+        data.subdomain ? data.subdomain.trim().toLowerCase() : null,
+        data.address.trim(),
+        data.city?.trim() || null,
+        data.state?.trim() || null,
+        data.pincode?.trim() || null,
+        data.contactEmail?.trim().toLowerCase() || null,
+        data.contactPhone?.trim() || null,
+        data.logoUrl?.trim() || null,
+        data.upiId?.trim() || null,
+        data.maintenanceAmount || 0,
+        data.maintenanceDueDay || 5,
+        plan.code,
+        plan.devices,
+        data.planAmount || plan.monthlyPrice,
+        data.billingCycle || 'MONTHLY',
+        data.subscriptionStatus || 'TRIAL',
+        data.trialEndsAt || null,
+        data.subscriptionExpiresAt || null,
+        data.status || 'ACTIVE',
+    ]);
+    const created = await findSocietyById(societyId);
+    return created;
+}
+async function updateSocietyStatus(societyId, status) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return null;
+    await pool.query('UPDATE societies SET status = ?, updated_at = NOW() WHERE id = ?', [status.toUpperCase(), societyId]);
+    return findSocietyById(societyId);
 }
 async function updateSociety(societyId, data) {
     const pool = await (0, mysql_1.getMysqlPool)();
@@ -249,19 +387,137 @@ async function updateSociety(societyId, data) {
         return null;
     const updates = [];
     const params = [];
-    if (data.name !== undefined) {
-        updates.push('name = ?');
-        params.push(data.name.trim());
-    }
-    if (data.address !== undefined) {
-        updates.push('address = ?');
-        params.push(data.address.trim());
+    const fieldMap = {
+        name: 'name',
+        subdomain: 'subdomain',
+        address: 'address',
+        city: 'city',
+        state: 'state',
+        pincode: 'pincode',
+        contactEmail: 'contact_email',
+        contactPhone: 'contact_phone',
+        logoUrl: 'logo_url',
+        upiId: 'upi_id',
+        maintenanceAmount: 'maintenance_amount',
+        maintenanceDueDay: 'maintenance_due_day',
+        planName: 'plan_name',
+        maxDevices: 'max_devices',
+        planAmount: 'plan_amount',
+        billingCycle: 'billing_cycle',
+        subscriptionStatus: 'subscription_status',
+        trialEndsAt: 'trial_ends_at',
+        subscriptionExpiresAt: 'subscription_expires_at',
+        status: 'status',
+    };
+    for (const [key, col] of Object.entries(fieldMap)) {
+        if (data[key] !== undefined) {
+            updates.push(`${col} = ?`);
+            params.push(data[key]);
+        }
     }
     if (updates.length > 0) {
+        updates.push('updated_at = NOW()');
         params.push(societyId);
         await pool.query(`UPDATE societies SET ${updates.join(', ')} WHERE id = ?`, params);
     }
     return findSocietyById(societyId);
+}
+async function updateSocietyAdminCredentials(societyId, data) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        throw new Error('Database pool unavailable');
+    // Find existing admin for this society
+    const [admins] = await pool.query('SELECT * FROM users WHERE society_id = ? AND role = "ADMIN" ORDER BY created_at ASC LIMIT 1', [societyId]);
+    const admin = admins[0] || null;
+    // Clean email
+    let cleanEmail = null;
+    if (data.email !== undefined) {
+        cleanEmail = data.email && data.email.trim() ? data.email.trim().toLowerCase() : null;
+        if (cleanEmail) {
+            const [existing] = await pool.query('SELECT id FROM users WHERE LOWER(email) = ? AND id != ? LIMIT 1', [cleanEmail, admin ? admin.id : '']);
+            if (existing.length > 0) {
+                throw new Error(`Email '${cleanEmail}' is already registered to another account.`);
+            }
+        }
+    }
+    // Clean mobile
+    let cleanMobile = null;
+    if (data.mobile !== undefined) {
+        const rawDigits = String(data.mobile).replace(/\D/g, '');
+        if (rawDigits.length > 0) {
+            cleanMobile = rawDigits.slice(-10);
+            if (cleanMobile.length < 10) {
+                throw new Error('Mobile number must be a valid 10-digit number');
+            }
+            const [existingMobile] = await pool.query('SELECT id FROM users WHERE mobile = ? AND id != ? LIMIT 1', [cleanMobile, admin ? admin.id : '']);
+            if (existingMobile.length > 0) {
+                throw new Error(`Mobile number '${cleanMobile}' is already assigned to another user account.`);
+            }
+        }
+    }
+    // Password hash
+    let pwdHash = null;
+    if (data.password !== undefined && data.password !== null && String(data.password).trim() !== '') {
+        const trimmed = String(data.password).trim();
+        if (trimmed.length < 6) {
+            throw new Error('Password must be at least 6 characters long');
+        }
+        pwdHash = bcryptjs_1.default.hashSync(trimmed, 10);
+    }
+    if (admin) {
+        const updates = [];
+        const params = [];
+        if (cleanEmail !== null) {
+            updates.push('email = ?');
+            params.push(cleanEmail);
+        }
+        if (pwdHash) {
+            updates.push('password_hash = ?');
+            params.push(pwdHash);
+        }
+        if (data.name && data.name.trim()) {
+            updates.push('name = ?');
+            params.push(data.name.trim());
+        }
+        if (cleanMobile && cleanMobile.length === 10) {
+            updates.push('mobile = ?');
+            params.push(cleanMobile);
+        }
+        if (updates.length > 0) {
+            updates.push('updated_at = NOW()');
+            params.push(admin.id);
+            await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
+        }
+        // Also update society contact_email / contact_phone if updated
+        if (cleanEmail) {
+            await pool.query('UPDATE societies SET contact_email = ? WHERE id = ?', [cleanEmail, societyId]);
+        }
+        if (cleanMobile && cleanMobile.length === 10) {
+            await pool.query('UPDATE societies SET contact_phone = ? WHERE id = ?', [cleanMobile, societyId]);
+        }
+        const [updatedAdmin] = await pool.query('SELECT id, name, email, mobile FROM users WHERE id = ?', [admin.id]);
+        return updatedAdmin[0];
+    }
+    else {
+        // Create new admin user for this society
+        const adminId = 'adm_' + (0, uuid_1.v4)().replace(/-/g, '').slice(0, 12);
+        const finalName = data.name?.trim() || 'Society Admin';
+        const finalMobile = cleanMobile && cleanMobile.length === 10 ? cleanMobile : ('9' + Math.floor(100000000 + Math.random() * 900000000));
+        const finalHash = pwdHash || bcryptjs_1.default.hashSync('admin123', 10);
+        await pool.query('INSERT INTO users (id, name, mobile, email, password_hash, role, society_id, status) VALUES (?, ?, ?, ?, ?, "ADMIN", ?, "ACTIVE")', [adminId, finalName, finalMobile, cleanEmail, finalHash, societyId]);
+        if (cleanEmail) {
+            await pool.query('UPDATE societies SET contact_email = ? WHERE id = ?', [cleanEmail, societyId]);
+        }
+        if (cleanMobile) {
+            await pool.query('UPDATE societies SET contact_phone = ? WHERE id = ?', [cleanMobile, societyId]);
+        }
+        return {
+            id: adminId,
+            name: finalName,
+            email: cleanEmail,
+            mobile: finalMobile,
+        };
+    }
 }
 // -------------------------------------------------------------
 // FLAT QUERIES
@@ -1200,40 +1456,135 @@ async function createGuardRecord(data) {
     const pool = await (0, mysql_1.getMysqlPool)();
     if (!pool)
         throw new Error('Database pool unavailable');
-    const cleanMobile = data.mobile.replace(/\D/g, '').slice(-10);
-    const userId = `guard_${cleanMobile}`;
-    const guardId = `grd_${Date.now()}`;
-    let targetGateId = data.gateId;
-    if (!targetGateId && data.gateName) {
-        const [gRows] = await pool.query('SELECT id FROM gates WHERE society_id = ? AND LOWER(name) LIKE ? LIMIT 1', [
-            data.societyId, `%${data.gateName.toLowerCase()}%`
-        ]);
-        if (gRows[0])
-            targetGateId = gRows[0].id;
+    const cleanMobile = String(data.mobile).replace(/\D/g, '').slice(-10);
+    if (cleanMobile.length < 10) {
+        throw new Error('Device login mobile must be a valid 10-digit number');
     }
-    if (!targetGateId)
-        targetGateId = 'gate_main';
-    // 1. Insert User
-    await pool.query(`INSERT INTO users (id, name, mobile, role, society_id, status)
-     VALUES (?, ?, ?, 'GUARD', ?, 'ACTIVE')
-     ON DUPLICATE KEY UPDATE name = VALUES(name)`, [userId, data.name.trim(), cleanMobile, data.societyId]);
-    // 2. Insert Guard
-    const shiftText = data.shift === 'evening' ? 'Evening Shift (02:00 PM - 10:00 PM)' :
-        data.shift === 'night' ? 'Night Shift (10:00 PM - 06:00 AM)' :
-            'Morning Shift (06:00 AM - 02:00 PM)';
-    await pool.query(`INSERT INTO guards (id, user_id, gate_id, shift, status)
-     VALUES (?, ?, ?, ?, 'ON_DUTY')
-     ON DUPLICATE KEY UPDATE gate_id = VALUES(gate_id), shift = VALUES(shift), status = 'ON_DUTY'`, [guardId, userId, targetGateId, shiftText]);
+    const pin = data.pin && String(data.pin).trim() ? String(data.pin).trim() : '1234';
+    const pinHash = bcryptjs_1.default.hashSync(pin, 10);
+    // 1. Locate or create User
+    let actualUserId;
+    const existingUser = await findUserByMobile(cleanMobile);
+    if (existingUser) {
+        actualUserId = existingUser.id;
+        await pool.query(`UPDATE users SET name = ?, role = 'GUARD', society_id = ?, status = 'ACTIVE', pin_hash = ? WHERE id = ?`, [data.name.trim(), data.societyId, pinHash, actualUserId]);
+    }
+    else {
+        actualUserId = 'usr_' + (0, uuid_1.v4)().replace(/-/g, '').slice(0, 12);
+        await pool.query(`INSERT INTO users (id, name, mobile, role, society_id, status, pin_hash)
+       VALUES (?, ?, ?, 'GUARD', ?, 'ACTIVE', ?)`, [actualUserId, data.name.trim(), cleanMobile, data.societyId, pinHash]);
+    }
+    // 2. Ensure an active Gate exists for this society
+    let targetGateId = data.gateId;
+    if (!targetGateId) {
+        const [gRows] = await pool.query('SELECT id, name FROM gates WHERE society_id = ? LIMIT 1', [data.societyId]);
+        if (gRows[0]) {
+            targetGateId = gRows[0].id;
+        }
+        else {
+            targetGateId = 'gate_' + (0, uuid_1.v4)().replace(/-/g, '').slice(0, 10);
+            await pool.query('INSERT INTO gates (id, society_id, name, location, status) VALUES (?, ?, ?, ?, ?)', [targetGateId, data.societyId, data.gateName?.trim() || 'Main Gate', 'Primary Society Entrance', 'OPERATIONAL']);
+        }
+    }
+    // 3. Upsert into guards table
+    const [existingGuard] = await pool.query('SELECT id FROM guards WHERE user_id = ? LIMIT 1', [actualUserId]);
+    let guardId;
+    if (existingGuard[0]) {
+        guardId = existingGuard[0].id;
+        await pool.query(`UPDATE guards SET gate_id = ?, shift = '24/7 Gate Kiosk', status = 'ON_DUTY' WHERE id = ?`, [targetGateId, guardId]);
+    }
+    else {
+        guardId = 'grd_' + (0, uuid_1.v4)().replace(/-/g, '').slice(0, 12);
+        await pool.query(`INSERT INTO guards (id, user_id, gate_id, shift, status)
+       VALUES (?, ?, ?, '24/7 Gate Kiosk', 'ON_DUTY')`, [guardId, actualUserId, targetGateId]);
+    }
     return {
         id: guardId,
-        userId,
+        userId: actualUserId,
         name: data.name.trim(),
-        phone: `+91 ${cleanMobile}`,
-        assignedGate: data.gateName || 'Main Gate',
-        shift: data.shift || 'morning',
+        phone: '+91 ' + cleanMobile,
+        devicePin: pin,
+        assignedGate: 'Gate Device',
+        shift: 'All Shifts',
         status: 'on_duty',
         joinedDate: new Date().toISOString().slice(0, 10),
     };
+}
+async function updateGuardRecord(guardId, societyId, data) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        throw new Error('Database pool unavailable');
+    // Verify guard exists and belongs to this society
+    const [rows] = await pool.query(`SELECT g.id, g.user_id, u.mobile, u.name, g.status
+     FROM guards g
+     INNER JOIN users u ON g.user_id = u.id
+     WHERE g.id = ? AND u.society_id = ?
+     LIMIT 1`, [guardId, societyId]);
+    if (!rows || rows.length === 0) {
+        throw new Error('Guard device not found in your society');
+    }
+    const guard = rows[0];
+    const userId = guard.user_id;
+    const rawPhone = data.phone || data.mobile;
+    let cleanMobile = null;
+    if (rawPhone !== undefined && rawPhone !== null && String(rawPhone).trim() !== '') {
+        cleanMobile = String(rawPhone).replace(/\D/g, '').slice(-10);
+        if (cleanMobile.length < 10) {
+            throw new Error('Device login mobile must be a valid 10-digit number');
+        }
+        // Check if another user already has this mobile
+        const [existing] = await pool.query('SELECT id FROM users WHERE mobile = ? AND id != ? LIMIT 1', [cleanMobile, userId]);
+        if (existing.length > 0) {
+            throw new Error(`Mobile number '${cleanMobile}' is already assigned to another account.`);
+        }
+    }
+    // Pin update (4 digits)
+    let pinHash = null;
+    if (data.pin && String(data.pin).trim()) {
+        const cleanPin = String(data.pin).trim();
+        if (cleanPin.length < 4) {
+            throw new Error('Security PIN must be at least 4 digits');
+        }
+        pinHash = bcryptjs_1.default.hashSync(cleanPin, 10);
+    }
+    // Update user fields
+    const userUpdates = [];
+    const userParams = [];
+    if (data.name && data.name.trim()) {
+        userUpdates.push('name = ?');
+        userParams.push(data.name.trim());
+    }
+    if (cleanMobile) {
+        userUpdates.push('mobile = ?');
+        userParams.push(cleanMobile);
+    }
+    if (pinHash) {
+        userUpdates.push('pin_hash = ?');
+        userParams.push(pinHash);
+    }
+    if (userUpdates.length > 0) {
+        userUpdates.push('updated_at = NOW()');
+        userParams.push(userId);
+        await pool.query(`UPDATE users SET ${userUpdates.join(', ')} WHERE id = ?`, userParams);
+    }
+    // Update guard status
+    if (data.status) {
+        const sUpper = String(data.status).toUpperCase();
+        const dbStatus = sUpper.includes('OFF') ? 'OFF_DUTY' : sUpper.includes('LEAVE') ? 'ON_LEAVE' : 'ON_DUTY';
+        await pool.query('UPDATE guards SET status = ? WHERE id = ?', [dbStatus, guardId]);
+    }
+    const guards = await findGuardsWithDetails(societyId);
+    return guards.find((g) => g.id === guardId) || null;
+}
+async function deleteGuardRecord(guardId, societyId) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return false;
+    const [rows] = await pool.query(`SELECT g.id FROM guards g JOIN users u ON g.user_id = u.id WHERE g.id = ? AND u.society_id = ? LIMIT 1`, [guardId, societyId]);
+    if (!rows || rows.length === 0)
+        return false;
+    await pool.query('DELETE FROM guards WHERE id = ?', [guardId]);
+    return true;
 }
 async function findFlatsWithResidents(societyId) {
     const pool = await (0, mysql_1.getMysqlPool)();
@@ -1247,6 +1598,8 @@ async function findFlatsWithResidents(societyId) {
     // Fetch family members & vehicles for society
     let familyMap = {};
     let vehicleMap = {};
+    let vehicleNumbersMap = {};
+    let vehiclesListMap = {};
     try {
         const [famRows] = await pool.query(`SELECT resident_id, flat_id, id, name, relationship, phone FROM family_members WHERE society_id = ?`, [societyId]);
         for (const fam of (famRows || [])) {
@@ -1261,10 +1614,24 @@ async function findFlatsWithResidents(societyId) {
                 isOwner: false,
             });
         }
-        const [vehRows] = await pool.query(`SELECT resident_id, flat_id, COUNT(*) as cnt FROM vehicles WHERE society_id = ? GROUP BY resident_id, flat_id`, [societyId]);
+        const [vehRows] = await pool.query(`SELECT id, resident_id, flat_id, vehicle_number, type, brand, model FROM vehicles WHERE society_id = ?`, [societyId]);
         for (const v of (vehRows || [])) {
             const key = v.flat_id || v.resident_id;
-            vehicleMap[key] = (vehicleMap[key] || 0) + Number(v.cnt || 0);
+            vehicleMap[key] = (vehicleMap[key] || 0) + 1;
+            if (!vehicleNumbersMap[key])
+                vehicleNumbersMap[key] = [];
+            if (v.vehicle_number && !vehicleNumbersMap[key].includes(v.vehicle_number)) {
+                vehicleNumbersMap[key].push(v.vehicle_number);
+            }
+            if (!vehiclesListMap[key])
+                vehiclesListMap[key] = [];
+            vehiclesListMap[key].push({
+                id: v.id,
+                vehicleNumber: v.vehicle_number,
+                type: v.type,
+                brand: v.brand,
+                model: v.model,
+            });
         }
     }
     catch (err) {
@@ -1314,7 +1681,9 @@ async function findFlatsWithResidents(societyId) {
         ] : [];
         const famList = isOccupied ? (familyMap[r.id] || familyMap[r.user_id] || []) : [];
         const residents = [...owner, ...famList];
-        const vehicleCount = isOccupied ? (vehicleMap[r.id] || vehicleMap[r.user_id] || 1) : 0;
+        const vehNumbers = (vehicleNumbersMap[r.id] || (r.user_id ? vehicleNumbersMap[r.user_id] : [])) || [];
+        const vehList = (vehiclesListMap[r.id] || (r.user_id ? vehiclesListMap[r.user_id] : [])) || [];
+        const vehicleCount = vehNumbers.length > 0 ? vehNumbers.length : ((vehicleMap[r.id] || (r.user_id ? vehicleMap[r.user_id] : 0)) || 0);
         const type = r.flat_number.endsWith('01') || r.flat_number.endsWith('04') ? '3BHK' : '2BHK';
         const maint = maintMap[r.id] || (isOccupied ? { status: 'due', dueAmount: 2500 } : { status: 'paid', dueAmount: 0 });
         return {
@@ -1327,6 +1696,8 @@ async function findFlatsWithResidents(societyId) {
             status: isOccupied ? 'occupied' : 'vacant',
             residents,
             vehicleCount,
+            vehicleNumbers: vehNumbers,
+            vehicles: vehList,
             maintenanceStatus: maint.status,
             maintenanceDueAmount: maint.dueAmount,
         };
@@ -1344,10 +1715,21 @@ async function createFlatRecord(data) {
     if (data.ownerName && data.ownerPhone) {
         const cleanDigits = data.ownerPhone.replace(/\D/g, '').slice(-10);
         if (cleanDigits.length === 10) {
-            residentId = `res_${cleanDigits}`;
-            await pool.query(`INSERT INTO users (id, name, mobile, role, society_id, status)
-         VALUES (?, ?, ?, 'RESIDENT', ?, 'ACTIVE')
-         ON DUPLICATE KEY UPDATE name = VALUES(name)`, [residentId, data.ownerName.trim(), cleanDigits, data.societyId]);
+            const [existingUser] = await pool.query('SELECT id FROM users WHERE mobile = ? LIMIT 1', [cleanDigits]);
+            if (existingUser && existingUser.length > 0) {
+                residentId = existingUser[0].id;
+                await pool.query(`UPDATE users SET name = COALESCE(NULLIF(?, ''), name), society_id = ?, status = 'ACTIVE' WHERE id = ?`, [data.ownerName.trim(), data.societyId, residentId]);
+            }
+            else {
+                residentId = `res_${cleanDigits}`;
+                await pool.query(`INSERT INTO users (id, name, mobile, role, society_id, status)
+           VALUES (?, ?, ?, 'RESIDENT', ?, 'ACTIVE')
+           ON DUPLICATE KEY UPDATE name = VALUES(name), status = 'ACTIVE'`, [residentId, data.ownerName.trim(), cleanDigits, data.societyId]);
+                const [recheck] = await pool.query('SELECT id FROM users WHERE mobile = ? LIMIT 1', [cleanDigits]);
+                if (recheck && recheck.length > 0) {
+                    residentId = recheck[0].id;
+                }
+            }
         }
     }
     await pool.query(`INSERT INTO flats (id, society_id, flat_number, wing, floor, resident_id)

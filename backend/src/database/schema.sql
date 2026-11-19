@@ -7,9 +7,27 @@
 CREATE TABLE IF NOT EXISTS `societies` (
   `id` VARCHAR(64) NOT NULL PRIMARY KEY,
   `name` VARCHAR(255) NOT NULL,
+  `subdomain` VARCHAR(64) UNIQUE NULL,
   `address` TEXT NOT NULL,
+  `city` VARCHAR(128) DEFAULT NULL,
+  `state` VARCHAR(128) DEFAULT NULL,
+  `pincode` VARCHAR(16) DEFAULT NULL,
+  `contact_email` VARCHAR(255) DEFAULT NULL,
+  `contact_phone` VARCHAR(32) DEFAULT NULL,
+  `logo_url` TEXT DEFAULT NULL,
+  `upi_id` VARCHAR(128) DEFAULT NULL,
+  `maintenance_amount` DECIMAL(10,2) DEFAULT 0.00,
+  `maintenance_due_day` INT DEFAULT 5,
+  `plan_name` VARCHAR(64) DEFAULT 'STARTER_1_DEVICE',
+  `max_devices` INT DEFAULT 1,
+  `plan_amount` DECIMAL(10,2) DEFAULT 0.00,
+  `billing_cycle` VARCHAR(32) DEFAULT 'MONTHLY',
+  `subscription_status` VARCHAR(32) DEFAULT 'ACTIVE',
+  `subscription_expires_at` DATETIME DEFAULT NULL,
+  `trial_ends_at` DATETIME DEFAULT NULL,
   `status` VARCHAR(32) DEFAULT 'ACTIVE',
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 2. Gates Table
@@ -30,8 +48,8 @@ CREATE TABLE IF NOT EXISTS `users` (
   `email` VARCHAR(255) DEFAULT NULL,
   `password_hash` VARCHAR(255) DEFAULT NULL,
   `pin_hash` VARCHAR(255) DEFAULT NULL,
-  `role` ENUM('RESIDENT', 'GUARD', 'ADMIN') NOT NULL,
-  `society_id` VARCHAR(64) NOT NULL,
+  `role` ENUM('RESIDENT', 'GUARD', 'ADMIN', 'SUPER_ADMIN') NOT NULL,
+  `society_id` VARCHAR(64) DEFAULT NULL,
   `status` VARCHAR(32) DEFAULT 'ACTIVE',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NULL DEFAULT NULL,
@@ -337,11 +355,49 @@ CREATE TABLE IF NOT EXISTS `event_registrations` (
 CREATE INDEX idx_event_reg_user ON event_registrations(user_id);
 CREATE INDEX idx_event_reg_event ON event_registrations(event_id, status);
 
+-- 19. FCM Tokens Table
+CREATE TABLE IF NOT EXISTS `fcm_tokens` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `user_id` VARCHAR(64) NOT NULL,
+  `token` VARCHAR(512) NOT NULL,
+  `device_type` VARCHAR(32) DEFAULT 'android',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `uk_fcm_token` (`token`(190)),
+  KEY `idx_fcm_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 20. Push Subscriptions Table
+CREATE TABLE IF NOT EXISTS `push_subscriptions` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `user_id` VARCHAR(64) NOT NULL,
+  `endpoint` TEXT NOT NULL,
+  `p256dh` VARCHAR(255) NOT NULL,
+  `auth` VARCHAR(255) NOT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY `idx_push_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 21. Subscription Recharges Table
+CREATE TABLE IF NOT EXISTS `subscription_recharges` (
+  `id` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `society_id` VARCHAR(64) NOT NULL,
+  `plan_name` VARCHAR(64) NOT NULL,
+  `amount` DECIMAL(10,2) NOT NULL,
+  `utr_number` VARCHAR(128) NOT NULL,
+  `screenshot_url` LONGTEXT DEFAULT NULL,
+  `status` ENUM('PENDING','VERIFIED','REJECTED') DEFAULT 'PENDING',
+  `admin_notes` TEXT DEFAULT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY `idx_recharge_society` (`society_id`),
+  FOREIGN KEY (`society_id`) REFERENCES `societies` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ============================================================
 -- MAINTENANCE & DIRECT UPI PAYMENT MODULE (ZERO GATEWAY FEE)
 -- ============================================================
 
--- 19. Society Merchant UPI Configuration
+-- 22. Society Merchant UPI Configuration
 CREATE TABLE IF NOT EXISTS `society_payment_configs` (
   `id` VARCHAR(64) NOT NULL PRIMARY KEY,
   `society_id` VARCHAR(64) NOT NULL UNIQUE,
@@ -355,7 +411,7 @@ CREATE TABLE IF NOT EXISTS `society_payment_configs` (
   FOREIGN KEY (`society_id`) REFERENCES `societies`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 20. Maintenance Invoices
+-- 23. Maintenance Invoices
 CREATE TABLE IF NOT EXISTS `maintenance_invoices` (
   `id` VARCHAR(64) NOT NULL PRIMARY KEY,
   `society_id` VARCHAR(64) NOT NULL,
@@ -380,7 +436,7 @@ CREATE INDEX idx_maint_inv_soc_status ON maintenance_invoices(society_id, status
 CREATE INDEX idx_maint_inv_flat ON maintenance_invoices(flat_id);
 CREATE INDEX idx_maint_inv_res ON maintenance_invoices(resident_id);
 
--- 21. Maintenance Payments (UTR Confirmations & Admin Verification Queue)
+-- 24. Maintenance Payments (UTR Confirmations & Admin Verification Queue)
 CREATE TABLE IF NOT EXISTS `maintenance_payments` (
   `id` VARCHAR(64) NOT NULL PRIMARY KEY,
   `society_id` VARCHAR(64) NOT NULL,
@@ -407,7 +463,7 @@ CREATE INDEX idx_maint_pay_soc_status ON maintenance_payments(society_id, status
 CREATE INDEX idx_maint_pay_inv ON maintenance_payments(invoice_id);
 CREATE INDEX idx_maint_pay_utr ON maintenance_payments(society_id, utr);
 
--- 22. Bank Statement Entries (Auto-Match Ledger)
+-- 25. Bank Statement Entries (Auto-Match Ledger)
 CREATE TABLE IF NOT EXISTS `bank_statement_entries` (
   `id` VARCHAR(64) NOT NULL PRIMARY KEY,
   `society_id` VARCHAR(64) NOT NULL,
@@ -421,6 +477,5 @@ CREATE TABLE IF NOT EXISTS `bank_statement_entries` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_bank_stmt_soc_utr ON bank_statement_entries(society_id, utr);
-
 
 

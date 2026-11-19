@@ -16,6 +16,7 @@ const upload_1 = require("./middleware/upload");
 const auth_1 = __importDefault(require("./routes/auth"));
 const visitorRequests_1 = __importDefault(require("./routes/visitorRequests"));
 const admin_1 = __importDefault(require("./routes/admin"));
+const superAdmin_1 = __importDefault(require("./routes/superAdmin"));
 const notifications_1 = __importDefault(require("./routes/notifications"));
 const resident_1 = __importDefault(require("./routes/resident"));
 const invites_1 = __importDefault(require("./routes/invites"));
@@ -68,6 +69,8 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', auth_1.default);
 app.use('/api/visitor-requests', visitorRequests_1.default);
 app.use('/api/admin', admin_1.default);
+app.use('/api/super-admin', superAdmin_1.default);
+app.use('/api', superAdmin_1.default);
 app.use('/api/notifications', notifications_1.default);
 app.use('/api/resident', resident_1.default);
 app.use('/api/invites', invites_1.default);
