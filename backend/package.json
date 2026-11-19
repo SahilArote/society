@@ -11,6 +11,7 @@
     "deploy:local": "powershell -ExecutionPolicy Bypass -File ./deploy-local.ps1",
     "db:migrate": "ts-node scripts/migrate_and_verify.ts",
     "db:verify": "ts-node scripts/migrate_and_verify.ts",
+    "db:seed": "ts-node scripts/seed_superadmin.ts",
     "db:reset": "ts-node reset_and_migrate.ts"
   },
   "dependencies": {
