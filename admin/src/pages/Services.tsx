@@ -256,7 +256,7 @@ export default function Services() {
               placeholder="Search vendor, contact, category..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="input-field"
+              className="field-input"
               style={{ paddingLeft: 34, fontSize: 13, height: 38 }}
             />
           </div>
@@ -428,225 +428,252 @@ export default function Services() {
       {/* Add Service Modal */}
       <AnimatePresence>
         {isAddModalOpen && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0, 0, 0, 0.6)',
-              backdropFilter: 'blur(4px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 999,
-              padding: 16,
-            }}
+          <motion.div
+            className="modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={(e) => { if (e.target === e.currentTarget) setIsAddModalOpen(false); }}
+            style={{ zIndex: 1000 }}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ scale: 0.94, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.94, y: 15 }}
               style={{
                 width: '100%',
-                maxWidth: 540,
-                background: 'var(--bg-elevated)',
+                maxWidth: 580,
+                maxHeight: '90vh',
+                background: 'var(--bg-card)',
                 borderRadius: 'var(--r-xl)',
                 border: '1px solid var(--border)',
-                boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+                boxShadow: 'var(--shadow-xl)',
+                display: 'flex',
+                flexDirection: 'column',
                 overflow: 'hidden',
               }}
             >
+              {/* Header */}
               <div
+                className="modal-header"
                 style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '18px 24px',
+                  padding: '16px 20px',
                   borderBottom: '1px solid var(--border)',
+                  flexShrink: 0,
                 }}
               >
-                <div>
-                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    Add Verified Society Service
-                  </h3>
-                  <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
-                    This vendor will be instantly accessible to residents in the mobile app.
-                  </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 8,
+                      background: 'var(--accent-glow)',
+                      color: 'var(--accent-light)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Wrench size={18} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Add Verified Society Service
+                    </h3>
+                    <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
+                      This vendor will be instantly accessible to residents in the mobile app.
+                    </p>
+                  </div>
                 </div>
-                <button className="btn-icon" onClick={() => setIsAddModalOpen(false)}>
+                <button className="btn-icon" onClick={() => setIsAddModalOpen(false)} title="Close">
                   <X size={16} />
                 </button>
               </div>
 
-              <form onSubmit={handleCreate} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <form
+                onSubmit={handleCreate}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  flex: 1,
+                  minHeight: 0,
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Scrollable Form Body */}
+                <div
+                  style={{
+                    padding: '20px 24px',
+                    overflowY: 'auto',
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 14,
+                  }}
+                >
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                    <div>
+                      <label className="field-label">Service / Business Name *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Shri Ganesh Electricals"
+                        value={formData.name}
+                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                        className="field-input"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="field-label">Service Type *</label>
+                      <select
+                        value={formData.serviceType}
+                        onChange={e => setFormData({ ...formData, serviceType: e.target.value as any })}
+                        className="field-select"
+                      >
+                        <option value="VENDOR">Vendor (General Repairs)</option>
+                        <option value="UTILITY">Utility / Society AMC</option>
+                        <option value="STAFF">Domestic Staff Hire</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                    <div>
+                      <label className="field-label">Category *</label>
+                      <select
+                        value={formData.category}
+                        onChange={e => setFormData({ ...formData, category: e.target.value })}
+                        className="field-select"
+                      >
+                        <option value="Electrician">Electrician</option>
+                        <option value="Plumber">Plumber</option>
+                        <option value="AC Repair">AC Repair</option>
+                        <option value="Carpenter">Carpenter</option>
+                        <option value="Pest Control">Pest Control</option>
+                        <option value="Housekeeping">Housekeeping</option>
+                        <option value="Painter">Painter</option>
+                        <option value="Appliance Repair">Appliance Repair</option>
+                        <option value="Cook & Maid">Cook & Maid</option>
+                        <option value="Security / AMC">Security / AMC</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="field-label">Contact Person / Provider</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Ganesh Sharma"
+                        value={formData.providerName}
+                        onChange={e => setFormData({ ...formData, providerName: e.target.value })}
+                        className="field-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                    <div>
+                      <label className="field-label">Primary Phone *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="+91 98201 11223"
+                        value={formData.phone}
+                        onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                        className="field-input"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="field-label">Alternate Phone</label>
+                      <input
+                        type="text"
+                        placeholder="+91 98201 11224"
+                        value={formData.alternatePhone}
+                        onChange={e => setFormData({ ...formData, alternatePhone: e.target.value })}
+                        className="field-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                    <div>
+                      <label className="field-label">Operating Timing</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 9:00 AM - 8:00 PM"
+                        value={formData.timing}
+                        onChange={e => setFormData({ ...formData, timing: e.target.value })}
+                        className="field-input"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="field-label">Default Star Rating</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="1.0"
+                        max="5.0"
+                        value={formData.rating}
+                        onChange={e => setFormData({ ...formData, rating: parseFloat(e.target.value) || 4.5 })}
+                        className="field-input"
+                      />
+                    </div>
+                  </div>
+
                   <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                      Service / Business Name *
-                    </label>
+                    <label className="field-label">Shop / Service Address</label>
                     <input
                       type="text"
-                      required
-                      placeholder="e.g. Shri Ganesh Electricals"
-                      value={formData.name}
-                      onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      className="input-field"
+                      placeholder="e.g. Shop 12, Chandivali Farm Road, Andheri East"
+                      value={formData.address}
+                      onChange={e => setFormData({ ...formData, address: e.target.value })}
+                      className="field-input"
                     />
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                      Service Type *
-                    </label>
-                    <select
-                      value={formData.serviceType}
-                      onChange={e => setFormData({ ...formData, serviceType: e.target.value as any })}
-                      className="input-field"
-                    >
-                      <option value="VENDOR">Vendor (General Repairs)</option>
-                      <option value="UTILITY">Utility / Society AMC</option>
-                      <option value="STAFF">Domestic Staff Hire</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                      Category *
-                    </label>
-                    <select
-                      value={formData.category}
-                      onChange={e => setFormData({ ...formData, category: e.target.value })}
-                      className="input-field"
-                    >
-                      <option value="Electrician">Electrician</option>
-                      <option value="Plumber">Plumber</option>
-                      <option value="AC Repair">AC Repair</option>
-                      <option value="Carpenter">Carpenter</option>
-                      <option value="Pest Control">Pest Control</option>
-                      <option value="Housekeeping">Housekeeping</option>
-                      <option value="Painter">Painter</option>
-                      <option value="Appliance Repair">Appliance Repair</option>
-                      <option value="Cook & Maid">Cook & Maid</option>
-                      <option value="Security / AMC">Security / AMC</option>
-                      <option value="Other">Other</option>
-                    </select>
+                    <label className="field-label">Short Description / Notes</label>
+                    <textarea
+                      rows={3}
+                      placeholder="Specialized in domestic wiring, inverters and quick emergency calls."
+                      value={formData.description}
+                      onChange={e => setFormData({ ...formData, description: e.target.value })}
+                      className="field-input"
+                      style={{ resize: 'vertical', minHeight: 68 }}
+                    />
                   </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                      Contact Person / Provider
-                    </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
                     <input
-                      type="text"
-                      placeholder="e.g. Ganesh Sharma"
-                      value={formData.providerName}
-                      onChange={e => setFormData({ ...formData, providerName: e.target.value })}
-                      className="input-field"
+                      type="checkbox"
+                      id="isVerifiedCheckbox"
+                      checked={formData.isVerified}
+                      onChange={e => setFormData({ ...formData, isVerified: e.target.checked })}
+                      style={{ cursor: 'pointer', width: 16, height: 16, accentColor: 'var(--accent)' }}
                     />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                      Primary Phone *
+                    <label htmlFor="isVerifiedCheckbox" style={{ fontSize: 13, color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 500 }}>
+                      Mark as Verified Society Service (Recommended)
                     </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="+91 98201 11223"
-                      value={formData.phone}
-                      onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                      className="input-field"
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                      Alternate Phone
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="+91 98201 11224"
-                      value={formData.alternatePhone}
-                      onChange={e => setFormData({ ...formData, alternatePhone: e.target.value })}
-                      className="input-field"
-                    />
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                      Operating Timing
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 9:00 AM - 8:00 PM"
-                      value={formData.timing}
-                      onChange={e => setFormData({ ...formData, timing: e.target.value })}
-                      className="input-field"
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                      Default Star Rating
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="1.0"
-                      max="5.0"
-                      value={formData.rating}
-                      onChange={e => setFormData({ ...formData, rating: parseFloat(e.target.value) || 4.5 })}
-                      className="input-field"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                    Shop / Service Address
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Shop 12, Chandivali Farm Road, Andheri East"
-                    value={formData.address}
-                    onChange={e => setFormData({ ...formData, address: e.target.value })}
-                    className="input-field"
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                    Short Description / Notes
-                  </label>
-                  <textarea
-                    rows={2}
-                    placeholder="Specialized in domestic wiring, inverters and quick emergency calls."
-                    value={formData.description}
-                    onChange={e => setFormData({ ...formData, description: e.target.value })}
-                    className="input-field"
-                    style={{ resize: 'none' }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                  <input
-                    type="checkbox"
-                    id="isVerifiedCheckbox"
-                    checked={formData.isVerified}
-                    onChange={e => setFormData({ ...formData, isVerified: e.target.checked })}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <label htmlFor="isVerifiedCheckbox" style={{ fontSize: 13, color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 500 }}>
-                    Mark as Verified Society Service (Recommended)
-                  </label>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+                {/* Fixed Actions Footer */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: 10,
+                    padding: '14px 20px',
+                    borderTop: '1px solid var(--border)',
+                    background: 'var(--bg-elevated)',
+                    flexShrink: 0,
+                  }}
+                >
                   <button type="button" className="btn-secondary" onClick={() => setIsAddModalOpen(false)}>
                     Cancel
                   </button>
@@ -657,7 +684,7 @@ export default function Services() {
                 </div>
               </form>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

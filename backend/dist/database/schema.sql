@@ -7,9 +7,26 @@
 CREATE TABLE IF NOT EXISTS `societies` (
   `id` VARCHAR(64) NOT NULL PRIMARY KEY,
   `name` VARCHAR(255) NOT NULL,
+  `subdomain` VARCHAR(64) UNIQUE NULL,
   `address` TEXT NOT NULL,
+  `city` VARCHAR(128) DEFAULT NULL,
+  `state` VARCHAR(128) DEFAULT NULL,
+  `pincode` VARCHAR(16) DEFAULT NULL,
+  `contact_email` VARCHAR(255) DEFAULT NULL,
+  `contact_phone` VARCHAR(32) DEFAULT NULL,
+  `logo_url` TEXT DEFAULT NULL,
+  `upi_id` VARCHAR(128) DEFAULT NULL,
+  `maintenance_amount` DECIMAL(10,2) DEFAULT 0.00,
+  `maintenance_due_day` INT DEFAULT 5,
+  `plan_name` VARCHAR(64) DEFAULT 'STARTER_1_DEVICE',
+  `max_devices` INT DEFAULT 1,
+  `plan_amount` DECIMAL(10,2) DEFAULT 0.00,
+  `billing_cycle` VARCHAR(32) DEFAULT 'MONTHLY',
+  `subscription_status` VARCHAR(32) DEFAULT 'ACTIVE',
+  `subscription_expires_at` DATETIME DEFAULT NULL,
   `status` VARCHAR(32) DEFAULT 'ACTIVE',
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 2. Gates Table
@@ -30,8 +47,8 @@ CREATE TABLE IF NOT EXISTS `users` (
   `email` VARCHAR(255) DEFAULT NULL,
   `password_hash` VARCHAR(255) DEFAULT NULL,
   `pin_hash` VARCHAR(255) DEFAULT NULL,
-  `role` ENUM('RESIDENT', 'GUARD', 'ADMIN') NOT NULL,
-  `society_id` VARCHAR(64) NOT NULL,
+  `role` ENUM('RESIDENT', 'GUARD', 'ADMIN', 'SUPER_ADMIN') NOT NULL,
+  `society_id` VARCHAR(64) DEFAULT NULL,
   `status` VARCHAR(32) DEFAULT 'ACTIVE',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NULL DEFAULT NULL,

@@ -9,7 +9,7 @@ function resolveApiBaseUrl(): string {
   if (!url.endsWith('/api')) {
     url = `${url}/api`;
   }
-  if (url.startsWith('http://')) {
+  if (url.startsWith('http://') && !url.includes('localhost') && !url.includes('127.0.0.1')) {
     url = url.replace(/^http:\/\//, 'https://');
   }
   return url;
@@ -27,6 +27,16 @@ export function setAdminSession(token: string, adminUser: any) {
   localStorage.setItem('gg_admin_auth', 'true');
 }
 
+export function getAdminUser(): any | null {
+  const user = localStorage.getItem('gg_admin_user');
+  if (!user) return null;
+  try {
+    return JSON.parse(user);
+  } catch {
+    return null;
+  }
+}
+
 export function clearAdminSession() {
   localStorage.removeItem('gg_admin_token');
   localStorage.removeItem('gg_admin_user');
@@ -34,17 +44,20 @@ export function clearAdminSession() {
 }
 
 function getAuthHeaders(): Record<string, string> {
-  const token = getAdminToken() || 'backup_admin_token_default';
+  const token = getAdminToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
   };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
   return headers;
 }
 
 export async function adminLogin(email: string, password: string) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
+
   try {
     const res = await fetch(`${API_BASE_URL}/auth/admin/login`, {
       method: 'POST',
@@ -52,30 +65,36 @@ export async function adminLogin(email: string, password: string) {
       body: JSON.stringify({ email: email.trim(), password: password.trim() }),
       signal: controller.signal,
     });
-    clearTimeout(timeoutId);
-    const json = await res.json();
-    if (res.ok && json.success) {
-      setAdminSession(json.token || json.data?.token, json.admin || json.data?.user || { id: 'admin_user', email, name: 'Admin', role: 'ADMIN' });
-      return json;
+
+    const json = await res.json().catch(() => null);
+
+    if (!res.ok || !json?.success) {
+      const errorMsg = json?.error?.message || json?.message || 'Invalid admin credentials.';
+      throw new Error(errorMsg);
     }
-  } catch (err) {
-    console.warn('Network issue calling live admin login, checking credentials locally:', err);
-  }
 
-  // Backup fallback for admin login: admin@nexgate.co.in / admin123
-  if (email.trim().toLowerCase() === 'admin@nexgate.co.in' && password === 'admin123') {
-    const fallbackToken = 'backup_admin_token_' + Date.now();
-    const fallbackAdmin = { id: 'admin_user', email: 'admin@nexgate.co.in', name: 'Admin', role: 'ADMIN' };
-    setAdminSession(fallbackToken, fallbackAdmin);
-    return { success: true, token: fallbackToken, admin: fallbackAdmin };
-  }
+    const token = json.data?.token || json.token;
+    const user = json.data?.user || json.admin;
 
-  throw new Error('Invalid admin credentials. Use admin@nexgate.co.in / admin123');
+    if (!token) {
+      throw new Error('Authentication token missing from server response.');
+    }
+
+    setAdminSession(token, user);
+    return { success: true, token, user };
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error('Login request timed out. Please check your network connection.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
   let targetUrl = url;
-  if (targetUrl.startsWith('http://')) {
+  if (targetUrl.startsWith('http://') && !targetUrl.includes('localhost') && !targetUrl.includes('127.0.0.1')) {
     targetUrl = targetUrl.replace(/^http:\/\//, 'https://');
   }
 
@@ -288,6 +307,27 @@ export async function mergeDuplicateFlats() {
   return json;
 }
 
+export async function updateAdminFlat(id: string, data: {
+  wing?: string;
+  floor?: number;
+  type?: string;
+  residentName?: string;
+  residentMobile?: string;
+  residentEmail?: string;
+  vehicleNumbers?: string[];
+  status?: string;
+}) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/admin/flats/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || json.message || 'Failed to update flat details');
+  }
+  return json.data;
+}
+
 export async function deleteAdminFlat(id: string) {
   const res = await fetchWithAuth(`${API_BASE_URL}/admin/flats/${id}`, {
     method: 'DELETE',
@@ -419,10 +459,14 @@ export async function fetchAdminGuards() {
     const res = await fetchWithAuth(`${API_BASE_URL}/admin/guards`);
     if (!res.ok) throw new Error(`HTTP error ${res.status}`);
     const json = await res.json();
-    return json.data || [];
+    const list: any = Array.isArray(json.data) ? json.data : [];
+    list.meta = json.meta || null;
+    return list;
   } catch (err) {
     console.error('Failed to fetch admin guards:', err);
-    return [];
+    const empty: any = [];
+    empty.meta = null;
+    return empty;
   }
 }
 
@@ -431,6 +475,7 @@ export async function createAdminGuard(data: {
   phone?: string;
   assignedGate?: string;
   shift?: string;
+  pin?: string;
 }) {
   const res = await fetchWithAuth(`${API_BASE_URL}/admin/guards`, {
     method: 'POST',
@@ -441,6 +486,35 @@ export async function createAdminGuard(data: {
     throw new Error(json.error?.message || json.message || 'Failed to register guard');
   }
   return json.data;
+}
+
+export async function updateAdminGuard(guardId: string, data: {
+  name?: string;
+  phone?: string;
+  mobile?: string;
+  pin?: string;
+  status?: string;
+}) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/admin/guards/${guardId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || json.message || 'Failed to update guard');
+  }
+  return json.data;
+}
+
+export async function deleteAdminGuard(guardId: string) {
+  const res = await fetchWithAuth(`${API_BASE_URL}/admin/guards/${guardId}`, {
+    method: 'DELETE',
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || json.message || 'Failed to remove guard device');
+  }
+  return json;
 }
 
 // =============================================================
@@ -482,7 +556,7 @@ export async function fetchAdminSettings() {
   } catch (_) {}
 
   return {
-    name: 'Eco Residency Co-operative Housing Society Ltd',
+    name: 'NexGate Society',
     address: 'Main Gate Boulevard, Tower A-D',
     city: 'Mumbai, MH',
     totalFlats: 120,
@@ -494,6 +568,11 @@ export async function updateAdminSettings(data: {
   address?: string;
   city?: string;
   totalFlats?: number | string;
+  upiId?: string;
+  maintenanceAmount?: number;
+  maintenanceDueDay?: number;
+  contactEmail?: string;
+  contactPhone?: string;
 }) {
   try {
     const res = await fetchWithAuth(`${API_BASE_URL}/admin/settings`, {
@@ -732,4 +811,163 @@ export async function deleteAdminLostFound(id: string) {
     throw new Error(json.error?.message || 'Failed to delete post');
   }
   return true;
+}
+
+// =============================================================
+// SUPER ADMIN API METHODS
+// =============================================================
+
+export async function fetchSuperAdminSocieties(): Promise<any[]> {
+  try {
+    const res = await fetchWithAuth(`${API_BASE_URL}/super-admin/societies`);
+    if (res.ok) {
+      const json = await res.json();
+      return json.data || [];
+    }
+  } catch (err) {
+    console.warn('Network issue fetching super admin societies directory:', err);
+  }
+  return [];
+}
+
+export async function fetchSuperAdminStats(): Promise<any> {
+  try {
+    const res = await fetchWithAuth(`${API_BASE_URL}/super-admin/stats`);
+    if (res.ok) {
+      const json = await res.json();
+      return json.data;
+    }
+  } catch (err) {
+    console.warn('Network issue fetching super admin stats:', err);
+  }
+  return null;
+}
+
+export async function onboardSociety(payload: any): Promise<any> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/super-admin/societies/onboard`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || 'Failed to onboard society.');
+  }
+  return json.data;
+}
+
+export async function toggleSocietyStatus(societyId: string, status: 'ACTIVE' | 'INACTIVE'): Promise<any> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/super-admin/societies/${societyId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || 'Failed to update society status.');
+  }
+  return json.data;
+}
+
+export async function updateSuperAdminSociety(societyId: string, payload: any): Promise<any> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/super-admin/societies/${societyId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || 'Failed to update society details.');
+  }
+  return json.data;
+}
+
+export async function updateSocietyAdminCredentials(
+  societyId: string,
+  credentials: { email?: string; password?: string; name?: string; mobile?: string }
+): Promise<any> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/super-admin/societies/${societyId}/admin-credentials`, {
+    method: 'PATCH',
+    body: JSON.stringify(credentials),
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || 'Failed to update admin credentials.');
+  }
+  return json.data;
+}
+
+export async function renewSocietySubscription(societyId: string, payload: { months?: number; planName?: string; paymentMode?: string; referenceId?: string }): Promise<any> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/super-admin/societies/${societyId}/renew`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || 'Failed to renew society subscription.');
+  }
+  return json.data;
+}
+
+export async function fetchAdminSubscription(): Promise<any> {
+  try {
+    const res = await fetchWithAuth(`${API_BASE_URL}/admin/subscription`);
+    if (res.ok) {
+      const json = await res.json();
+      return json.data;
+    }
+  } catch (err) {
+    console.warn('Network issue fetching subscription info:', err);
+  }
+  return null;
+}
+
+export async function fetchPublicSocietyBySubdomain(subdomain: string): Promise<any> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/public/subdomain/${encodeURIComponent(subdomain)}`);
+    if (res.ok) {
+      const json = await res.json();
+      return json.data;
+    }
+  } catch (err) {
+    console.warn('Network issue looking up society by subdomain:', err);
+  }
+  return null;
+}
+
+export async function fetchSocietyBackup(societyId: string): Promise<any> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/super-admin/societies/${societyId}/backup`);
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || 'Failed to download society backup.');
+  }
+  return json.data;
+}
+
+export async function submitRechargeProof(payload: {
+  utrNumber: string;
+  screenshotUrl?: string;
+  planName?: string;
+  amount?: number;
+  notes?: string;
+}): Promise<any> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/admin/subscription/recharge-proof`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.error?.message || 'Failed to submit recharge verification proof.');
+  }
+  return json.data;
+}
+
+export async function fetchRechargeHistory(): Promise<any[]> {
+  try {
+    const res = await fetchWithAuth(`${API_BASE_URL}/admin/subscription/recharges`);
+    if (res.ok) {
+      const json = await res.json();
+      return json.data || [];
+    }
+  } catch (err) {
+    console.warn('Network issue fetching recharge history:', err);
+  }
+  return [];
 }

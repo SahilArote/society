@@ -1,46 +1,90 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Building2, DoorOpen, CreditCard, Shield, Bell, Save, CheckCircle2,
-  Plus, Download, Lock, Smartphone, Database, Server, UserPlus,
-  Trash2, X, AlertTriangle, KeyRound, QrCode, Palette, Sun, Moon, Laptop
+  Building2, CreditCard, Shield, Save, CheckCircle2,
+  Lock, Server, AlertTriangle, QrCode, Palette, Sun, Moon, Laptop,
+  Copy, Check, Upload, FileText, ExternalLink, RefreshCw, AlertCircle,
+  HelpCircle, Clock
 } from 'lucide-react';
-import { mockSociety, mockFlats, mockGates, mockGuards } from '../data/mockData';
+import {
+  getAdminUser,
+  fetchAdminSettings,
+  updateAdminSettings,
+  fetchAdminSubscription,
+  submitRechargeProof,
+  fetchRechargeHistory
+} from '../services/api';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useTheme } from '../context/ThemeContext';
-import { fetchAdminSettings, updateAdminSettings } from '../services/api';
 
 export default function Settings() {
   const { theme, resolvedTheme, setTheme } = useTheme();
-  const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'gates' | 'notifications' | 'admins' | 'appearance'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'billing' | 'admins' | 'appearance'>('profile');
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // Society State
-  const [socName, setSocName] = useState(mockSociety.name);
-  const [socCity, setSocCity] = useState(mockSociety.city);
-  const [socAddress, setSocAddress] = useState(mockSociety.address);
-  const [socFlats, setSocFlats] = useState(String(mockSociety.totalFlats));
-  const [maintAmount, setMaintAmount] = useState(String(mockSociety.maintenanceAmount));
-  const [maintDueDay, setMaintDueDay] = useState(String(mockSociety.maintenanceDueDay));
-  const [upiId, setUpiId] = useState('nexgate.society@hdfcbank');
+  const [socName, setSocName] = useState('');
+  const [socCity, setSocCity] = useState('');
+  const [socAddress, setSocAddress] = useState('');
+  const [socFlats, setSocFlats] = useState('');
+  const [maintAmount, setMaintAmount] = useState('2500');
+  const [maintDueDay, setMaintDueDay] = useState('5');
+  const [upiId, setUpiId] = useState('');
 
-  // Admin users state
-  const [admins, setAdmins] = useState([
-    { id: 1, name: 'Rajesh Sharma', role: 'Society Secretary', email: 'secretary@nexgate.co.in', phone: '+91 98765 00001', access: 'Super Admin' },
-    { id: 2, name: 'Vikram Joshi', role: 'Security Supervisor', email: 'security@nexgate.co.in', phone: '+91 98765 00002', access: 'Gates & Guards' },
-    { id: 3, name: 'Anita Deshmukh', role: 'Treasurer & Accounts', email: 'treasurer@nexgate.co.in', phone: '+91 98765 00003', access: 'Billing & Reports' },
-  ]);
+  // Subscription / Plan State
+  const [subInfo, setSubInfo] = useState<any | null>(null);
+  const [loadingSub, setLoadingSub] = useState(false);
 
-  const [showAddAdmin, setShowAddAdmin] = useState(false);
-  const [newAdminName, setNewAdminName] = useState('');
-  const [newAdminEmail, setNewAdminEmail] = useState('');
-  const [newAdminRole, setNewAdminRole] = useState('Committee Member');
+  // Recharge Submission State
+  const [utrNumber, setUtrNumber] = useState('');
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [rechargeNotes, setRechargeNotes] = useState('');
+  const [submittingProof, setSubmittingProof] = useState(false);
+  const [rechargeHistory, setRechargeHistory] = useState<any[]>([]);
+  const [copiedUpi, setCopiedUpi] = useState(false);
+
+  // Admin users state (Read-only)
+  const [admins] = useState(() => {
+    const current = getAdminUser();
+    if (current) {
+      return [
+        {
+          id: 1,
+          name: current.name || 'Society Admin',
+          role: (current.role || 'ADMIN').replace('_', ' '),
+          email: current.email || 'admin@nexgate.co.in',
+          phone: current.mobile || '+91 98765 00000',
+          access: current.role === 'SUPER_ADMIN' ? 'Platform Administrator' : 'Primary Society Administrator',
+        }
+      ];
+    }
+    return [
+      { id: 1, name: 'Society Administrator', role: 'Admin', email: 'admin@nexgate.co.in', phone: '+91 98765 00000', access: 'Primary Society Administrator' }
+    ];
+  });
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 2500);
+    setTimeout(() => setToastMsg(null), 3000);
+  };
+
+  const loadSubscriptionData = async () => {
+    try {
+      setLoadingSub(true);
+      const sub = await fetchAdminSubscription();
+      if (sub) {
+        setSubInfo(sub);
+      }
+      const history = await fetchRechargeHistory();
+      if (Array.isArray(history)) {
+        setRechargeHistory(history);
+      }
+    } catch (_) {
+    } finally {
+      setLoadingSub(false);
+    }
   };
 
   useEffect(() => {
@@ -51,8 +95,14 @@ export default function Settings() {
         if (data.city) setSocCity(data.city);
         if (data.address) setSocAddress(data.address);
         if (data.totalFlats) setSocFlats(String(data.totalFlats));
+        if (data.upiId) setUpiId(data.upiId);
+        if (data.maintenanceAmount !== undefined) setMaintAmount(String(data.maintenanceAmount));
+        if (data.maintenanceDueDay !== undefined) setMaintDueDay(String(data.maintenanceDueDay));
       }
     });
+
+    loadSubscriptionData();
+
     return () => { active = false; };
   }, []);
 
@@ -64,6 +114,9 @@ export default function Settings() {
         city: socCity.trim(),
         address: socAddress.trim(),
         totalFlats: socFlats,
+        upiId: upiId.trim(),
+        maintenanceAmount: Number(maintAmount) || 0,
+        maintenanceDueDay: Number(maintDueDay) || 5,
       });
       setSaving(false);
       setSaved(true);
@@ -75,57 +128,64 @@ export default function Settings() {
     }
   };
 
-  const downloadBackup = () => {
-    const backupData = {
-      timestamp: new Date().toISOString(),
-      society: {
-        name: socName,
-        city: socCity,
-        address: socAddress,
-        totalFlats: socFlats,
-        maintAmount,
-        maintDueDay,
-        upiId,
-      },
-      flats: mockFlats,
-      gates: mockGates,
-      guards: mockGuards,
-      admins,
-    };
-    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `NexGate_Backup_${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('Downloaded full system backup JSON');
+  const handleCopyUpi = (vpa: string) => {
+    navigator.clipboard.writeText(vpa);
+    setCopiedUpi(true);
+    showToast(`Copied UPI ID: ${vpa}`);
+    setTimeout(() => setCopiedUpi(false), 2000);
   };
 
-  const handleAddAdmin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newAdminName || !newAdminEmail) return;
-    setAdmins(prev => [
-      ...prev,
-      {
-        id: Date.now(),
-        name: newAdminName,
-        email: newAdminEmail,
-        role: newAdminRole,
-        phone: '+91 98000 00000',
-        access: 'Standard Admin',
+  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('Image file size must be less than 5MB');
+        return;
       }
-    ]);
-    setShowAddAdmin(false);
-    setNewAdminName('');
-    setNewAdminEmail('');
-    showToast(`Added admin user: ${newAdminName}`);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setScreenshotPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  const removeAdmin = (id: number) => {
-    setAdmins(prev => prev.filter(a => a.id !== id));
-    showToast('Admin user revoked');
+  const handleSubmitRechargeProof = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!utrNumber.trim()) {
+      showToast('Please enter the 12-digit UTR / UPI Transaction Reference Number');
+      return;
+    }
+    try {
+      setSubmittingProof(true);
+      await submitRechargeProof({
+        utrNumber: utrNumber.trim(),
+        screenshotUrl: screenshotPreview || undefined,
+        planName: subInfo?.planCode || 'STANDARD_1_DEVICE',
+        amount: subInfo?.monthlyPrice || 1999,
+        notes: rechargeNotes.trim() || undefined,
+      });
+      setSubmittingProof(false);
+      setUtrNumber('');
+      setScreenshotPreview(null);
+      setRechargeNotes('');
+      showToast('Payment verification proof submitted! Super admin will verify and renew within 2 hours.');
+      // Refresh recharges list
+      const updatedHistory = await fetchRechargeHistory();
+      if (Array.isArray(updatedHistory)) {
+        setRechargeHistory(updatedHistory);
+      }
+    } catch (err: any) {
+      setSubmittingProof(false);
+      showToast(err.message || 'Failed to submit payment verification proof');
+    }
   };
+
+  const platformBillingUpi = 'nexgate.billing@icici';
+  const rechargeAmount = subInfo?.monthlyPrice || 1999;
+  const planDisplayName = subInfo?.planName || 'Standard (1 Device)';
+  const upiPayPayload = `upi://pay?pa=${platformBillingUpi}&pn=NexGate%20Technologies&am=${rechargeAmount}&cu=INR&tn=${encodeURIComponent('NexGate_Recharge_' + (socName || 'Society'))}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiPayPayload)}`;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
@@ -152,9 +212,9 @@ export default function Settings() {
       </AnimatePresence>
 
       {/* Main 2-Column Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '290px 1fr', gap: 24 }}>
 
-        {/* Left Sidebar: Society Identity, Health Score, Navigation Tabs & System Tools */}
+        {/* Left Sidebar: Society Identity, Health Score & Navigation Tabs */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
           {/* Society Identity Card */}
@@ -168,10 +228,10 @@ export default function Settings() {
               <Building2 size={26} color="#fff" />
             </div>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
-              {socName}
+              {socName || 'NexGate Society'}
             </h3>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-              Reg: MH/PUN/2021/8941 · RERA Verified
+              {socCity ? `${socCity} · RERA Registered` : 'RERA Verified Society'}
             </p>
 
             <div style={{
@@ -179,31 +239,29 @@ export default function Settings() {
               display: 'flex', justifyContent: 'space-around', textAlign: 'center'
             }}>
               <div>
-                <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>{socFlats}</span>
+                <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>{socFlats || '0'}</span>
                 <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>Flats</p>
               </div>
               <div style={{ width: 1, background: 'var(--border)' }} />
               <div>
-                <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>3</span>
-                <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>Gates</p>
+                <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>{subInfo?.maxDevices || 1}</span>
+                <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>Allowed Device</p>
               </div>
               <div style={{ width: 1, background: 'var(--border)' }} />
               <div>
-                <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>6</span>
-                <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>Guards</p>
+                <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>1</span>
+                <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>Gate</p>
               </div>
             </div>
           </div>
 
-          {/* Navigation Tabs */}
+          {/* Navigation Tabs (Gates & Notification Rules Removed) */}
           <div className="card" style={{ padding: 6 }}>
             {[
               { id: 'profile', label: 'Society Profile & Info', icon: Building2 },
+              { id: 'billing', label: 'Plan Subscription & Recharge', icon: CreditCard },
+              { id: 'admins', label: 'Admin Team & Roles (Read-Only)', icon: Shield },
               { id: 'appearance', label: 'Theme & Appearance', icon: Palette },
-              { id: 'billing', label: 'Billing & Maintenance', icon: CreditCard },
-              { id: 'gates', label: 'Gates & Barrier Automation', icon: DoorOpen },
-              { id: 'notifications', label: 'Notification Rules', icon: Bell },
-              { id: 'admins', label: 'Admin Team & Roles', icon: Shield },
             ].map(tab => {
               const active = activeTab === tab.id;
               const Icon = tab.icon;
@@ -235,31 +293,18 @@ export default function Settings() {
             })}
           </div>
 
-          {/* System Health Widget */}
+          {/* System Health Widget (Backup JSON Download Removed per requirement) */}
           <div className="card card-p" style={{ background: 'linear-gradient(180deg, var(--bg-card) 0%, rgba(16,185,129,0.04) 100%)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Server size={14} color="var(--green)" />
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>System Status</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>Cloud Infrastructure</span>
               </div>
               <span className="badge badge-success" style={{ fontSize: 10 }}>99.98% Uptime</span>
             </div>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>
-              Cloud database, gate ANPR relays, and WebSocket events operational without incidents.
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.45 }}>
+              NexGate security nodes, guard sync engine, and encrypted databases are operating normally. Database snapshots are managed centrally by Super Admin.
             </p>
-
-            <button
-              onClick={downloadBackup}
-              id="export-backup-btn"
-              className="btn-secondary"
-              style={{
-                width: '100%', marginTop: 14, padding: '8px', fontSize: 12,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                cursor: 'pointer'
-              }}
-            >
-              <Database size={13} /> Export Backup (.JSON)
-            </button>
           </div>
 
         </div>
@@ -267,7 +312,7 @@ export default function Settings() {
         {/* Right Content Area */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-          {/* Active Tab View */}
+          {/* Tab 1: Profile */}
           {activeTab === 'profile' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card card-p">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
@@ -318,7 +363,7 @@ export default function Settings() {
                 <div>
                   <label className="field-label">Building Wings</label>
                   <input
-                    defaultValue="Wing A, Wing B, Wing C, Wing D"
+                    placeholder="e.g. Wing A, Wing B, Wing C, Wing D"
                     className="field-input"
                     id="soc-wings"
                   />
@@ -327,6 +372,439 @@ export default function Settings() {
             </motion.div>
           )}
 
+          {/* Tab 2: Plan Subscription & Recharge */}
+          {activeTab === 'billing' && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+              {/* Current Plan Overview Card */}
+              <div className="card card-p" style={{
+                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(16, 185, 129, 0.05) 100%)',
+                border: '1px solid var(--border-accent)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                  <div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-light)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Current Subscription Plan
+                    </span>
+                    <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginTop: 2 }}>
+                      {planDisplayName}
+                    </h2>
+                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+                      ₹{rechargeAmount.toLocaleString('en-IN')} / month · Billed monthly · Device Quota: <b>{subInfo?.maxDevices || 1} Guard Device{((subInfo?.maxDevices || 1) > 1) ? 's' : ''}</b>
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                    {subInfo?.isTrial ? (
+                      <span className="badge badge-accent" style={{ fontSize: 12, padding: '4px 10px', fontWeight: 700 }}>
+                        ⏳ 1-Month Free Trial ({subInfo?.daysRemaining ?? 30} days remaining)
+                      </span>
+                    ) : subInfo?.status === 'GRACE' ? (
+                      <span className="badge badge-danger" style={{ fontSize: 12, padding: '4px 10px', fontWeight: 700 }}>
+                        ⚠️ Renewal Due (Grace Period: {subInfo?.daysRemaining ?? 0} days remaining)
+                      </span>
+                    ) : (
+                      <span className="badge badge-success" style={{ fontSize: 12, padding: '4px 10px', fontWeight: 700 }}>
+                        ✓ Active Subscription
+                      </span>
+                    )}
+
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                      Valid until: {subInfo?.expiresAt ? new Date(subInfo.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '30 Days Trial'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Free Trial Banner Notice */}
+                {subInfo?.isTrial && (
+                  <div style={{
+                    marginTop: 14,
+                    padding: '10px 14px',
+                    borderRadius: 'var(--r-md)',
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border)',
+                    fontSize: 12,
+                    color: 'var(--text-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8
+                  }}>
+                    <Clock size={15} color="var(--accent-light)" />
+                    <span>
+                      Your 30-day complimentary trial is active. You can recharge anytime below to extend uninterrupted security operations after trial completion.
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Recharge via Official NexGate UPI QR Section */}
+              <div className="card card-p">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                  <QrCode size={18} color="var(--accent-light)" />
+                  <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Recharge Society Subscription via UPI
+                  </h3>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24, alignItems: 'center' }}>
+                  {/* Dynamic UPI QR Code */}
+                  <div style={{
+                    background: '#ffffff',
+                    padding: 12,
+                    borderRadius: 'var(--r-lg)',
+                    border: '1px solid var(--border)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: 'var(--shadow-md)'
+                  }}>
+                    <img
+                      src={qrCodeUrl}
+                      alt="NexGate UPI QR Code"
+                      style={{ width: 190, height: 190, display: 'block', borderRadius: 6 }}
+                    />
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#1e293b', marginTop: 8, textAlign: 'center' }}>
+                      Scan with any UPI App
+                    </span>
+                    <span style={{ fontSize: 10, color: '#64748b' }}>
+                      GPay · PhonePe · Paytm · BHIM
+                    </span>
+                  </div>
+
+                  {/* Payment Details & Steps */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                        Platform Billing UPI VPA
+                      </span>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        marginTop: 4,
+                        padding: '10px 14px',
+                        borderRadius: 'var(--r-md)',
+                        background: 'var(--bg-elevated)',
+                        border: '1px solid var(--border)'
+                      }}>
+                        <code style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent-light)', flex: 1, letterSpacing: '0.02em' }}>
+                          {platformBillingUpi}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyUpi(platformBillingUpi)}
+                          className="btn-secondary"
+                          style={{ padding: '6px 12px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}
+                        >
+                          {copiedUpi ? <Check size={12} color="var(--green)" /> : <Copy size={12} />}
+                          <span>{copiedUpi ? 'Copied' : 'Copy UPI'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div style={{ padding: '10px 12px', borderRadius: 'var(--r-md)', background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+                        <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>Amount to Transfer</span>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', marginTop: 2 }}>
+                          ₹{rechargeAmount.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                      <div style={{ padding: '10px 12px', borderRadius: 'var(--r-md)', background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+                        <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>Account Beneficiary</span>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginTop: 2 }}>
+                          NexGate Technologies
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                      <b>Recharge Steps:</b><br />
+                      1. Open any UPI application and scan the QR or pay to <b>{platformBillingUpi}</b>.<br />
+                      2. Complete the transfer of <b>₹{rechargeAmount}</b>.<br />
+                      3. Copy the 12-digit <b>UTR / Transaction Ref Number</b> and upload payment screenshot below.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Proof Submission Form */}
+              <div className="card card-p">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                  <FileText size={17} color="var(--accent-light)" />
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Submit Payment Verification (UTR / Screenshot)
+                  </h3>
+                </div>
+
+                <form onSubmit={handleSubmitRechargeProof} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div>
+                      <label className="field-label">12-Digit UTR / Transaction Reference Number *</label>
+                      <input
+                        value={utrNumber}
+                        onChange={e => setUtrNumber(e.target.value)}
+                        placeholder="e.g. 412389104821"
+                        required
+                        className="field-input"
+                        id="recharge-utr"
+                      />
+                      <span style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 3, display: 'block' }}>
+                        Found in your UPI app payment receipt / SMS confirmation.
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="field-label">Upload Payment Screenshot (Optional)</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <label style={{
+                          flex: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                          padding: '9px 14px',
+                          borderRadius: 'var(--r-md)',
+                          border: '1px dashed var(--border-accent)',
+                          background: 'var(--bg-elevated)',
+                          cursor: 'pointer',
+                          fontSize: 12,
+                          color: 'var(--text-secondary)'
+                        }}>
+                          <Upload size={14} color="var(--accent-light)" />
+                          <span>{screenshotPreview ? 'Change Screenshot' : 'Choose Receipt Image'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleScreenshotChange}
+                            style={{ display: 'none' }}
+                          />
+                        </label>
+
+                        {screenshotPreview && (
+                          <div style={{ position: 'relative' }}>
+                            <img
+                              src={screenshotPreview}
+                              alt="Receipt Preview"
+                              style={{ width: 38, height: 38, borderRadius: 6, objectFit: 'cover', border: '1px solid var(--border)' }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setScreenshotPreview(null)}
+                              style={{
+                                position: 'absolute', top: -5, right: -5, width: 16, height: 16,
+                                borderRadius: '50%', background: 'var(--red)', color: '#fff',
+                                border: 'none', cursor: 'pointer', fontSize: 10, display: 'flex',
+                                alignItems: 'center', justifyContent: 'center'
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="field-label">Payment Remarks / Notes (Optional)</label>
+                    <input
+                      value={rechargeNotes}
+                      onChange={e => setRechargeNotes(e.target.value)}
+                      placeholder="e.g. Paid from HDFC Bank account via Google Pay for 1 month subscription renewal"
+                      className="field-input"
+                      id="recharge-notes"
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+                    <button
+                      type="submit"
+                      disabled={submittingProof || !utrNumber.trim()}
+                      className="btn-primary"
+                      style={{ padding: '9px 24px', fontSize: 13, cursor: 'pointer' }}
+                    >
+                      {submittingProof ? (
+                        <>Submitting Verification...</>
+                      ) : (
+                        <>Submit Payment Proof</>
+                      )}
+                    </button>
+                  </div>
+                </form>
+
+                {/* Past Submissions Table if any */}
+                {rechargeHistory.length > 0 && (
+                  <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                    <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>
+                      Recent Recharge Submissions
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {rechargeHistory.map((rec: any) => (
+                        <div
+                          key={rec.id}
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: 'var(--r-md)',
+                            background: 'var(--bg-elevated)',
+                            border: '1px solid var(--border)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            fontSize: 12
+                          }}
+                        >
+                          <div>
+                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                              UTR: {rec.utr_number || rec.utrNumber}
+                            </span>
+                            <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>
+                              · ₹{Number(rec.amount || 0).toLocaleString('en-IN')} ({rec.plan_name?.replace(/_/g, ' ') || 'Plan'})
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                              {rec.created_at ? new Date(rec.created_at).toLocaleDateString('en-IN') : 'Recent'}
+                            </span>
+                            {rec.status === 'VERIFIED' ? (
+                              <span className="badge badge-success" style={{ fontSize: 10 }}>Verified</span>
+                            ) : rec.status === 'REJECTED' ? (
+                              <span className="badge badge-danger" style={{ fontSize: 10 }}>Rejected</span>
+                            ) : (
+                              <span className="badge badge-accent" style={{ fontSize: 10 }}>Pending Verification</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Society Resident Maintenance Collection Settings */}
+              <div className="card card-p">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                  <CreditCard size={16} color="var(--accent-light)" />
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Resident Monthly Maintenance Collection Settings
+                  </h3>
+                </div>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
+                  Configure what your residents pay for society maintenance in the resident mobile application.
+                </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 14 }}>
+                  <div>
+                    <label className="field-label">Flat Maintenance (₹/month)</label>
+                    <input
+                      value={maintAmount}
+                      onChange={e => setMaintAmount(e.target.value)}
+                      type="number"
+                      className="field-input"
+                      id="maint-amount"
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label">Due Day of Every Month</label>
+                    <input
+                      value={maintDueDay}
+                      onChange={e => setMaintDueDay(e.target.value)}
+                      type="number"
+                      min="1"
+                      max="28"
+                      className="field-input"
+                      id="due-day"
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label">Society Collection UPI VPA</label>
+                    <input
+                      value={upiId}
+                      onChange={e => setUpiId(e.target.value)}
+                      placeholder="e.g. society@okhdfcbank"
+                      className="field-input"
+                      id="maint-upi"
+                    />
+                  </div>
+                </div>
+
+                <div style={{
+                  padding: '12px 14px', borderRadius: 'var(--r-md)',
+                  background: 'var(--accent-bg)', border: '1px solid var(--border-accent)',
+                  display: 'flex', alignItems: 'center', gap: 10
+                }}>
+                  <CheckCircle2 size={16} color="var(--accent-light)" style={{ flexShrink: 0 }} />
+                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                    When residents pay their maintenance via the NexGate mobile app, receipts are automatically recorded against their flat ledger and verified using this UPI VPA.
+                  </p>
+                </div>
+              </div>
+
+            </motion.div>
+          )}
+
+          {/* Tab 3: Admin Team & Roles (STRICTLY READ-ONLY) */}
+          {activeTab === 'admins' && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card card-p">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Shield size={16} color="var(--accent-light)" />
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Society Administrators & Role Privileges (Read-Only)
+                  </h3>
+                </div>
+                <span className="badge badge-accent" style={{ fontSize: 11, textTransform: 'uppercase' }}>
+                  Managed by Platform Super Admin
+                </span>
+              </div>
+
+              {/* Informational Enterprise Notice */}
+              <div style={{
+                padding: '14px 16px',
+                borderRadius: 'var(--r-md)',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-accent)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 12,
+                marginBottom: 18
+              }}>
+                <Lock size={18} color="var(--accent-light)" style={{ flexShrink: 0, marginTop: 2 }} />
+                <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  <b style={{ color: 'var(--text-primary)' }}>Security Policy:</b> Society administrator accounts, login credentials, and permission tiers are centrally provisioned and audited by the <b>NexGate Platform Super Admin</b>. To onboard new administrators, rotate passwords, or modify access roles, contact Platform Support at <a href="mailto:superadmin@nexgate.co.in" style={{ color: 'var(--accent-light)', textDecoration: 'underline' }}>superadmin@nexgate.co.in</a>.
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {admins.map(adm => (
+                  <div
+                    key={adm.id}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 14,
+                      padding: '12px 16px', borderRadius: 'var(--r-md)',
+                      background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+                    }}
+                  >
+                    <div className="avatar avatar-sm" style={{ background: 'var(--accent-bg)', color: 'var(--accent-light)', fontWeight: 700 }}>
+                      {adm.name[0]}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{adm.name}</p>
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{adm.email} · {adm.phone}</p>
+                    </div>
+                    <span className="badge badge-accent" style={{ fontSize: 11 }}>{adm.role}</span>
+                    <span className="badge badge-muted" style={{ fontSize: 10 }}>{adm.access}</span>
+                    <span style={{ fontSize: 11, color: 'var(--green)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <CheckCircle2 size={12} /> Verified Active
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Tab 4: Theme & Appearance */}
           {activeTab === 'appearance' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card card-p">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -457,208 +935,14 @@ export default function Settings() {
             </motion.div>
           )}
 
-          {activeTab === 'billing' && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card card-p">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
-                <CreditCard size={16} color="var(--accent-light)" />
-                <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Monthly Maintenance & Billing Automation
-                </h3>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 18 }}>
-                <div>
-                  <label className="field-label">Flat Maintenance (₹/month)</label>
-                  <input
-                    value={maintAmount}
-                    onChange={e => setMaintAmount(e.target.value)}
-                    type="number"
-                    className="field-input"
-                    id="maint-amount"
-                  />
-                </div>
-                <div>
-                  <label className="field-label">Due Day of Every Month</label>
-                  <input
-                    value={maintDueDay}
-                    onChange={e => setMaintDueDay(e.target.value)}
-                    type="number"
-                    min="1"
-                    max="28"
-                    className="field-input"
-                    id="due-day"
-                  />
-                </div>
-                <div>
-                  <label className="field-label">Collection UPI VPA Handle</label>
-                  <input
-                    value={upiId}
-                    onChange={e => setUpiId(e.target.value)}
-                    className="field-input"
-                    id="maint-upi"
-                  />
-                </div>
-              </div>
-
-              <div style={{
-                padding: '14px 16px', borderRadius: 'var(--r-md)',
-                background: 'var(--accent-bg)', border: '1px solid var(--border-accent)',
-                display: 'flex', alignItems: 'center', gap: 12
-              }}>
-                <CheckCircle2 size={18} color="var(--accent-light)" style={{ flexShrink: 0 }} />
-                <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  Automated Razorpay & UPI payment webhook reconciles resident maintenance dues immediately upon payment, and auto-dispatches digital receipts with GST compliance.
-                </p>
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'gates' && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card card-p">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
-                <DoorOpen size={16} color="var(--accent-light)" />
-                <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Gate Barriers & Smart Access Control
-                </h3>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {[
-                  { name: 'Main Gate (North Avenue)', type: 'Vehicle & Pedestrian', status: 'operational', rfid: true },
-                  { name: 'East Gate (Resident FastLane)', type: 'Resident RFID Only', status: 'operational', rfid: true },
-                  { name: 'Service Gate (Delivery & Staff)', type: 'Commercial Trucks & Vans', status: 'maintenance', rfid: false },
-                ].map((g, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      padding: '14px 18px', borderRadius: 'var(--r-md)',
-                      background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-                    }}
-                  >
-                    <div>
-                      <p style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)' }}>{g.name}</p>
-                      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{g.type}</p>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                        <input type="checkbox" defaultChecked={g.rfid} style={{ accentColor: 'var(--accent)' }} />
-                        <span>RFID FastTag Auto-Barrier</span>
-                      </label>
-                      <select defaultValue={g.status} className="field-select" style={{ width: 'auto', padding: '6px 10px', fontSize: 12 }}>
-                        <option value="operational">Operational</option>
-                        <option value="maintenance">Maintenance</option>
-                        <option value="offline">Offline / Locked</option>
-                      </select>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'notifications' && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card card-p">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
-                <Bell size={16} color="var(--accent-light)" />
-                <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Automated Notification & SMS Dispatch Rules
-                </h3>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {[
-                  { label: 'Instant Gate Visitor Arrival Push to resident smartphone', on: true, desc: 'Notifies flat resident as soon as guard enters vehicle or guest details' },
-                  { label: 'Automated Overdue Maintenance WhatsApp Alert', on: true, desc: 'Dispatched 3 days prior to due date and on due date morning' },
-                  { label: 'Panic / Security Siren broadcast to all flats', on: true, desc: 'Triggers high-priority audible siren notification on all resident phones' },
-                  { label: 'Daily Delivery Courier aggregation summary', on: false, desc: 'Batches courier arrival notices every afternoon' },
-                  { label: 'AGM and Society Meeting Reminders (24h prior)', on: true, desc: 'Calendar sync alert dispatched to verified flat owners' },
-                ].map((item, idx) => (
-                  <label
-                    key={idx}
-                    style={{
-                      display: 'flex', alignItems: 'flex-start', gap: 14,
-                      padding: '12px 16px', borderRadius: 'var(--r-md)',
-                      background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      defaultChecked={item.on}
-                      style={{ accentColor: 'var(--accent)', width: 16, height: 16, marginTop: 2, flexShrink: 0 }}
-                    />
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{item.label}</p>
-                      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{item.desc}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'admins' && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card card-p">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Shield size={16} color="var(--accent-light)" />
-                  <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    Admin Users & Society Role Permissions
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setShowAddAdmin(true)}
-                  id="add-admin-btn"
-                  className="btn-primary"
-                  style={{ fontSize: 12, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-                >
-                  <UserPlus size={13} /> Add Admin
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {admins.map(adm => (
-                  <div
-                    key={adm.id}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 14,
-                      padding: '12px 16px', borderRadius: 'var(--r-md)',
-                      background: 'var(--bg-elevated)', border: '1px solid var(--border)',
-                    }}
-                  >
-                    <div className="avatar avatar-sm" style={{ background: 'var(--accent-bg)', color: 'var(--accent-light)' }}>
-                      {adm.name[0]}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{adm.name}</p>
-                      <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{adm.email} · {adm.phone}</p>
-                    </div>
-                    <span className="badge badge-accent" style={{ fontSize: 11 }}>{adm.role}</span>
-                    <span className="badge badge-muted" style={{ fontSize: 10 }}>{adm.access}</span>
-                    <button
-                      onClick={() => removeAdmin(adm.id)}
-                      className="btn-icon btn-icon-red"
-                      title="Revoke Admin Access"
-                      style={{ width: 28, height: 28 }}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* Save Bar */}
+          {/* Bottom Save Bar (active for profile & maintenance changes) */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '16px 20px', borderRadius: 'var(--r-lg)',
             background: 'var(--bg-card)', border: '1px solid var(--border)'
           }}>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              Any configuration changes take effect immediately across all resident mobile apps.
+              Society configuration changes take effect immediately across all resident mobile apps.
             </span>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -681,88 +965,6 @@ export default function Settings() {
 
         </div>
       </div>
-
-      {/* Add Admin Modal */}
-      <AnimatePresence>
-        {showAddAdmin && (
-          <motion.div
-            className="modal-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={e => e.target === e.currentTarget && setShowAddAdmin(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.94, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.94, y: 20 }}
-              style={{
-                width: '100%', maxWidth: 440,
-                background: 'var(--bg-card)',
-                borderRadius: 'var(--r-xl)',
-                border: '1px solid var(--border-accent)',
-                overflow: 'hidden'
-              }}
-            >
-              <div className="modal-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Shield size={16} color="var(--accent-light)" />
-                  <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Invite Admin User</span>
-                </div>
-                <button className="btn-icon" onClick={() => setShowAddAdmin(false)}><X size={14} /></button>
-              </div>
-
-              <form onSubmit={handleAddAdmin} style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div>
-                  <label className="field-label">Full Name *</label>
-                  <input
-                    value={newAdminName}
-                    onChange={e => setNewAdminName(e.target.value)}
-                    required
-                    placeholder="e.g. Ramesh Kulkarni"
-                    className="field-input"
-                  />
-                </div>
-
-                <div>
-                  <label className="field-label">Official Email Address *</label>
-                  <input
-                    type="email"
-                    value={newAdminEmail}
-                    onChange={e => setNewAdminEmail(e.target.value)}
-                    required
-                    placeholder="e.g. ramesh@nexgate.co.in"
-                    className="field-input"
-                  />
-                </div>
-
-                <div>
-                  <label className="field-label">Role Assignment</label>
-                  <select
-                    value={newAdminRole}
-                    onChange={e => setNewAdminRole(e.target.value)}
-                    className="field-select"
-                  >
-                    <option value="Society Secretary">Society Secretary (Full Access)</option>
-                    <option value="Treasurer & Accounts">Treasurer & Accounts (Billing/Reports)</option>
-                    <option value="Security Supervisor">Security Supervisor (Gates/Guards/Visitors)</option>
-                    <option value="Committee Member">Committee Member (View Only)</option>
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', gap: 10, paddingTop: 10 }}>
-                  <button type="button" onClick={() => setShowAddAdmin(false)} className="btn-secondary" style={{ flex: 1 }}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
-                    Send Admin Invite
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
     </div>
   );

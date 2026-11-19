@@ -37,16 +37,45 @@ test('Admin Auth Suite - Session Storage & Token Handling', async (t) => {
 
 test('Admin Auth Suite - Login & Credential Verification', async (t) => {
   mockStorage.clear();
+  const originalFetch = globalThis.fetch;
 
-  await t.test('adminLogin succeeds with fallback admin credentials', async () => {
+  await t.test('adminLogin succeeds with valid admin credentials', async () => {
+    (globalThis as any).fetch = async (url: string, opts: any) => {
+      const body = JSON.parse(opts?.body || '{}');
+      if (body.email === 'admin@nexgate.co.in' && body.password === 'admin123') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: {
+              token: 'jwt_mock_token_success',
+              user: { id: 'adm_1', email: 'admin@nexgate.co.in', name: 'Admin', role: 'ADMIN' },
+            },
+          }),
+        };
+      }
+      return {
+        ok: false,
+        status: 401,
+        json: async () => ({ success: false, message: 'Invalid admin credentials.' }),
+      };
+    };
+
     const res = await adminLogin('admin@nexgate.co.in', 'admin123');
     assert.strictEqual(res.success, true);
-    assert.ok(res.token.startsWith('backup_admin_token_'));
-    assert.strictEqual(res.admin.email, 'admin@nexgate.co.in');
+    assert.strictEqual(res.token, 'jwt_mock_token_success');
+    assert.strictEqual(res.user.email, 'admin@nexgate.co.in');
     assert.strictEqual(mockStorage.getItem('gg_admin_auth'), 'true');
   });
 
   await t.test('adminLogin rejects incorrect credentials with clear error', async () => {
+    (globalThis as any).fetch = async () => ({
+      ok: false,
+      status: 401,
+      json: async () => ({ success: false, message: 'Invalid admin credentials.' }),
+    });
+
     await assert.rejects(
       async () => {
         await adminLogin('wrong@user.com', 'wrongpassword');
@@ -56,6 +85,8 @@ test('Admin Auth Suite - Login & Credential Verification', async (t) => {
         message: /Invalid admin credentials/,
       }
     );
+
+    globalThis.fetch = originalFetch;
   });
 });
 
@@ -76,4 +107,3 @@ test('Admin Security - Photo URL Token Attachment', async (t) => {
     assert.ok(result?.includes('/uploads/visitor_401.jpg?token=auth_token_xyz'));
   });
 });
-

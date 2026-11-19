@@ -2,6 +2,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
 import { ErrorBoundary } from '../common/ErrorBoundary';
+import { SubscriptionBanner } from '../common/SubscriptionBanner';
 
 function isAuthenticated() {
   return localStorage.getItem('gg_admin_auth') === 'true';
@@ -15,6 +16,7 @@ export function AdminShell() {
       <AdminSidebar />
       <div className="main-content">
         <AdminHeader />
+        <SubscriptionBanner />
         <main className="page-content">
           <ErrorBoundary fallbackTitle="View Rendering Error">
             <Outlet />

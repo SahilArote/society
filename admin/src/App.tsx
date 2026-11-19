@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { AdminShell } from './components/layout/AdminShell';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { getAdminUser } from './services/api';
 
 // Lazy-loaded routes for code splitting and instant initial loading
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -17,6 +18,8 @@ const Announcements = lazy(() => import('./pages/Announcements'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Settings = lazy(() => import('./pages/Settings'));
+const SuperAdminSocieties = lazy(() => import('./pages/SuperAdminSocieties'));
+const SuperAdminOnboard = lazy(() => import('./pages/SuperAdminOnboard'));
 
 function PageLoader() {
   return (
@@ -53,6 +56,22 @@ function PageLoader() {
   );
 }
 
+function AdminHomeRedirect() {
+  const user = getAdminUser();
+  if (user?.role === 'SUPER_ADMIN') {
+    return <Navigate to="/admin/super/societies" replace />;
+  }
+  return <Navigate to="/admin/dashboard" replace />;
+}
+
+function SocietyDashboardRoute() {
+  const user = getAdminUser();
+  if (user?.role === 'SUPER_ADMIN') {
+    return <Navigate to="/admin/super/societies" replace />;
+  }
+  return <Dashboard />;
+}
+
 export default function App() {
   return (
     <ErrorBoundary fallbackTitle="Application Error">
@@ -67,10 +86,10 @@ export default function App() {
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/login" element={<Navigate to="/admin/login" replace />} />
 
-              {/* Admin Portal Redirect & Routes */}
-              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+              {/* Admin Portal Layout & Protected Routes */}
               <Route path="/admin" element={<AdminShell />}>
-                <Route path="dashboard" element={<Dashboard />} />
+                <Route index element={<AdminHomeRedirect />} />
+                <Route path="dashboard" element={<SocietyDashboardRoute />} />
                 <Route path="residents" element={<Residents />} />
                 <Route path="visitors" element={<Visitors />} />
                 <Route path="gates" element={<Gates />} />
@@ -80,6 +99,11 @@ export default function App() {
                 <Route path="notifications" element={<Notifications />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="settings" element={<Settings />} />
+
+                {/* Super Admin Platform Routes */}
+                <Route path="super/societies" element={<SuperAdminSocieties />} />
+                <Route path="super/onboard" element={<SuperAdminOnboard />} />
+                <Route path="super" element={<Navigate to="/admin/super/societies" replace />} />
               </Route>
 
               {/* Direct convenience aliases */}
@@ -93,6 +117,9 @@ export default function App() {
               <Route path="/notifications" element={<Navigate to="/admin/notifications" replace />} />
               <Route path="/reports" element={<Navigate to="/admin/reports" replace />} />
               <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
+              <Route path="/super" element={<Navigate to="/admin/super/societies" replace />} />
+              <Route path="/super/societies" element={<Navigate to="/admin/super/societies" replace />} />
+              <Route path="/super/onboard" element={<Navigate to="/admin/super/onboard" replace />} />
 
               {/* Fallback to Landing Page */}
               <Route path="*" element={<Navigate to="/" replace />} />

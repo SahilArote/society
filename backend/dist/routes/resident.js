@@ -21,7 +21,7 @@ async function getResidentFlatId(residentId, societyId) {
 router.get('/family-members', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('RESIDENT', 'ADMIN'), async (req, res) => {
     try {
         const residentId = req.user.id;
-        const societyId = req.user.societyId;
+        const societyId = req.user.societyId || '';
         const members = await (0, db_1.findFamilyMembersByResident)(residentId, societyId);
         return res.json({
             success: true,
@@ -40,7 +40,7 @@ router.get('/family-members', auth_1.authenticateToken, (0, auth_1.authorizeRole
 router.post('/family-members', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('RESIDENT', 'ADMIN'), async (req, res) => {
     try {
         const residentId = req.user.id;
-        const societyId = req.user.societyId;
+        const societyId = req.user.societyId || '';
         const { name, relationship, phone } = req.body;
         if (!name || !name.trim()) {
             return res.status(400).json({
@@ -109,7 +109,7 @@ router.delete('/family-members/:id', auth_1.authenticateToken, (0, auth_1.author
 router.get('/vehicles', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('RESIDENT', 'ADMIN'), async (req, res) => {
     try {
         const residentId = req.user.id;
-        const societyId = req.user.societyId;
+        const societyId = req.user.societyId || '';
         const vehicles = await (0, db_1.findVehiclesByResident)(residentId, societyId);
         return res.json({
             success: true,
@@ -128,7 +128,7 @@ router.get('/vehicles', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('RE
 router.post('/vehicles', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('RESIDENT', 'ADMIN'), async (req, res) => {
     try {
         const residentId = req.user.id;
-        const societyId = req.user.societyId;
+        const societyId = req.user.societyId || '';
         const { number, type, brand, model, color } = req.body;
         if (!number || !number.trim()) {
             return res.status(400).json({
@@ -193,7 +193,7 @@ router.delete('/vehicles/:id', auth_1.authenticateToken, (0, auth_1.authorizeRol
 router.delete('/account', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('RESIDENT'), async (req, res) => {
     try {
         const residentId = req.user.id;
-        const societyId = req.user.societyId;
+        const societyId = req.user.societyId || '';
         console.log(`[Account Deletion] In-app request initiated by resident: ${residentId} (${req.user?.mobile})`);
         const deleted = await (0, db_1.deleteResidentByAdmin)(societyId, residentId);
         if (!deleted) {
@@ -214,6 +214,43 @@ router.delete('/account', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('
             success: false,
             error: { code: 'SERVER_ERROR', message: 'Failed to delete account. Please try again or contact administration.' },
         });
+    }
+});
+// GET /api/resident/maintenance/info
+// Fetches society UPI payment details & dynamic UPI deep link for in-app integration
+router.get('/maintenance/info', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('RESIDENT'), async (req, res) => {
+    try {
+        const residentId = req.user.id;
+        const societyId = req.user.societyId || '';
+        const society = societyId ? await (0, db_1.findSocietyById)(societyId) : null;
+        if (!society) {
+            return res.status(404).json({ success: false, error: { code: 'SOCIETY_NOT_FOUND', message: 'Society not found' } });
+        }
+        const flat = await (0, db_1.findFlatByResidentId)(residentId);
+        const flatNumber = flat?.flatNumber || req.user?.flatNumber || '';
+        const amount = society.maintenanceAmount || 0;
+        const upiId = society.upiId || '';
+        // Format standard UPI payment URI for native app integration (GPay, PhonePe, Paytm, etc.)
+        let upiPaymentUri = '';
+        if (upiId) {
+            const note = `Maintenance-${flatNumber ? flatNumber : 'Flat'}`;
+            upiPaymentUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(society.name)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`;
+        }
+        return res.json({
+            success: true,
+            data: {
+                societyName: society.name,
+                flatNumber,
+                upiId,
+                maintenanceAmount: amount,
+                maintenanceDueDay: society.maintenanceDueDay || 5,
+                upiPaymentUri,
+            },
+        });
+    }
+    catch (error) {
+        console.error('Error fetching maintenance info for resident:', error);
+        return res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to fetch maintenance details' } });
     }
 });
 exports.default = router;

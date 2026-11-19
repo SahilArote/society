@@ -65,6 +65,7 @@ export interface Flat {
   status: FlatStatus;
   residents: FlatResident[];
   vehicleCount: number;
+  vehicleNumbers?: string[];
   maintenanceStatus: MaintenanceStatus;
   maintenanceDueAmount?: number;
 }

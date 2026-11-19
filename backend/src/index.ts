@@ -12,6 +12,7 @@ import { FileValidationError } from './middleware/upload';
 import authRoutes from './routes/auth';
 import visitorRequestRoutes from './routes/visitorRequests';
 import adminRoutes from './routes/admin';
+import superAdminRoutes from './routes/superAdmin';
 import notificationRoutes from './routes/notifications';
 import residentRoutes from './routes/resident';
 import invitesRoutes from './routes/invites';
@@ -71,6 +72,8 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/visitor-requests', visitorRequestRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/super-admin', superAdminRoutes);
+app.use('/api', superAdminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/resident', residentRoutes);
 app.use('/api/invites', invitesRoutes);

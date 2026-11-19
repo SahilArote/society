@@ -4,12 +4,13 @@ import {
   Search, Phone, Mail, Car, Users, Home,
   Building2, AlertCircle, CheckCircle2, X, Download,
   UserPlus, UserCheck, Loader2, Trash2,
-  UploadCloud, FileSpreadsheet, Check, RefreshCw
+  UploadCloud, FileSpreadsheet, Check, RefreshCw,
+  Edit2, Lock
 } from 'lucide-react';
 import type { Flat, FlatResident as Resident } from '../types';
 import StatCard from '../components/StatCard';
 import { RegistrationRequestsSection } from '../components/RegistrationRequestsSection';
-import { fetchAdminFlats, createAdminFlat, deleteAdminFlat, deleteAdminResident, downloadCsvTemplate, bulkImportFlats, mergeDuplicateFlats, type BulkImportResponse } from '../services/api';
+import { fetchAdminFlats, createAdminFlat, updateAdminFlat, deleteAdminFlat, deleteAdminResident, downloadCsvTemplate, bulkImportFlats, mergeDuplicateFlats, type BulkImportResponse } from '../services/api';
 
 /* ── Badges ──────────────────────────────────────────────── */
 function MaintBadge({ s }: { s: string }) {
@@ -25,6 +26,7 @@ function StatusBadge({ s }: { s: string }) {
 function FlatPanel({
   flat,
   onClose,
+  onEditFlat,
   onMarkPaid,
   onSendNotice,
   onDeleteFlat,
@@ -32,6 +34,7 @@ function FlatPanel({
 }: {
   flat: Flat;
   onClose: () => void;
+  onEditFlat?: (flat: Flat) => void;
   onMarkPaid: (flatId: string) => void;
   onSendNotice: (flatNumber: string) => void;
   onDeleteFlat?: (flat: Flat) => void;
@@ -139,6 +142,22 @@ function FlatPanel({
           <p className="section-label">Administrative Actions</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <button
+              onClick={() => onEditFlat?.(flat)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '11px 14px', borderRadius: 'var(--r-md)',
+                background: 'var(--accent-bg)', border: '1px solid var(--border-accent)',
+                color: 'var(--accent-light)', fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', textAlign: 'left',
+              }}
+            >
+              <div style={{ padding: 6, borderRadius: 'var(--r-sm)', background: 'var(--accent-glow)' }}>
+                <Edit2 size={14} color="var(--accent-light)" />
+              </div>
+              Edit Flat & Resident Details
+            </button>
+
+            <button
               onClick={() => onSendNotice(flat.number)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 10,
@@ -204,6 +223,7 @@ function parseClientCsv(text: string): Array<{
   floor: string;
   residentName: string;
   mobileNumber: string;
+  vehicleNumber?: string;
   flatType: string;
 }> {
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -230,6 +250,7 @@ function parseClientCsv(text: string): Array<{
 
   const firstTokens = tokenize(lines[0]);
   let colFlat = 0, colWing = 1, colFloor = 2, colResident = 3, colMobile = 4, colType = 5;
+  let colVehicle = -1;
   let hasHeader = false;
 
   firstTokens.forEach((col, idx) => {
@@ -246,8 +267,10 @@ function parseClientCsv(text: string): Array<{
       colResident = idx;
     } else if (['mobilenumber', 'mobile', 'phone', 'contact', 'phonenumber'].includes(n)) {
       colMobile = idx;
-    } else if (['flattype', 'type', 'config'].includes(n)) {
+    } else if (['flattype', 'type', 'config', 'configuration'].includes(n)) {
       colType = idx;
+    } else if (['vehiclenumber', 'vehicleno', 'vehicle', 'vehicles', 'carno', 'vehiclenumbers', 'vehicleplate'].includes(n)) {
+      colVehicle = idx;
     }
   });
 
@@ -262,6 +285,7 @@ function parseClientCsv(text: string): Array<{
       floor: t[colFloor] || '',
       residentName: t[colResident] || '',
       mobileNumber: t[colMobile] || '',
+      vehicleNumber: colVehicle !== -1 ? (t[colVehicle] || '') : '',
       flatType: t[colType] || '2BHK',
     });
   }
@@ -296,11 +320,24 @@ export default function Residents() {
     floor: string;
     residentName: string;
     mobileNumber: string;
+    vehicleNumber?: string;
     flatType: string;
   }>>([]);
   const [importResult, setImportResult] = useState<BulkImportResponse['data'] | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+
+  // Edit Flat & Resident State (Flat Number cannot be edited)
+  const [flatToEdit, setFlatToEdit] = useState<Flat | null>(null);
+  const [editWing, setEditWing] = useState('');
+  const [editFloor, setEditFloor] = useState<number | string>(1);
+  const [editType, setEditType] = useState('2BHK');
+  const [editResidentName, setEditResidentName] = useState('');
+  const [editMobile, setEditMobile] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editVehicleNumbers, setEditVehicleNumbers] = useState('');
+  const [editStatus, setEditStatus] = useState<'occupied' | 'vacant'>('occupied');
+  const [isUpdatingFlat, setIsUpdatingFlat] = useState(false);
 
   const handleFileSelect = (file: File) => {
     if (!file.name.toLowerCase().endsWith('.csv')) {
@@ -466,6 +503,80 @@ export default function Residents() {
 
   const handleSendNotice = (flatNum: string) => {
     showToast(`Notice alert dispatched to Flat ${flatNum}`);
+  };
+
+  const handleOpenEditModal = (flat: Flat) => {
+    const owner = flat.residents.find(r => r.isOwner) ?? flat.residents[0];
+    setFlatToEdit(flat);
+    setEditWing(flat.wing);
+    setEditFloor(flat.floor);
+    setEditType(flat.type || '2BHK');
+    setEditStatus(flat.status === 'occupied' ? 'occupied' : 'vacant');
+    setEditResidentName(owner?.name || '');
+    const rawPhone = owner?.phone ? owner.phone.replace(/^\+91\s*/, '') : '';
+    setEditMobile(rawPhone);
+    setEditEmail(owner?.email || '');
+    setEditVehicleNumbers(flat.vehicleNumbers && flat.vehicleNumbers.length > 0 ? flat.vehicleNumbers.join(', ') : '');
+  };
+
+  const handleSaveFlatEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!flatToEdit) return;
+    setIsUpdatingFlat(true);
+    try {
+      const vList = editVehicleNumbers
+        .split(/[,;\/]/)
+        .map(v => v.trim().toUpperCase())
+        .filter(Boolean);
+
+      await updateAdminFlat(flatToEdit.id, {
+        wing: editWing.trim(),
+        floor: Number(editFloor) || 1,
+        type: editType,
+        residentName: editResidentName.trim(),
+        residentMobile: editMobile.trim(),
+        residentEmail: editEmail.trim() || undefined,
+        vehicleNumbers: vList,
+        status: editStatus,
+      });
+
+      showToast(`Updated details for Flat ${flatToEdit.number}`);
+      const updatedId = flatToEdit.id;
+      setFlatToEdit(null);
+      await loadFlats();
+
+      // Update active inspector panel if viewing this flat
+      if (selected?.id === updatedId) {
+        setSelected(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            wing: editWing.trim().replace(/^Wing\s*/i, ''),
+            floor: Number(editFloor) || 1,
+            type: editType as any,
+            status: editStatus,
+            vehicleCount: vList.length,
+            vehicleNumbers: vList,
+            residents: editStatus === 'vacant' ? [] : [
+              {
+                id: prev.residents[0]?.id || `res_${editMobile}`,
+                name: editResidentName.trim(),
+                phone: editMobile.trim() ? `+91 ${editMobile.trim()}` : '',
+                email: editEmail.trim(),
+                role: 'owner',
+                isOwner: true,
+              },
+              ...prev.residents.slice(1),
+            ],
+          };
+        });
+      }
+    } catch (err: any) {
+      console.error('Update flat error:', err);
+      showToast(err.message || 'Failed to update flat details');
+    } finally {
+      setIsUpdatingFlat(false);
+    }
   };
 
   const exportDirectory = () => {
@@ -777,6 +888,7 @@ export default function Residents() {
               <tr>
                 <th>Flat Number</th>
                 <th>Owner / Key Resident</th>
+                <th>Contact Details</th>
                 <th>Unit Configuration</th>
                 <th>Vehicles</th>
                 <th>Maintenance Dues</th>
@@ -808,11 +920,81 @@ export default function Residents() {
                         </div>
                       ) : <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Vacant Unit</span>}
                     </td>
+                    <td>
+                      {owner && (owner.phone || owner.email) ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {owner.phone ? (
+                            <a
+                              href={`tel:${owner.phone}`}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 5,
+                                fontSize: 12,
+                                color: 'var(--text-primary)',
+                                textDecoration: 'none',
+                              }}
+                              title={`Call ${owner.name}`}
+                            >
+                              <Phone size={11} color="var(--accent-light)" />
+                              <span style={{ fontWeight: 500 }}>{owner.phone}</span>
+                            </a>
+                          ) : (
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No phone</span>
+                          )}
+                          {owner.email && (
+                            <a
+                              href={`mailto:${owner.email}`}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 5,
+                                fontSize: 11,
+                                color: 'var(--text-muted)',
+                                textDecoration: 'none',
+                              }}
+                              title={`Email ${owner.name}`}
+                            >
+                              <Mail size={11} color="var(--text-muted)" />
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
+                                {owner.email}
+                              </span>
+                            </a>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>—</span>
+                      )}
+                    </td>
                     <td><span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{flat.type}</span></td>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <Car size={13} color="var(--text-muted)" />
-                        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{flat.vehicleCount}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <Car size={13} color="var(--text-muted)" />
+                          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                            {flat.vehicleNumbers && flat.vehicleNumbers.length > 0
+                              ? `${flat.vehicleNumbers.length} ${flat.vehicleNumbers.length === 1 ? 'vehicle' : 'vehicles'}`
+                              : (flat.vehicleCount > 0 ? `${flat.vehicleCount} ${flat.vehicleCount === 1 ? 'vehicle' : 'vehicles'}` : '0')}
+                          </span>
+                        </div>
+                        {flat.vehicleNumbers && flat.vehicleNumbers.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 180 }}>
+                            {flat.vehicleNumbers.map((vNo, idx) => (
+                              <span key={idx} style={{
+                                fontSize: 10,
+                                padding: '1px 6px',
+                                borderRadius: 4,
+                                background: 'var(--bg-elevated)',
+                                border: '1px solid var(--border)',
+                                color: 'var(--text-primary)',
+                                fontFamily: 'monospace',
+                                letterSpacing: '0.5px'
+                              }}>
+                                {vNo}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td>
@@ -828,6 +1010,15 @@ export default function Residents() {
                     <td><StatusBadge s={flat.status} /></td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <button
+                          onClick={() => handleOpenEditModal(flat)}
+                          className="btn-secondary"
+                          style={{ padding: '6px 11px', fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                          title={`Edit Flat ${flat.number} & Resident Details`}
+                        >
+                          <Edit2 size={12} />
+                          Edit
+                        </button>
                         <button
                           onClick={() => setSelected(flat)}
                           id={`view-flat-${flat.id}`}
@@ -874,6 +1065,7 @@ export default function Residents() {
             <FlatPanel
               flat={selected}
               onClose={() => setSelected(null)}
+              onEditFlat={handleOpenEditModal}
               onMarkPaid={handleMarkPaid}
               onSendNotice={handleSendNotice}
               onDeleteFlat={(flat) => setFlatToDelete(flat)}
@@ -1139,6 +1331,7 @@ export default function Residents() {
                                 <th style={{ padding: '6px 10px', color: 'var(--text-muted)', fontWeight: 600 }}>Floor</th>
                                 <th style={{ padding: '6px 10px', color: 'var(--text-muted)', fontWeight: 600 }}>Resident</th>
                                 <th style={{ padding: '6px 10px', color: 'var(--text-muted)', fontWeight: 600 }}>Mobile</th>
+                                <th style={{ padding: '6px 10px', color: 'var(--text-muted)', fontWeight: 600 }}>Vehicle No.</th>
                                 <th style={{ padding: '6px 10px', color: 'var(--text-muted)', fontWeight: 600 }}>Status</th>
                               </tr>
                             </thead>
@@ -1150,6 +1343,7 @@ export default function Residents() {
                                   <td style={{ padding: '6px 10px', color: 'var(--text-muted)' }}>{row.floor || 'Auto'}</td>
                                   <td style={{ padding: '6px 10px', color: 'var(--text-secondary)' }}>{row.residentName || '—'}</td>
                                   <td style={{ padding: '6px 10px', color: 'var(--text-muted)' }}>{row.mobileNumber || '—'}</td>
+                                  <td style={{ padding: '6px 10px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{row.vehicleNumber || '—'}</td>
                                   <td style={{ padding: '6px 10px' }}>
                                     <span className={row.mobileNumber ? 'badge badge-success' : 'badge badge-muted'} style={{ fontSize: 9 }}>
                                       {row.mobileNumber ? 'Occupied' : 'Vacant'}
@@ -1232,6 +1426,217 @@ export default function Residents() {
                   </>
                 )}
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Flat & Resident Details Modal (Flat number excluded / read-only) */}
+      <AnimatePresence>
+        {flatToEdit && (
+          <motion.div
+            className="modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={e => e.target === e.currentTarget && !isUpdatingFlat && setFlatToEdit(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.94, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.94, y: 20 }}
+              style={{
+                width: '100%', maxWidth: 480,
+                background: 'var(--bg-card)',
+                borderRadius: 'var(--r-xl)',
+                border: '1px solid var(--border-accent)',
+                overflow: 'hidden',
+                maxHeight: '90vh',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              <div className="modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Edit2 size={16} color="var(--accent-light)" />
+                  <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Edit Flat & Resident Details
+                  </span>
+                </div>
+                <button className="btn-icon" disabled={isUpdatingFlat} onClick={() => setFlatToEdit(null)}>
+                  <X size={14} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveFlatEdit} style={{ padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* Flat number (Read-Only) */}
+                <div>
+                  <label className="field-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span>Flat Number</span>
+                    <span style={{ fontSize: 10, color: 'var(--accent-light)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                      <Lock size={10} /> Read-Only
+                    </span>
+                  </label>
+                  <input
+                    value={flatToEdit.number}
+                    disabled
+                    readOnly
+                    className="field-input"
+                    style={{
+                      background: 'var(--bg-elevated)',
+                      color: 'var(--text-muted)',
+                      cursor: 'not-allowed',
+                      fontWeight: 700,
+                      opacity: 0.8
+                    }}
+                  />
+                  <p style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 3 }}>
+                    Flat number cannot be modified to preserve society property records.
+                  </p>
+                </div>
+
+                {/* Wing & Floor */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label className="field-label">Wing / Tower *</label>
+                    <input
+                      value={editWing}
+                      onChange={e => setEditWing(e.target.value)}
+                      required
+                      placeholder="e.g. Wing A"
+                      className="field-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label">Floor</label>
+                    <input
+                      type="number"
+                      value={editFloor}
+                      onChange={e => setEditFloor(e.target.value)}
+                      placeholder="1"
+                      className="field-input"
+                    />
+                  </div>
+                </div>
+
+                {/* Configuration & Status */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label className="field-label">Unit Configuration</label>
+                    <select value={editType} onChange={e => setEditType(e.target.value)} className="field-select">
+                      <option value="1BHK">1BHK</option>
+                      <option value="2BHK">2BHK</option>
+                      <option value="3BHK">3BHK</option>
+                      <option value="4BHK">4BHK Penthouse</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="field-label">Occupancy Status</label>
+                    <select
+                      value={editStatus}
+                      onChange={e => setEditStatus(e.target.value as any)}
+                      className="field-select"
+                    >
+                      <option value="occupied">Occupied</option>
+                      <option value="vacant">Vacant</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Resident Details */}
+                {editStatus === 'occupied' && (
+                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Users size={13} color="var(--accent-light)" />
+                      Primary Resident Information
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div>
+                        <label className="field-label">Resident Name *</label>
+                        <input
+                          value={editResidentName}
+                          onChange={e => setEditResidentName(e.target.value)}
+                          required={editStatus === 'occupied'}
+                          placeholder="e.g. Rahul Patil"
+                          className="field-input"
+                        />
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                          <label className="field-label">Contact Phone / Mobile *</label>
+                          <input
+                            value={editMobile}
+                            onChange={e => setEditMobile(e.target.value)}
+                            required={editStatus === 'occupied'}
+                            placeholder="10-digit mobile number"
+                            className="field-input"
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Email Address</label>
+                          <input
+                            type="email"
+                            value={editEmail}
+                            onChange={e => setEditEmail(e.target.value)}
+                            placeholder="resident@example.com"
+                            className="field-input"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Vehicles */}
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Car size={13} color="var(--accent-light)" />
+                    Vehicle Details
+                  </div>
+                  <div>
+                    <label className="field-label">Vehicle Registration Number(s)</label>
+                    <input
+                      value={editVehicleNumbers}
+                      onChange={e => setEditVehicleNumbers(e.target.value)}
+                      placeholder="e.g. MH02AB1234, MH02CD5678"
+                      className="field-input"
+                    />
+                    <p style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 3 }}>
+                      Enter vehicle plate numbers separated by commas.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                  <button
+                    type="button"
+                    disabled={isUpdatingFlat}
+                    onClick={() => setFlatToEdit(null)}
+                    className="btn-secondary"
+                    style={{ flex: 1 }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isUpdatingFlat}
+                    className="btn-primary"
+                    style={{ flex: 1, justifyContent: 'center', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    {isUpdatingFlat ? (
+                      <>
+                        <Loader2 size={13} className="anim-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </motion.div>
         )}
