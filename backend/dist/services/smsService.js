@@ -105,24 +105,40 @@ async function sendDltOtpSms(mobile, otp) {
             case 'msg91': {
                 // MSG91 Flow API with DLT template
                 const endpoint = 'https://control.msg91.com/api/v5/flow/';
+                const vars = {
+                    otp: otp,
+                    OTP: otp,
+                    VAR1: otp,
+                    var1: otp,
+                    var: otp,
+                    VAR: otp,
+                    code: otp,
+                    num: otp,
+                    num1: otp,
+                    VAR2: 'NexGate',
+                    var2: 'NexGate',
+                    alp: 'NexGate',
+                    alp1: 'NexGate',
+                    app: 'NexGate',
+                    VAR3: '10',
+                    var3: '10',
+                    minutes: '10',
+                    num2: '10',
+                    DLT_TE_ID: process.env.MSG91_OTP_DLT_TE_ID || '1177179499136995960',
+                };
                 const payload = {
                     template_id: config.templateId,
                     flow_id: config.templateId,
                     sender: config.senderId,
                     short_url: '0',
                     mobiles: `91${cleanMobile}`,
-                    otp: otp,
-                    VAR1: otp,
-                    var1: otp,
-                    var: otp,
-                    code: otp,
-                    VAR2: 'NexGate',
-                    var2: 'NexGate',
-                    app: 'NexGate',
-                    VAR3: '10',
-                    var3: '10',
-                    minutes: '10',
-                    DLT_TE_ID: process.env.MSG91_OTP_DLT_TE_ID || '1177179499136995960',
+                    ...vars,
+                    recipients: [
+                        {
+                            mobiles: `91${cleanMobile}`,
+                            ...vars,
+                        },
+                    ],
                 };
                 console.log(`[DLT-SMS] [MSG91] Sending request to Flow API:`, {
                     endpoint,
