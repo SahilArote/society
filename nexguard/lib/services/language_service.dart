@@ -199,8 +199,8 @@ class LanguageService extends ChangeNotifier {
     },
     'tabInside': {
       'en': 'Inside',
-      'hi': 'अंदर (सोसायटी)',
-      'mr': 'आत (सोसायटी)',
+      'hi': 'अंदर',
+      'mr': 'आत',
     },
     'waitingForResidentApproval': {
       'en': 'Pending resident approval',

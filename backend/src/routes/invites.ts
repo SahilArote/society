@@ -18,6 +18,8 @@ import {
 } from '../database/db';
 import { emitVisitorCreated, emitVisitorDecision } from '../services/socketService';
 import { sendPushToUser } from '../services/pushNotificationService';
+import { uploadVisitorPhoto } from '../middleware/upload';
+import { uploadVisitorPhoto as uploadToStorageVault } from '../services/photoStorageService';
 
 const router = Router();
 
@@ -175,19 +177,111 @@ router.delete(
 );
 
 // =============================================================
-// GUARD PASS VERIFICATION ENDPOINT
+// GUARD PASS VERIFICATION ENDPOINTS
 // =============================================================
 
-// POST /api/invites/guard/verify
-// Guard inputs 6-digit pass code or scans QR at the security gate
+// POST /api/invites/guard/lookup
+// Guard inputs pass code or scans QR to inspect pass details BEFORE admitting visitor
 router.post(
-  '/guard/verify',
+  '/guard/lookup',
   authenticateToken,
   authorizeRoles('GUARD', 'ADMIN'),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const rawCode = req.body.passCode || req.body.code || req.body.pass_code;
-      const { gateId: reqGateId } = req.body;
+      if (!rawCode || !String(rawCode).trim()) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'INVALID_INPUT', message: 'Pass code is required' },
+        });
+      }
+
+      const cleanCode = String(rawCode).trim().replace(/\D/g, '');
+      const societyId = req.user!.societyId || 'soc_greengate';
+
+      const invite = await findInviteByCode(societyId, cleanCode);
+      if (!invite) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'PASS_NOT_FOUND',
+            message: 'Invalid pass code. No active pass found for this code in this society.',
+          },
+        });
+      }
+
+      if (invite.status === 'USED') {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'PASS_ALREADY_USED',
+            message: `This pass was already used for entry at ${invite.usedAt || 'earlier'}.`,
+          },
+        });
+      }
+
+      if (invite.status === 'EXPIRED') {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'PASS_EXPIRED',
+            message: `This pass has expired (valid until ${invite.validUntil}).`,
+          },
+        });
+      }
+
+      if (invite.status === 'CANCELLED') {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'PASS_CANCELLED',
+            message: 'This pass was cancelled by the resident.',
+          },
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Pass verified successfully',
+        data: {
+          invite: {
+            id: invite.id,
+            passCode: invite.passCode,
+            visitorName: invite.visitorName,
+            visitorPhone: invite.visitorPhone,
+            purpose: invite.purpose,
+            status: invite.status,
+            flatNumber: invite.flatNumber,
+            wing: invite.wing,
+            residentName: invite.residentName,
+            residentPhone: invite.residentPhone,
+            validFrom: invite.validFrom,
+            validUntil: invite.validUntil,
+            notes: invite.notes,
+          },
+        },
+      });
+    } catch (error: any) {
+      console.error('[INVITES] Error looking up pass:', error);
+      return res.status(500).json({
+        success: false,
+        error: { code: 'SERVER_ERROR', message: error.message || 'Failed to inspect visitor pass' },
+      });
+    }
+  }
+);
+
+// POST /api/invites/guard/verify
+// Guard confirms entry with captured visitor photo & vehicle number at the security gate
+router.post(
+  '/guard/verify',
+  authenticateToken,
+  authorizeRoles('GUARD', 'ADMIN'),
+  uploadVisitorPhoto.single('photo'),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const rawCode = req.body.passCode || req.body.code || req.body.pass_code;
+      const { gateId: reqGateId, vehicleNumber, visitorPhone } = req.body;
 
       if (!rawCode || !String(rawCode).trim()) {
         return res.status(400).json({
@@ -201,7 +295,7 @@ router.post(
       const guardId = req.user!.id;
       const gateId = reqGateId || req.user!.gateId || 'gate_main';
 
-      console.log(`[INVITES] Guard ${guardId} verifying pass code: "${cleanCode}" at gate: "${gateId}"`);
+      console.log(`[INVITES] Guard ${guardId} verifying & checking in pass code: "${cleanCode}" at gate: "${gateId}"`);
 
       // 1. Find invite in this society
       const invite = await findInviteByCode(societyId, cleanCode);
@@ -258,9 +352,37 @@ router.post(
         });
       }
 
-      // 4. Create Approved Visitor & Visitor Request in Database
+      // 4. Handle Visitor Photo Upload (Gate Checkpoint Snapshot)
       const visitorId = `vis_${uuidv4().slice(0, 8)}`;
       const requestId = `REQ-${uuidv4().slice(0, 8).toUpperCase()}`;
+
+      let photoUrl: string | undefined = undefined;
+      let thumbUrl: string | undefined = undefined;
+      let photoKey = 'preapproved_pass';
+      let photoStorageType = 'VAULT';
+      let photoMimeType = 'image/jpeg';
+
+      if (req.file) {
+        try {
+          const uploadRes = await uploadToStorageVault(
+            req.file.path || req.file.buffer,
+            req.file.originalname || `gate_pass_${visitorId}.jpg`,
+            req.file.mimetype || 'image/jpeg'
+          );
+          photoUrl = uploadRes.photoUrl;
+          photoKey = uploadRes.photoKey;
+          photoStorageType = uploadRes.storageType;
+          photoMimeType = uploadRes.mimeType;
+
+          if (photoUrl && photoUrl.includes('/image/upload/')) {
+            thumbUrl = photoUrl.replace('/image/upload/', '/image/upload/c_fill,h_200,w_200,q_70/');
+          } else {
+            thumbUrl = photoUrl;
+          }
+        } catch (uploadErr) {
+          console.error('[INVITES] Error uploading gate captured photo:', uploadErr);
+        }
+      }
 
       let gateName = 'Main Gate';
       try {
@@ -268,17 +390,27 @@ router.post(
         if (gate) gateName = gate.name;
       } catch (_) {}
 
+      const cleanVehicle = (vehicleNumber && String(vehicleNumber).trim().length > 0)
+        ? String(vehicleNumber).trim().toUpperCase()
+        : undefined;
+
+      const finalPhone = (visitorPhone && String(visitorPhone).trim().length > 0)
+        ? String(visitorPhone).trim()
+        : (invite.visitorPhone || undefined);
+
       const { visitor: visitorRecord, request: requestRecord } = await createVisitorWithRequestTransaction(
         {
           id: visitorId,
           name: invite.visitorName,
-          mobile: invite.visitorPhone || undefined,
+          mobile: finalPhone,
           purpose: invite.purpose || 'guest',
           visitorType: 'guest',
-          photoKey: 'preapproved_pass',
-          photoStorageType: 'VAULT',
-          photoMimeType: 'image/jpeg',
-          photoUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80',
+          photoKey,
+          photoStorageType,
+          photoMimeType,
+          photoUrl,
+          thumbUrl,
+          vehicleNumber: cleanVehicle,
         },
         {
           id: requestId,
@@ -316,6 +448,7 @@ router.post(
           visitorName: invite.visitorName,
           flatNumber: invite.flatNumber || '',
           gateName,
+          photoUrl: photoUrl || '',
         },
       }).catch((err: any) => console.error('[FCM] Error notifying resident of pass check-in:', err));
 
@@ -328,10 +461,12 @@ router.post(
         visitor: {
           id: visitorId,
           name: invite.visitorName,
-          mobile: invite.visitorPhone || undefined,
+          mobile: finalPhone,
           purpose: invite.purpose || 'guest',
           visitorType: 'guest',
-          photoUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80',
+          photoUrl,
+          thumbUrl,
+          vehicleNumber: cleanVehicle,
         },
         flatNumber: invite.flatNumber || '',
         residentId: invite.residentId,
@@ -349,7 +484,7 @@ router.post(
         status: 'APPROVED',
       });
 
-      console.log(`[INVITES] Pass #${invite.passCode} verified successfully! Entry granted for ${invite.visitorName} to Flat ${invite.flatNumber}`);
+      console.log(`[INVITES] Pass #${invite.passCode} verified & checked in successfully! Entry granted for ${invite.visitorName} to Flat ${invite.flatNumber}`);
 
       return res.json({
         success: true,
@@ -359,13 +494,16 @@ router.post(
             id: invite.id,
             passCode: invite.passCode,
             visitorName: invite.visitorName,
-            visitorPhone: invite.visitorPhone,
+            visitorPhone: finalPhone,
             purpose: invite.purpose,
             status: 'USED',
             flatNumber: invite.flatNumber,
             wing: invite.wing,
             residentName: invite.residentName,
             notes: invite.notes,
+            photoUrl,
+            thumbUrl,
+            vehicleNumber: cleanVehicle,
           },
           request: requestRecord,
         },

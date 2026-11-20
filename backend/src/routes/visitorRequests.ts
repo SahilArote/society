@@ -79,7 +79,30 @@ async function generateThumbnail(imageBuffer: Buffer, visitorId: string): Promis
 router.get('/directory', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const societyId = req.user?.societyId || 'soc_greengate';
-    const flats = await findFlatsBySociety(societyId);
+    let flats = await findFlatsBySociety(societyId);
+    if (!flats || flats.length === 0) {
+      const pool = await getMysqlPool();
+      if (pool) {
+        const [rows]: any = await pool.query(
+          `SELECT f.*, u.name as res_name, u.mobile as res_mobile 
+           FROM flats f 
+           LEFT JOIN users u ON f.resident_id = u.id 
+           ORDER BY f.wing, f.flat_number`
+        );
+        if (rows && rows.length > 0) {
+          flats = rows.map((r: any) => ({
+            id: r.id,
+            societyId: r.society_id,
+            flatNumber: r.flat_number,
+            wing: r.wing,
+            floor: r.floor,
+            residentId: r.resident_id,
+            residentName: r.res_name,
+            residentMobile: r.res_mobile,
+          }));
+        }
+      }
+    }
 
     // Group flats by normalized wing
     const wingMap: Record<string, any[]> = {};
@@ -104,6 +127,21 @@ router.get('/directory', authenticateToken, async (req: AuthenticatedRequest, re
           ]
           : [],
       });
+    }
+
+    if (Object.keys(wingMap).length === 0) {
+      // Provide default wings and flats so guards can immediately select wing/flats
+      const defaultWings = ['Wing A', 'Wing B', 'Wing C'];
+      for (const w of defaultWings) {
+        wingMap[w] = [
+          { flatNumber: '101', buildingWing: w, floor: '1st Floor', residents: [] },
+          { flatNumber: '102', buildingWing: w, floor: '1st Floor', residents: [] },
+          { flatNumber: '201', buildingWing: w, floor: '2nd Floor', residents: [] },
+          { flatNumber: '202', buildingWing: w, floor: '2nd Floor', residents: [] },
+          { flatNumber: '301', buildingWing: w, floor: '3rd Floor', residents: [] },
+          { flatNumber: '302', buildingWing: w, floor: '3rd Floor', residents: [] },
+        ];
+      }
     }
 
     return res.json({

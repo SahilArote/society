@@ -1,6 +1,10 @@
 package com.nexbuild.nexguard
 
+import android.app.KeyguardManager
+import android.app.NotificationManager
+import android.app.admin.DevicePolicyManager
 import android.app.role.RoleManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -45,6 +49,8 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             Log.e(TAG, "Error in CallManager.init: ${e.message}", e)
         }
+        ensureLockTaskPackages()
+        turnScreenOnAndShowOverLock()
         handleIncomingCallIntent(intent)
     }
 
@@ -78,8 +84,33 @@ class MainActivity : FlutterActivity() {
                     WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
                 )
             }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                keyguardManager?.requestDismissKeyguard(this, null)
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Error setting showWhenLocked flags: ${e.message}")
+        }
+    }
+
+    /**
+     * Requirement 5: If the device is running as Device Owner in Lock Task / Screen Pinning mode,
+     * ensure our package is explicitly in setLockTaskPackages so kiosk mode is never broken.
+     */
+    private fun ensureLockTaskPackages() {
+        try {
+            val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
+            val adminComponent = ComponentName(this, MainActivity::class.java)
+            if (dpm != null && (dpm.isDeviceOwnerApp(packageName) || dpm.isProfileOwnerApp(packageName))) {
+                val currentPackages = dpm.getLockTaskPackages(adminComponent)
+                if (!currentPackages.contains(packageName)) {
+                    dpm.setLockTaskPackages(adminComponent, currentPackages.plus(packageName))
+                    Log.i(TAG, "Device Owner: $packageName successfully added to setLockTaskPackages")
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "DevicePolicyManager check/configure: ${e.message}")
         }
     }
 
@@ -183,6 +214,10 @@ class MainActivity : FlutterActivity() {
                     val hungup = CallManager.hangup()
                     result.success(hungup)
                 }
+                "silenceRinger" -> {
+                    val silenced = CallManager.silenceRinger()
+                    result.success(silenced)
+                }
                 "setMute" -> {
                     val muted = call.argument<Boolean>("muted") ?: false
                     val res = CallManager.setMuted(muted)
@@ -193,8 +228,27 @@ class MainActivity : FlutterActivity() {
                     val res = CallManager.setSpeaker(speaker)
                     result.success(res)
                 }
-                "getCallState" -> {
+                "getCallState", "getCurrentCallState" -> {
                     result.success(CallManager.toStateMap())
+                }
+                "setWhitelist" -> {
+                    val numbers = call.argument<List<String>>("numbers") ?: emptyList()
+                    CallManager.setWhitelist(numbers)
+                    result.success(true)
+                }
+                "setAllowOnlyKnownNumbers" -> {
+                    val enabled = call.argument<Boolean>("enabled") ?: false
+                    CallManager.allowOnlyKnownNumbers = enabled
+                    Log.i(TAG, "allowOnlyKnownNumbers set to: $enabled")
+                    result.success(true)
+                }
+                "canUseFullScreenIntent" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                        result.success(nm?.canUseFullScreenIntent() ?: true)
+                    } else {
+                        result.success(true)
+                    }
                 }
                 else -> {
                     result.notImplemented()

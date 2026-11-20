@@ -17,6 +17,7 @@ class StorageService {
   static const String _keyServerUrl = 'server_base_url';
   static const String _keyAuthToken = 'guard_auth_token';
   static const String _keyAppLanguage = 'guard_app_language';
+  static const String _keyCachedDirectory = 'guard_cached_directory';
 
   final SharedPreferences _prefs;
   final FlutterSecureStorage _secureStorage;
@@ -203,6 +204,22 @@ class StorageService {
 
   Future<void> setLanguage(String code) async {
     await _prefs.setString(_keyAppLanguage, code);
+  }
+
+  Future<void> saveCachedDirectory(Map<String, dynamic> directoryData) async {
+    try {
+      await _prefs.setString(_keyCachedDirectory, jsonEncode(directoryData));
+    } catch (_) {}
+  }
+
+  Map<String, dynamic>? getCachedDirectory() {
+    try {
+      final raw = _prefs.getString(_keyCachedDirectory);
+      if (raw == null || raw.isEmpty) return null;
+      return jsonDecode(raw) as Map<String, dynamic>?;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> clearSession() async {

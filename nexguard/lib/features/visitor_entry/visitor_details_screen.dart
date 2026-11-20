@@ -60,7 +60,20 @@ class _VisitorDetailsScreenState extends State<VisitorDetailsScreen> {
     super.initState();
     _currentPhotoPath = widget.photoPath;
     widget.visitorRepo.addListener(_onRepoUpdated);
-    _loadDirectory();
+    _applyFirstWing();
+    _refreshDirectorySilently();
+  }
+
+  Future<void> _refreshDirectorySilently() async {
+    if (widget.visitorRepo.wings.isEmpty) {
+      _loadDirectory();
+    } else {
+      await widget.visitorRepo.fetchDirectoryFromBackend();
+      if (!mounted) return;
+      if (_selectedWing.isEmpty) {
+        _applyFirstWing();
+      }
+    }
   }
 
   Future<void> _handleRetakePhoto() async {

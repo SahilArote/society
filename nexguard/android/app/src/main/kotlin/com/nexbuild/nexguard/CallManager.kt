@@ -8,12 +8,16 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioManager
+import android.media.Ringtone
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.PhoneAccount
@@ -23,10 +27,10 @@ import android.telephony.TelephonyManager
 import android.util.Log
 
 /**
- * CallManager - Central singleton for managing InCallService calls,
- * call states, audio routing, mute status, and dispatching events to Flutter.
+ * CallManager - Central singleton for managing InCallService incoming and outgoing calls,
+ * call states, audio routing, mute/speaker status, and dispatching events to Flutter.
  *
- * Logs tagged with "NexCall" for observability during the spike.
+ * Implements kiosk-safe Screen Pinning calling with zero double-ringing and spam control.
  */
 object CallManager {
     private const val TAG = "NexCall"
@@ -37,6 +41,9 @@ object CallManager {
         private set
 
     var callState: String = "idle"
+        private set
+
+    var callDirection: String = "outgoing" // "incoming" | "outgoing"
         private set
 
     var phoneNumber: String = ""
@@ -51,11 +58,22 @@ object CallManager {
     var callDurationSeconds: Int = 0
         private set
 
+    // Security / Spam whitelist settings
+    var allowOnlyKnownNumbers: Boolean = false
+    private val whitelistNumbers: MutableSet<String> = mutableSetOf()
+
+    // Outgoing call placement flag to reliably separate inbound Telecom calls from outbound ones
+    private var isPlacingOutgoingCall: Boolean = false
+
     private var inCallService: NexInCallService? = null
     private var appContext: Context? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private var durationRunnable: Runnable? = null
     private var callStartTime: Long = 0L
+
+    // Dedicated Ringer & Vibrator (to ensure single ring with zero double-ringing)
+    private var ringtone: Ringtone? = null
+    private var vibrator: Vibrator? = null
 
     private val listeners = mutableListOf<(Map<String, Any?>) -> Unit>()
 
@@ -63,6 +81,9 @@ object CallManager {
         override fun onStateChanged(call: Call, state: Int) {
             super.onStateChanged(call, state)
             Log.i(TAG, "Call.Callback onStateChanged: rawState=$state (${stateToString(state)})")
+            if (state == Call.STATE_RINGING) {
+                callDirection = "incoming"
+            }
             updateStateFromCall(call)
         }
 
@@ -84,10 +105,35 @@ object CallManager {
         Log.i(TAG, "CallManager initialized with context")
     }
 
+    fun setWhitelist(numbers: List<String>) {
+        whitelistNumbers.clear()
+        for (num in numbers) {
+            val normalized = normalizeNumber(num)
+            if (normalized.isNotEmpty()) {
+                whitelistNumbers.add(normalized)
+            }
+        }
+        Log.i(TAG, "Whitelist updated with ${whitelistNumbers.size} resident numbers")
+    }
+
+    fun isNumberAllowed(raw: String): Boolean {
+        if (!allowOnlyKnownNumbers) return true
+        val norm = normalizeNumber(raw)
+        return whitelistNumbers.contains(norm)
+    }
+
+    fun normalizeNumber(raw: String): String {
+        val digits = raw.replace(Regex("[^0-9]"), "")
+        return if (digits.length >= 10) {
+            digits.takeLast(10)
+        } else {
+            digits
+        }
+    }
+
     fun registerInCallService(service: NexInCallService) {
         Log.i(TAG, "NexInCallService registered with CallManager")
         inCallService = service
-        // Sync initial audio state if available
         service.callAudioState?.let { updateAudioState(it) }
     }
 
@@ -101,9 +147,48 @@ object CallManager {
     fun onCallAdded(call: Call, service: NexInCallService) {
         Log.i(TAG, "onCallAdded: call=$call, initialRawState=${call.state} (${stateToString(call.state)})")
         inCallService = service
+
+        // 1. KIOSK CALL WAITING PROTECTION:
+        // If a call is already active/ringing, auto-reject the 2nd call to prevent kiosk UI crash/overlap.
+        if (currentCall != null && currentCall != call &&
+            (callState == "active" || callState == "dialing" || callState == "ringing" || callState == "incoming")
+        ) {
+            Log.w(TAG, "[NexCall] Call waiting detected: rejecting incoming call $call to preserve kiosk stability")
+            try {
+                call.reject(false, null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error auto-rejecting waiting call: ${e.message}", e)
+            }
+            return
+        }
+
         currentCall = call
         call.registerCallback(callCallback)
         extractNumber(call)
+
+        // 2. DETECT DIRECTION (ROBUST TELECOM DETECTION):
+        val isIncomingByDetails = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            call.details?.callDirection == Call.Details.DIRECTION_INCOMING
+        } else false
+        val isIncomingByState = (call.state == Call.STATE_RINGING)
+
+        // If the app did not explicitly place this call, or if state/details indicate incoming, it is incoming!
+        val isIncoming = isIncomingByDetails || isIncomingByState || !isPlacingOutgoingCall
+        callDirection = if (isIncoming) "incoming" else "outgoing"
+        isPlacingOutgoingCall = false
+        Log.i(TAG, "onCallAdded resolved: direction=$callDirection, isIncoming=$isIncoming, rawState=${call.state}")
+
+        // 3. SPAM CONTROL / WHITELIST CHECK:
+        if (isIncoming && allowOnlyKnownNumbers && !isNumberAllowed(phoneNumber)) {
+            Log.w(TAG, "[NexCall] Spam filter active: rejected unlisted incoming call from $phoneNumber")
+            try {
+                call.reject(false, null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error rejecting spam call: ${e.message}")
+            }
+            return
+        }
+
         updateStateFromCall(call)
     }
 
@@ -111,18 +196,23 @@ object CallManager {
         Log.i(TAG, "onCallRemoved: call=$call")
         call.unregisterCallback(callCallback)
         if (currentCall == call) {
-            val prev = callState
-            callState = "disconnected"
-            Log.i(TAG, "Call ended. Transitioning: $prev -> disconnected")
+            val wasIncomingUnanswered = (callDirection == "incoming" && (callState == "incoming" || callState == "ringing"))
+            stopRingtoneAndVibration()
             stopDurationTimer()
             cancelNotification()
+            restoreAudioMode()
+
+            val endState = if (wasIncomingUnanswered) "missed" else "disconnected"
+            callState = endState
+            Log.i(TAG, "Call ended. Transitioning to $endState (wasIncomingUnanswered=$wasIncomingUnanswered)")
             notifyListeners()
 
-            // Return to idle after a brief moment so Flutter UI can render disconnected state
+            // Reset back to idle after 1.5 seconds so UI can cleanly show "Call Ended" / "Missed Call"
             mainHandler.postDelayed({
                 if (currentCall == call) {
                     currentCall = null
                     callState = "idle"
+                    callDirection = "outgoing"
                     phoneNumber = ""
                     callDurationSeconds = 0
                     isMuted = false
@@ -152,7 +242,7 @@ object CallManager {
     private fun mapCallState(rawState: Int): String {
         return when (rawState) {
             Call.STATE_NEW, Call.STATE_CONNECTING, Call.STATE_DIALING -> "dialing"
-            Call.STATE_RINGING -> "ringing"
+            Call.STATE_RINGING -> "incoming"
             Call.STATE_ACTIVE -> "active"
             Call.STATE_HOLDING -> "holding"
             Call.STATE_DISCONNECTED, Call.STATE_DISCONNECTING -> "disconnected"
@@ -179,15 +269,22 @@ object CallManager {
         val previousState = callState
         val newState = mapCallState(call.state)
         callState = newState
-        Log.i(TAG, "Call state transition: $previousState -> $newState (raw=${call.state} ${stateToString(call.state)})")
+        Log.i(TAG, "Call state transition: $previousState -> $newState (direction=$callDirection, raw=${call.state})")
 
         when (newState) {
+            "incoming" -> {
+                stopDurationTimer()
+                callDurationSeconds = 0
+                startRingtoneAndVibration()
+                showIncomingCallNotification()
+            }
             "ringing" -> {
                 stopDurationTimer()
                 callDurationSeconds = 0
-                showIncomingCallNotification()
+                cancelNotification()
             }
             "active" -> {
+                stopRingtoneAndVibration()
                 cancelNotification()
                 if (previousState != "active") {
                     callStartTime = System.currentTimeMillis()
@@ -196,24 +293,13 @@ object CallManager {
                 ensureAudioActive()
             }
             "disconnected" -> {
+                stopRingtoneAndVibration()
                 stopDurationTimer()
                 cancelNotification()
                 restoreAudioMode()
-                mainHandler.postDelayed({
-                    if (callState == "disconnected") {
-                        callState = "idle"
-                        currentCall = null
-                        phoneNumber = ""
-                        callDurationSeconds = 0
-                        isMuted = false
-                        isSpeaker = false
-                        restoreAudioMode()
-                        Log.i(TAG, "Post-disconnect reset to idle")
-                        notifyListeners()
-                    }
-                }, 1500)
             }
             else -> {
+                stopRingtoneAndVibration()
                 stopDurationTimer()
                 cancelNotification()
             }
@@ -264,9 +350,90 @@ object CallManager {
         durationRunnable = null
     }
 
-    // Call controls
+    // =============================================================
+    // RINGTONE & VIBRATION ENGINE (Guarantees zero double-ringing)
+    // =============================================================
+    fun startRingtoneAndVibration() {
+        val ctx = appContext ?: return
+        stopRingtoneAndVibration()
+
+        val audioManager = ctx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        val ringerMode = audioManager.ringerMode
+
+        // 1. Silent Mode -> Do nothing
+        if (ringerMode == AudioManager.RINGER_MODE_SILENT) {
+            Log.i(TAG, "Device in silent mode: no ringtone or vibration")
+            return
+        }
+
+        // 2. Vibration (Normal & Vibrate Modes)
+        if (ringerMode == AudioManager.RINGER_MODE_NORMAL || ringerMode == AudioManager.RINGER_MODE_VIBRATE) {
+            try {
+                vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val vm = ctx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                    vm?.defaultVibrator
+                } else {
+                    @Suppress("DEPRECATION")
+                    ctx.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                }
+                val pattern = longArrayOf(0, 1000, 1000)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator?.vibrate(pattern, 0)
+                }
+                Log.i(TAG, "In-app vibration started")
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not start vibration: ${e.message}")
+            }
+        }
+
+        // 3. Ringtone Audio:
+        // Android Telecom framework automatically plays the incoming cellular ringtone for the default dialer.
+        // We do NOT play a second Ringtone instance here, preventing any duplicate/overlapping audio.
+        Log.i(TAG, "Ringtone handled by native Telecom system ringer (zero duplicate ringtone)")
+    }
+
+    fun stopRingtoneAndVibration() {
+        try {
+            ringtone?.let {
+                if (it.isPlaying) {
+                    it.stop()
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error stopping ringtone: ${e.message}")
+        }
+        ringtone = null
+
+        try {
+            vibrator?.cancel()
+        } catch (e: Exception) {
+            Log.w(TAG, "Error stopping vibrator: ${e.message}")
+        }
+        vibrator = null
+    }
+
+    fun silenceRinger(): Boolean {
+        Log.i(TAG, "CallManager.silenceRinger invoked")
+        stopRingtoneAndVibration()
+        try {
+            val telecomManager = appContext?.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+            telecomManager?.silenceRinger()
+            Log.i(TAG, "TelecomManager.silenceRinger() successfully invoked to silence ringer")
+        } catch (e: Exception) {
+            Log.w(TAG, "Error invoking telecomManager.silenceRinger: ${e.message}")
+        }
+        return true
+    }
+
+    // =============================================================
+    // CALL CONTROLS
+    // =============================================================
     fun answer(): Boolean {
         Log.i(TAG, "CallManager.answer called")
+        stopRingtoneAndVibration()
         val call = currentCall
         if (call != null) {
             try {
@@ -285,6 +452,7 @@ object CallManager {
 
     fun reject(): Boolean {
         Log.i(TAG, "CallManager.reject called")
+        stopRingtoneAndVibration()
         val call = currentCall
         if (call != null) {
             try {
@@ -307,6 +475,7 @@ object CallManager {
 
     fun hangup(): Boolean {
         Log.i(TAG, "CallManager.hangup called")
+        stopRingtoneAndVibration()
         val call = currentCall
         if (call != null) {
             try {
@@ -350,7 +519,6 @@ object CallManager {
             svc?.setAudioRoute(route)
             isSpeaker = speaker
 
-            // Adjust in-call stream volume only if muted/zero, avoiding interference with Telecom hardware AEC
             appContext?.let { ctx ->
                 val audioManager = ctx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
                 if (audioManager != null) {
@@ -405,13 +573,13 @@ object CallManager {
             return false
         }
 
-        // Emergency numbers check: DO NOT block emergency numbers (112, 100, 101, 102).
-        // Let Telecom handle them directly.
         if (isEmergencyNumber(cleanNumber, context)) {
             Log.i(TAG, "Emergency number detected: $cleanNumber. Delegating directly to Android Telecom.")
         }
 
         phoneNumber = cleanNumber
+        isPlacingOutgoingCall = true
+        callDirection = "outgoing"
         callState = "dialing"
         notifyListeners()
 
@@ -426,7 +594,6 @@ object CallManager {
             val uri = Uri.fromParts("tel", cleanNumber, null)
             val extras = Bundle()
 
-            // Pre-select Default Outgoing Phone Account to eliminate SIM selection latency
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     val defaultAccount = telecomManager.getDefaultOutgoingPhoneAccount(PhoneAccount.SCHEME_TEL)
@@ -443,7 +610,7 @@ object CallManager {
             Log.i(TAG, "TelecomManager.placeCall successfully invoked for $cleanNumber")
             true
         } catch (e: SecurityException) {
-            Log.e(TAG, "SecurityException placing call (check CALL_PHONE permission): ${e.message}", e)
+            Log.e(TAG, "SecurityException placing call: ${e.message}", e)
             callState = "idle"
             notifyListeners()
             false
@@ -494,6 +661,21 @@ object CallManager {
             }
             val fullScreenPendingIntent = PendingIntent.getActivity(ctx, 0, fullScreenIntent, flags)
 
+            // Interactive Actions (Answer, Reject, Silence) via CallNotificationReceiver
+            val answerIntent = Intent(ctx, CallNotificationReceiver::class.java).apply {
+                action = CallNotificationReceiver.ACTION_ANSWER
+            }
+            val rejectIntent = Intent(ctx, CallNotificationReceiver::class.java).apply {
+                action = CallNotificationReceiver.ACTION_REJECT
+            }
+            val silenceIntent = Intent(ctx, CallNotificationReceiver::class.java).apply {
+                action = CallNotificationReceiver.ACTION_SILENCE
+            }
+
+            val answerPendingIntent = PendingIntent.getBroadcast(ctx, 101, answerIntent, flags)
+            val rejectPendingIntent = PendingIntent.getBroadcast(ctx, 102, rejectIntent, flags)
+            val silencePendingIntent = PendingIntent.getBroadcast(ctx, 103, silenceIntent, flags)
+
             val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 Notification.Builder(ctx, CHANNEL_ID)
             } else {
@@ -502,13 +684,43 @@ object CallManager {
             }
 
             builder.setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle("Incoming Gate Call")
+                .setContentTitle("Incoming Gate Intercom")
                 .setContentText(if (phoneNumber.isNotEmpty()) "Call from $phoneNumber" else "Incoming Call")
                 .setCategory(Notification.CATEGORY_CALL)
                 .setFullScreenIntent(fullScreenPendingIntent, true)
                 .setContentIntent(fullScreenPendingIntent)
-                .setAutoCancel(true)
+                .setAutoCancel(false)
                 .setOngoing(true)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                // Android 12+ Notification.CallStyle for prominent Answer & Reject heads-up UI
+                val callerPerson = android.app.Person.Builder()
+                    .setName(if (phoneNumber.isNotEmpty()) phoneNumber else "Resident / Caller")
+                    .setUri(if (phoneNumber.isNotEmpty()) "tel:$phoneNumber" else null)
+                    .setImportant(true)
+                    .build()
+
+                val callStyle = Notification.CallStyle.forIncomingCall(
+                    callerPerson,
+                    rejectPendingIntent,
+                    answerPendingIntent
+                )
+                builder.style = callStyle
+
+                // Also provide silence action
+                builder.addAction(
+                    Notification.Action.Builder(
+                        null,
+                        "Silence",
+                        silencePendingIntent
+                    ).build()
+                )
+            } else {
+                // Below Android 12 fallback actions
+                builder.addAction(R.mipmap.ic_launcher, "Reject", rejectPendingIntent)
+                builder.addAction(R.mipmap.ic_launcher, "Answer", answerPendingIntent)
+                builder.addAction(R.mipmap.ic_launcher, "Silence", silencePendingIntent)
+            }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 builder.setVisibility(Notification.VISIBILITY_PUBLIC)
@@ -518,9 +730,8 @@ object CallManager {
 
             val notificationManager = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.notify(NOTIFICATION_ID, builder.build())
-            Log.i(TAG, "Incoming call notification posted with full-screen intent for $phoneNumber")
+            Log.i(TAG, "Incoming call notification posted with CallStyle & actions for $phoneNumber")
 
-            // Also try to bring MainActivity to the front directly
             try {
                 ctx.startActivity(fullScreenIntent)
                 Log.i(TAG, "Direct startActivity invoked to surface MainActivity for incoming call")
@@ -551,21 +762,10 @@ object CallManager {
             val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
                 description = descriptionText
                 enableLights(true)
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0, 1000, 500, 1000)
+                // Set sound to null so NotificationManager does NOT double-ring on top of our Ringtone!
+                setSound(null, null)
+                enableVibration(false)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-                try {
-                    val audioAttributes = AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                        .build()
-                    val ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-                    if (ringtoneUri != null) {
-                        setSound(ringtoneUri, audioAttributes)
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Could not set custom ringtone URI on channel: ${e.message}")
-                }
             }
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
@@ -573,9 +773,12 @@ object CallManager {
     }
 
     fun toStateMap(): Map<String, Any?> {
+        val isIncomingBool = (callDirection == "incoming" || callState == "incoming")
         return mapOf(
             "state" to callState,
             "number" to phoneNumber,
+            "direction" to (if (isIncomingBool) "incoming" else "outgoing"),
+            "isIncoming" to isIncomingBool,
             "muted" to isMuted,
             "speaker" to isSpeaker,
             "duration" to callDurationSeconds
@@ -584,7 +787,6 @@ object CallManager {
 
     fun addListener(listener: (Map<String, Any?>) -> Unit) {
         listeners.add(listener)
-        // Immediately notify with current state
         listener.invoke(toStateMap())
     }
 
@@ -605,4 +807,3 @@ object CallManager {
         }
     }
 }
-

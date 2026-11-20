@@ -18,6 +18,7 @@ const upload_1 = require("../middleware/upload");
 const photoStorageService_1 = require("../services/photoStorageService");
 const socketService_1 = require("../services/socketService");
 const pushNotificationService_1 = require("../services/pushNotificationService");
+const mysql_1 = require("../database/mysql");
 const router = (0, express_1.Router)();
 // =============================================================
 // Clean / Normalize wing names (e.g. "Tower B", "Wing TOWER B", "Wing B" -> "Wing B")
@@ -63,7 +64,28 @@ async function generateThumbnail(imageBuffer, visitorId) {
 router.get('/directory', auth_1.authenticateToken, async (req, res) => {
     try {
         const societyId = req.user?.societyId || 'soc_greengate';
-        const flats = await (0, db_1.findFlatsBySociety)(societyId);
+        let flats = await (0, db_1.findFlatsBySociety)(societyId);
+        if (!flats || flats.length === 0) {
+            const pool = await (0, mysql_1.getMysqlPool)();
+            if (pool) {
+                const [rows] = await pool.query(`SELECT f.*, u.name as res_name, u.mobile as res_mobile 
+           FROM flats f 
+           LEFT JOIN users u ON f.resident_id = u.id 
+           ORDER BY f.wing, f.flat_number`);
+                if (rows && rows.length > 0) {
+                    flats = rows.map((r) => ({
+                        id: r.id,
+                        societyId: r.society_id,
+                        flatNumber: r.flat_number,
+                        wing: r.wing,
+                        floor: r.floor,
+                        residentId: r.resident_id,
+                        residentName: r.res_name,
+                        residentMobile: r.res_mobile,
+                    }));
+                }
+            }
+        }
         // Group flats by normalized wing
         const wingMap = {};
         for (const f of flats) {
@@ -87,6 +109,20 @@ router.get('/directory', auth_1.authenticateToken, async (req, res) => {
                     ]
                     : [],
             });
+        }
+        if (Object.keys(wingMap).length === 0) {
+            // Provide default wings and flats so guards can immediately select wing/flats
+            const defaultWings = ['Wing A', 'Wing B', 'Wing C'];
+            for (const w of defaultWings) {
+                wingMap[w] = [
+                    { flatNumber: '101', buildingWing: w, floor: '1st Floor', residents: [] },
+                    { flatNumber: '102', buildingWing: w, floor: '1st Floor', residents: [] },
+                    { flatNumber: '201', buildingWing: w, floor: '2nd Floor', residents: [] },
+                    { flatNumber: '202', buildingWing: w, floor: '2nd Floor', residents: [] },
+                    { flatNumber: '301', buildingWing: w, floor: '3rd Floor', residents: [] },
+                    { flatNumber: '302', buildingWing: w, floor: '3rd Floor', residents: [] },
+                ];
+            }
         }
         return res.json({
             success: true,
