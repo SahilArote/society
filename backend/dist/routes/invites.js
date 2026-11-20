@@ -343,7 +343,7 @@ router.post('/guard/verify', auth_1.authenticateToken, (0, auth_1.authorizeRoles
             flatId: invite.flatId,
             guardId,
             gateId,
-            status: 'APPROVED',
+            status: 'INSIDE',
         });
         // 5. Notify Resident (Push Notification & Socket)
         const notifId = `notif_${(0, uuid_1.v4)().slice(0, 8)}`;
@@ -399,7 +399,7 @@ router.post('/guard/verify', auth_1.authenticateToken, (0, auth_1.authorizeRoles
             visitorName: invite.visitorName,
             flatNumber: invite.flatNumber || '',
             gateName,
-            status: 'APPROVED',
+            status: 'INSIDE',
         });
         console.log(`[INVITES] Pass #${invite.passCode} verified & checked in successfully! Entry granted for ${invite.visitorName} to Flat ${invite.flatNumber}`);
         return res.json({

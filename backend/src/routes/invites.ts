@@ -419,7 +419,7 @@ router.post(
           flatId: invite.flatId,
           guardId,
           gateId,
-          status: 'APPROVED',
+          status: 'INSIDE',
         }
       );
 
@@ -481,7 +481,7 @@ router.post(
         visitorName: invite.visitorName,
         flatNumber: invite.flatNumber || '',
         gateName,
-        status: 'APPROVED',
+        status: 'INSIDE',
       });
 
       console.log(`[INVITES] Pass #${invite.passCode} verified & checked in successfully! Entry granted for ${invite.visitorName} to Flat ${invite.flatNumber}`);

@@ -572,6 +572,8 @@ router.get('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
         respondedAt: r.respondedAt,
         responseBy: r.responseBy,
         rejectionReason: r.rejectionReason,
+        entryTime: r.entryTime,
+        exitTime: r.exitTime,
       },
     });
   } catch (err: any) {

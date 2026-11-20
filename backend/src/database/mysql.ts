@@ -148,7 +148,7 @@ export async function runMysqlMigrations() {
         if (!c || c.length === 0) {
           await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${col}\` ${colDef}`);
         }
-      } catch (_) {}
+      } catch (_) { }
     };
 
     // Auto-migrate schema columns if table already exists
@@ -173,11 +173,11 @@ export async function runMysqlMigrations() {
 
     try {
       await pool.query(`ALTER TABLE users MODIFY COLUMN role ENUM('RESIDENT', 'GUARD', 'ADMIN', 'SUPER_ADMIN') NOT NULL`);
-    } catch (_) {}
+    } catch (_) { }
 
     try {
       await pool.query('ALTER TABLE visitors MODIFY COLUMN purpose VARCHAR(255) NOT NULL');
-    } catch (_) {}
+    } catch (_) { }
 
     // Auto-migrate: add thumb_url column if missing (safe idempotent)
     try {
@@ -203,7 +203,7 @@ export async function runMysqlMigrations() {
         );
         console.log('[MySQL] Super Admin account created: superadmin@nexgate.co.in / superadmin123');
       }
-    } catch (_) {}
+    } catch (_) { }
 
     // Auto-update society name to official real name
     try {
@@ -213,7 +213,7 @@ export async function runMysqlMigrations() {
       await pool.query(
         "UPDATE users SET email = 'admin@nexgate.co.in' WHERE id = 'admin_user' AND (email = 'admin@greengate.in' OR email IS NULL)"
       );
-    } catch (_) {}
+    } catch (_) { }
 
     console.log('[MySQL] Schema migrations execution cycle complete.');
 

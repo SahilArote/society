@@ -961,7 +961,8 @@ export async function createVisitorWithRequestTransaction(
     flatId: string;
     guardId: string;
     gateId: string;
-    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
+    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED' | 'INSIDE';
+    entryTime?: string | null;
   }
 ): Promise<{ visitor: VisitorRow; request: VisitorRequestRow }> {
   const pool = await getMysqlPool();
@@ -991,9 +992,13 @@ export async function createVisitorWithRequestTransaction(
     );
 
     const now = new Date();
+    const entryTimeVal = requestData.entryTime !== undefined
+      ? requestData.entryTime
+      : (requestData.status === 'INSIDE' ? now : null);
+
     await connection.query(
-      `INSERT INTO visitor_requests (id, society_id, visitor_id, resident_id, flat_id, guard_id, gate_id, status, requested_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO visitor_requests (id, society_id, visitor_id, resident_id, flat_id, guard_id, gate_id, status, requested_at, entry_time) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         requestData.id,
         requestData.societyId,
@@ -1004,6 +1009,7 @@ export async function createVisitorWithRequestTransaction(
         requestData.gateId,
         requestData.status,
         now,
+        entryTimeVal,
       ]
     );
 
@@ -1012,7 +1018,12 @@ export async function createVisitorWithRequestTransaction(
     const isoNow = now.toISOString();
     return {
       visitor: { ...visitorData, createdAt: isoNow },
-      request: { ...requestData, visitorId: visitorData.id, requestedAt: isoNow },
+      request: {
+        ...requestData,
+        visitorId: visitorData.id,
+        requestedAt: isoNow,
+        entryTime: entryTimeVal instanceof Date ? entryTimeVal.toISOString() : (entryTimeVal || null),
+      },
     };
   } catch (err) {
     await connection.rollback();

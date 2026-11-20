@@ -300,6 +300,21 @@ class _VisitorDetailScreenState extends State<VisitorDetailScreen> {
                     _buildInfoRow(Icons.apartment_rounded, 'Destination Unit', 'Flat ${v.flatNumber}'),
                     const Divider(height: 20),
                     _buildInfoRow(Icons.meeting_room_rounded, 'Entry Gate', v.gate),
+                    if (v.entryTime != null) ...[
+                      const Divider(height: 20),
+                      _buildInfoRow(Icons.login_rounded, 'Gate Entry Time', DateFormatter.formatDateTime(v.entryTime!)),
+                    ] else if (v.isEntered) ...[
+                      const Divider(height: 20),
+                      _buildInfoRow(Icons.door_sliding_rounded, 'Gate Status', 'Currently Inside Society'),
+                    ],
+                    if (v.exitTime != null) ...[
+                      const Divider(height: 20),
+                      _buildInfoRow(Icons.logout_rounded, 'Gate Exit Time', DateFormatter.formatDateTime(v.exitTime!)),
+                    ],
+                    if (v.guardName != null && v.guardName!.isNotEmpty) ...[
+                      const Divider(height: 20),
+                      _buildInfoRow(Icons.security_rounded, 'Security Guard', v.guardName!),
+                    ],
                     if (v.vehicleNumber != null && v.vehicleNumber!.isNotEmpty) ...[
                       const Divider(height: 20),
                       _buildInfoRow(Icons.directions_car_rounded, 'Vehicle Number', v.vehicleNumber!),
@@ -318,7 +333,7 @@ class _VisitorDetailScreenState extends State<VisitorDetailScreen> {
 
               const SizedBox(height: 20),
 
-              // Step-by-Step Gate Audit Timeline
+              // Step-by-Step Gate Audit Timeline (Full Entry & Exit Lifecycle)
               Text('GATE AUDIT TIMELINE', style: AppTypography.sectionHeader),
               const SizedBox(height: 8),
               Container(
@@ -331,29 +346,83 @@ class _VisitorDetailScreenState extends State<VisitorDetailScreen> {
                 ),
                 child: Column(
                   children: [
+                    // Step 1: Arrival / Pass Initiation
                     _buildTimelineItem(
-                      title: 'Gate Entry Initiated',
-                      subtitle: 'Visitor arrived at ${v.gate} and was logged by security.',
+                      title: v.isPreApproved
+                          ? 'Pre-Approved Pass Issued'
+                          : 'Gate Entry Initiated',
+                      subtitle: v.isPreApproved
+                          ? 'Digital entry pass issued by resident.'
+                          : 'Visitor arrived at ${v.gate} and was logged by security.',
                       time: DateFormatter.formatDateTime(v.requestedAt),
                       isCompleted: true,
                       isFirst: true,
                     ),
+
+                    // Step 2: Resident Decision / Pre-Approval
                     _buildTimelineItem(
-                      title: v.isApproved
-                          ? 'Approved by Resident'
+                      title: v.isPreApproved
+                          ? 'Pre-Approved by Resident'
                           : v.isRejected
                               ? 'Denied by Resident'
-                              : 'Awaiting Resident Approval',
-                      subtitle: v.isApproved
-                          ? 'Entry permission granted via mobile app.'
+                              : v.isApproved
+                                  ? 'Approved by Resident'
+                                  : 'Awaiting Resident Approval',
+                      subtitle: v.isPreApproved
+                          ? 'Direct entry pre-authorized by host resident.'
                           : v.isRejected
                               ? (v.rejectionReason ?? 'Entry denied by flat resident.')
-                              : 'Waiting for response.',
-                      time: v.respondedAt != null ? DateFormatter.formatDateTime(v.respondedAt) : 'Pending',
-                      isCompleted: v.isApproved || v.isRejected,
+                              : v.isApproved
+                                  ? 'Entry permission granted via mobile app.'
+                                  : 'Waiting for resident decision.',
+                      time: v.respondedAt != null
+                          ? DateFormatter.formatDateTime(v.respondedAt!)
+                          : (v.isPreApproved ? DateFormatter.formatDateTime(v.requestedAt) : 'Pending'),
+                      isCompleted: v.isApproved || v.isRejected || v.isPreApproved,
                       isDestructive: v.isRejected,
-                      isLast: true,
                     ),
+
+                    // Step 3: Gate Entry (Check-In)
+                    _buildTimelineItem(
+                      title: (v.isEntered || v.isExited || v.entryTime != null)
+                          ? 'Gate Entry Allowed'
+                          : v.isRejected
+                              ? 'Gate Entry Denied'
+                              : 'Awaiting Gate Check-In',
+                      subtitle: (v.isEntered || v.isExited || v.entryTime != null)
+                          ? 'Admitted through ${v.gate}${v.guardName != null && v.guardName!.isNotEmpty ? ' by Guard: ${v.guardName}' : ''}.'
+                          : v.isRejected
+                              ? 'Visitor was not permitted to enter society premises.'
+                              : 'Visitor awaiting security check-in at gate.',
+                      time: v.entryTime != null
+                          ? DateFormatter.formatDateTime(v.entryTime!)
+                          : ((v.isEntered || v.isExited)
+                              ? (v.respondedAt != null ? DateFormatter.formatDateTime(v.respondedAt!) : 'Logged Inside')
+                              : (v.isRejected ? '' : 'Pending')),
+                      isCompleted: v.isEntered || v.isExited || v.entryTime != null || v.isRejected,
+                      isDestructive: v.isRejected,
+                      isLast: v.isRejected,
+                    ),
+
+                    // Step 4: Gate Exit (Check-Out) - Shown when not rejected
+                    if (!v.isRejected)
+                      _buildTimelineItem(
+                        title: (v.isExited || v.exitTime != null)
+                            ? 'Visitor Exited Society'
+                            : v.isEntered
+                                ? 'Currently Inside Society'
+                                : 'Awaiting Society Exit',
+                        subtitle: (v.isExited || v.exitTime != null)
+                            ? 'Checked out and left premises through ${v.gate}.'
+                            : v.isEntered
+                                ? 'Active visit on society premises. Exit pending.'
+                                : 'Exit timestamp will be logged upon departure.',
+                        time: v.exitTime != null
+                            ? DateFormatter.formatDateTime(v.exitTime!)
+                            : (v.isEntered ? 'Active' : 'Pending'),
+                        isCompleted: v.isExited || v.exitTime != null,
+                        isLast: true,
+                      ),
                   ],
                 ),
               ),

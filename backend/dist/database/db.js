@@ -743,8 +743,11 @@ async function createVisitorWithRequestTransaction(visitorData, requestData) {
             visitorData.deliveryCompany || null,
         ]);
         const now = new Date();
-        await connection.query(`INSERT INTO visitor_requests (id, society_id, visitor_id, resident_id, flat_id, guard_id, gate_id, status, requested_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+        const entryTimeVal = requestData.entryTime !== undefined
+            ? requestData.entryTime
+            : (requestData.status === 'INSIDE' ? now : null);
+        await connection.query(`INSERT INTO visitor_requests (id, society_id, visitor_id, resident_id, flat_id, guard_id, gate_id, status, requested_at, entry_time) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
             requestData.id,
             requestData.societyId,
             visitorData.id,
@@ -754,12 +757,18 @@ async function createVisitorWithRequestTransaction(visitorData, requestData) {
             requestData.gateId,
             requestData.status,
             now,
+            entryTimeVal,
         ]);
         await connection.commit();
         const isoNow = now.toISOString();
         return {
             visitor: { ...visitorData, createdAt: isoNow },
-            request: { ...requestData, visitorId: visitorData.id, requestedAt: isoNow },
+            request: {
+                ...requestData,
+                visitorId: visitorData.id,
+                requestedAt: isoNow,
+                entryTime: entryTimeVal instanceof Date ? entryTimeVal.toISOString() : (entryTimeVal || null),
+            },
         };
     }
     catch (err) {

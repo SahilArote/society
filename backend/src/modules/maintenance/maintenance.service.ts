@@ -155,7 +155,7 @@ export class MaintenanceService {
     // If no invoice exists, auto-seed — using INSERT IGNORE to prevent race-condition duplicates
     if (!inv) {
       const now = new Date();
-      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const billingPeriod = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
 
       // Due date = 10th of next month
@@ -387,7 +387,7 @@ export class MaintenanceService {
 
     // 1. Collected this month (current billing period — dynamic, not hardcoded)
     const now = new Date();
-    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const currentPeriod = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
 
     const [collectedRows]: any = await pool.query(
@@ -795,10 +795,10 @@ export class MaintenanceService {
     const defaultBreakdown = breakdown && breakdown.length > 0
       ? breakdown
       : [
-          { title: 'Maintenance', amount: Math.round(newAmount * 0.8) },
-          { title: 'Sinking fund', amount: Math.round(newAmount * 0.12) },
-          { title: 'Parking', amount: Math.round(newAmount * 0.08) },
-        ];
+        { title: 'Maintenance', amount: Math.round(newAmount * 0.8) },
+        { title: 'Sinking fund', amount: Math.round(newAmount * 0.12) },
+        { title: 'Parking', amount: Math.round(newAmount * 0.08) },
+      ];
 
     // Find invoice by id or flat_id
     const [invs]: any = await pool.query(
@@ -964,7 +964,7 @@ export class MaintenanceService {
       if (paidDate) {
         const d = new Date(paidDate);
         const day = String(d.getDate()).padStart(2, '0');
-        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         formattedPaidDate = `${day} ${months[d.getMonth()]} · UPI`;
       }
 

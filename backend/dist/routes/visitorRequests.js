@@ -512,6 +512,8 @@ router.get('/:id', auth_1.authenticateToken, async (req, res) => {
                 respondedAt: r.respondedAt,
                 responseBy: r.responseBy,
                 rejectionReason: r.rejectionReason,
+                entryTime: r.entryTime,
+                exitTime: r.exitTime,
             },
         });
     }

@@ -311,7 +311,17 @@ class RecentVisitorsSection extends StatelessWidget {
     IconData icon;
     String label;
 
-    if (s == 'APPROVED' || s == 'ALLOWED') {
+    if (s == 'INSIDE' || s == 'ENTERED') {
+      bg = const Color(0xFFE0F2FE);
+      text = const Color(0xFF0284C7);
+      icon = Icons.meeting_room_rounded;
+      label = 'Inside';
+    } else if (s == 'EXITED' || s == 'LEFT' || s == 'COMPLETED') {
+      bg = const Color(0xFFF1F5F9);
+      text = const Color(0xFF64748B);
+      icon = Icons.logout_rounded;
+      label = 'Exited';
+    } else if (s == 'APPROVED' || s == 'ALLOWED') {
       bg = const Color(0xFFE8F8EE);
       text = const Color(0xFF16A34A);
       icon = Icons.check_circle_rounded;
@@ -321,11 +331,16 @@ class RecentVisitorsSection extends StatelessWidget {
       text = const Color(0xFF2563EB);
       icon = Icons.access_time_rounded;
       label = 'Pending';
-    } else {
+    } else if (s == 'REJECTED' || s == 'DENIED') {
       bg = const Color(0xFFFEE2E2);
       text = const Color(0xFFDC2626);
       icon = Icons.cancel_rounded;
       label = 'Rejected';
+    } else {
+      bg = const Color(0xFFF1F5F9);
+      text = const Color(0xFF475569);
+      icon = Icons.info_outline_rounded;
+      label = status;
     }
 
     return Container(
