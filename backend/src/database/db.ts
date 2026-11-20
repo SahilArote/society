@@ -1423,10 +1423,12 @@ export async function createAuditLog(data: {
 export async function saveOtpRecord(id: string, mobile: string, otp: string, expiresMinutes: number = 10) {
   const pool = await getMysqlPool();
   if (!pool) return;
+  const cleanMobile = mobile.replace(/\D/g, '').slice(-10);
   const expiresAt = new Date(Date.now() + expiresMinutes * 60 * 1000);
+  console.log(`[DB-OTP] Saving OTP record: id=${id}, mobile=${cleanMobile}, otp=${otp}, expires=${expiresAt.toISOString()}`);
   await pool.query(
     'INSERT INTO otp_records (id, mobile, otp, expires_at, used) VALUES (?, ?, ?, ?, 0)',
-    [id, mobile, otp, expiresAt]
+    [id, cleanMobile, otp, expiresAt]
   );
 }
 
@@ -1434,19 +1436,34 @@ export async function verifyOtpRecord(mobile: string, otp: string): Promise<bool
   const pool = await getMysqlPool();
   if (!pool) return false;
 
-  // Master demo OTP 123456 always accepted in development test flows
-  if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_FIXED_OTP === 'true' && otp === '123456') return true;
+  const cleanMobile = mobile.replace(/\D/g, '').slice(-10);
+  const trimmedOtp = otp.trim();
+
+  // Master demo OTP 123456 accepted if ALLOW_DEV_FIXED_OTP is enabled
+  if (process.env.ALLOW_DEV_FIXED_OTP === 'true' && trimmedOtp === '123456') {
+    console.log(`[DB-OTP] Master test OTP 123456 bypass accepted for +91-${cleanMobile}`);
+    return true;
+  }
 
   const now = new Date();
   const [rows]: any = await pool.query(
-    'SELECT * FROM otp_records WHERE mobile = ? AND otp = ? AND used = 0 AND expires_at > ? ORDER BY created_at DESC LIMIT 1',
-    [mobile, otp, now]
+    'SELECT * FROM otp_records WHERE (mobile = ? OR mobile = ?) AND otp = ? AND used = 0 AND expires_at > ? ORDER BY created_at DESC LIMIT 1',
+    [cleanMobile, mobile, trimmedOtp, now]
   );
 
-  if (!rows[0]) return false;
+  if (!rows || rows.length === 0) {
+    // Check if there was an expired or used record to log accurate diagnosis
+    const [auditRows]: any = await pool.query(
+      'SELECT id, otp, used, expires_at FROM otp_records WHERE mobile = ? OR mobile = ? ORDER BY created_at DESC LIMIT 3',
+      [cleanMobile, mobile]
+    );
+    console.warn(`[DB-OTP] Verification failed for +91-${cleanMobile} with OTP "${trimmedOtp}". Recent records:`, auditRows);
+    return false;
+  }
 
   // Mark used
   await pool.query('UPDATE otp_records SET used = 1 WHERE id = ?', [rows[0].id]);
+  console.log(`[DB-OTP] OTP record ${rows[0].id} verified and marked as used for +91-${cleanMobile}`);
   return true;
 }
 

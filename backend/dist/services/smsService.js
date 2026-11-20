@@ -91,33 +91,49 @@ async function sendDltOtpSms(mobile, otp) {
             case 'msg91': {
                 // MSG91 Flow API with DLT template
                 const endpoint = 'https://control.msg91.com/api/v5/flow/';
+                const payload = {
+                    template_id: config.templateId,
+                    sender: config.senderId,
+                    short_url: '0',
+                    mobiles: `91${cleanMobile}`,
+                    otp: otp,
+                    VAR1: otp,
+                    var1: otp,
+                    code: otp,
+                    VAR2: 'NexGate',
+                    var2: 'NexGate',
+                    app: 'NexGate',
+                    VAR3: '10',
+                    var3: '10',
+                    minutes: '10',
+                    DLT_TE_ID: process.env.MSG91_OTP_DLT_TE_ID || config.templateId,
+                };
+                console.log(`[DLT-SMS] [MSG91] Sending request to Flow API:`, {
+                    endpoint,
+                    template_id: config.templateId,
+                    sender: config.senderId,
+                    mobile: `91${cleanMobile}`,
+                    otpCode: otp,
+                });
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         authkey: config.apiKey,
                         'content-type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        template_id: config.templateId,
-                        sender: config.senderId,
-                        short_url: '0',
-                        mobiles: `91${cleanMobile}`,
-                        otp: otp,
-                        VAR1: otp,
-                        var1: otp,
-                        code: otp,
-                        VAR2: 'NexGate',
-                        var2: 'NexGate',
-                        app: 'NexGate',
-                        VAR3: '10',
-                        var3: '10',
-                        minutes: '10',
-                        DLT_TE_ID: process.env.MSG91_OTP_DLT_TE_ID || config.templateId,
-                    }),
+                    body: JSON.stringify(payload),
                 });
-                const data = await response.json();
-                if (data.type === 'success' || response.ok) {
-                    console.log(`[DLT-SMS] MSG91 Flow dispatched successfully to +91-${cleanMobile}`);
+                const rawText = await response.text();
+                let data = {};
+                try {
+                    data = JSON.parse(rawText);
+                }
+                catch (_) {
+                    data = { raw: rawText };
+                }
+                console.log(`[DLT-SMS] [MSG91-FLOW-RESPONSE] HTTP ${response.status}:`, JSON.stringify(data));
+                if ((data.type === 'success' || (response.ok && data.type !== 'error')) && data.type !== 'error') {
+                    console.log(`[DLT-SMS] MSG91 Flow dispatched successfully to +91-${cleanMobile}. Message/Req ID: ${data.message || 'ok'}`);
                     return { success: true, messageId: data.message };
                 }
                 else {
@@ -125,16 +141,31 @@ async function sendDltOtpSms(mobile, otp) {
                     try {
                         const otpUrl = `https://control.msg91.com/api/v5/otp?template_id=${encodeURIComponent(config.templateId)}&mobile=91${cleanMobile}&authkey=${encodeURIComponent(config.apiKey)}&otp=${encodeURIComponent(otp)}&otp_expiry=10`;
                         const otpRes = await fetch(otpUrl, { method: 'POST' });
-                        const otpData = await otpRes.json();
-                        if (otpData.type === 'success' || otpRes.ok) {
+                        const otpRaw = await otpRes.text();
+                        let otpData = {};
+                        try {
+                            otpData = JSON.parse(otpRaw);
+                        }
+                        catch (_) {
+                            otpData = { raw: otpRaw };
+                        }
+                        console.log(`[DLT-SMS] [MSG91-OTP-FALLBACK-RESPONSE] HTTP ${otpRes.status}:`, JSON.stringify(otpData));
+                        if ((otpData.type === 'success' || (otpRes.ok && otpData.type !== 'error')) && otpData.type !== 'error') {
                             console.log(`[DLT-SMS] MSG91 OTP API fallback dispatched successfully to +91-${cleanMobile}`);
                             return { success: true, messageId: otpData.message };
                         }
+                        return {
+                            success: false,
+                            error: `MSG91 Flow failed: ${data.message || rawText}. Fallback: ${otpData.message || otpRaw}`,
+                        };
                     }
                     catch (fallbackErr) {
                         console.error(`[DLT-SMS] MSG91 OTP API fallback failed:`, fallbackErr.message);
+                        return {
+                            success: false,
+                            error: `MSG91 Flow failed: ${data.message || rawText}. Fallback error: ${fallbackErr.message}`,
+                        };
                     }
-                    return { success: false, error: data.message || 'MSG91 dispatch failed' };
                 }
             }
             case 'textlocal': {

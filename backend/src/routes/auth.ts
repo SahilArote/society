@@ -141,19 +141,28 @@ router.post('/resident/send-otp', async (req: Request, res: Response) => {
 
     // Send real DLT SMS
     const smsResult = await sendDltOtpSms(cleanMobile, otp);
-    if (!smsResult.success && isProduction) {
-      console.error(`[AUTH] Failed to dispatch DLT SMS to ${cleanMobile}:`, smsResult.error);
-    }
 
-    console.log(`[AUTH] OTP generated for ${user.name} (${cleanMobile})${!isProduction ? ` - OTP: ${otp}` : ''}`);
+    // High-visibility test log in server console (PM2 logs)
+    console.log(`\n======================================================================`);
+    console.log(`[AUTH-OTP] >>> MOBILE: +91-${cleanMobile} | OTP CODE: [ ${otp} ] <<<`);
+    console.log(`[AUTH-OTP] User: "${user.name}" (ID: ${user.id}, Role: ${user.role})`);
+    console.log(`[AUTH-OTP] SMS Gateway Result: ${smsResult.success ? 'SENT (MessageId: ' + (smsResult.messageId || 'ok') + ')' : 'FAILED (' + (smsResult.error || 'Unknown error') + ')'}`);
+    console.log(`======================================================================\n`);
 
     return res.json({
       success: true,
       message: 'Verification code sent successfully',
       data: {
         mobile: cleanMobile,
-        ...(isProduction ? {} : { devOtpHint: otp }),
+        otpTest: otp,
+        devOtpHint: otp,
+        smsDelivered: smsResult.success,
+        smsError: smsResult.error || null,
+        smsMessageId: smsResult.messageId || null,
       },
+      otpTest: otp,
+      smsDelivered: smsResult.success,
+      smsError: smsResult.error || null,
     });
   } catch (error: any) {
     console.error('Error sending OTP:', error);
@@ -175,23 +184,30 @@ router.post('/resident/verify-otp', async (req: Request, res: Response) => {
       });
     }
 
-    const cleanMobile = String(mobile).replace(/\D/g, '');
+    const cleanMobile = String(mobile).replace(/\D/g, '').slice(-10);
+    const trimmedOtp = String(otp).trim();
+    console.log(`\n[AUTH-VERIFY] Incoming verification request: mobile=+91-${cleanMobile}, otp="${trimmedOtp}"`);
+
     let user = await findUserByMobile(cleanMobile);
 
     if (!user || user.role !== 'RESIDENT') {
+      console.warn(`[AUTH-VERIFY] FAILED: Account not found or role is not RESIDENT for mobile: +91-${cleanMobile}`);
       return res.status(404).json({
         success: false,
         error: { code: 'USER_NOT_FOUND', message: 'Account not found' },
       });
     }
 
-    const isValidOtp = await verifyOtpRecord(cleanMobile, String(otp).trim());
+    const isValidOtp = await verifyOtpRecord(cleanMobile, trimmedOtp);
     if (!isValidOtp) {
+      console.warn(`[AUTH-VERIFY] FAILED: Invalid or expired OTP "${trimmedOtp}" for mobile: +91-${cleanMobile}`);
       return res.status(401).json({
         success: false,
         error: { code: 'INVALID_OTP', message: 'Invalid or expired verification code' },
       });
     }
+
+    console.log(`[AUTH-VERIFY] SUCCESS: Verified resident "${user.name}" (+91-${cleanMobile})\n`);
 
     const flat = await findFlatByResidentId(user.id);
     const tokenUser: AuthUser = {
