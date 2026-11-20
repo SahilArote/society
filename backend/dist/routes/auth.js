@@ -117,8 +117,10 @@ router.post('/resident/send-otp', async (req, res) => {
         // High-visibility test log in server console (PM2 logs)
         console.log(`\n======================================================================`);
         console.log(`[AUTH-OTP] >>> MOBILE: +91-${cleanMobile} | OTP CODE: [ ${otp} ] <<<`);
-        console.log(`[AUTH-OTP] User: "${user.name}" (ID: ${user.id}, Role: ${user.role})`);
-        console.log(`[AUTH-OTP] SMS Gateway Result: ${smsResult.success ? 'SENT (MessageId: ' + (smsResult.messageId || 'ok') + ')' : 'FAILED (' + (smsResult.error || 'Unknown error') + ')'}`);
+        console.log(`[AUTH-OTP] Resident Name: "${user.name}" (ID: ${user.id}, Role: ${user.role})`);
+        console.log(`[AUTH-OTP] Template Format: "${smsResult.messageTemplate}"`);
+        console.log(`[AUTH-OTP] SMS Sent to User: "${smsResult.renderedMessage}"`);
+        console.log(`[AUTH-OTP] Delivery Status: ${smsResult.success ? 'SENT (MessageId: ' + (smsResult.messageId || 'ok') + ')' : 'FAILED (' + (smsResult.error || 'Unknown error') + ')'}`);
         console.log(`======================================================================\n`);
         return res.json({
             success: true,
@@ -130,10 +132,13 @@ router.post('/resident/send-otp', async (req, res) => {
                 smsDelivered: smsResult.success,
                 smsError: smsResult.error || null,
                 smsMessageId: smsResult.messageId || null,
+                template: smsResult.messageTemplate,
+                sentMessage: smsResult.renderedMessage,
             },
             otpTest: otp,
             smsDelivered: smsResult.success,
             smsError: smsResult.error || null,
+            smsMessage: smsResult.renderedMessage,
         });
     }
     catch (error) {

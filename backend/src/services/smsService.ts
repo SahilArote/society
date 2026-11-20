@@ -31,8 +31,7 @@ export function getDltConfig(): DltSmsConfig {
     templateId:
       process.env.MSG91_OTP_FLOW_ID ||
       process.env.MSG91_OTP_TEMPLATE_ID ||
-      process.env.DLT_TEMPLATE_ID ||
-      '1177179499136995960',
+      '6afe75b4c04be06f2a0f7422',
     gatewayUrl: process.env.SMS_GATEWAY_URL || '',
     messageTemplate:
       process.env.SMS_MESSAGE_TEMPLATE ||
@@ -58,13 +57,33 @@ export function generateSecureOtp(digits: number = 6): string {
 export async function sendDltOtpSms(
   mobile: string,
   otp: string
-): Promise<{ success: boolean; messageId?: string; error?: string }> {
+): Promise<{
+  success: boolean;
+  messageId?: string;
+  error?: string;
+  messageTemplate: string;
+  renderedMessage: string;
+}> {
   const cleanMobile = mobile.replace(/\D/g, '').slice(-10);
   const config = getDltConfig();
   const isProduction = process.env.NODE_ENV === 'production';
 
-  // Format the approved message template
-  const messageText = config.messageTemplate.replace('{OTP}', otp);
+  // Format the approved message template safely
+  const template = config.messageTemplate.includes('{OTP}')
+    ? config.messageTemplate
+    : '{OTP} is your OTP for NexGate login. Valid for 10 minutes. Do not share this code with anyone. - NexBuild Technologies';
+  const messageText = template.replace('{OTP}', otp);
+
+  // Detailed Template & Outgoing SMS Log
+  console.log(`\n==================== [DLT-SMS DISPATCH] ====================`);
+  console.log(`[DLT-SMS] Recipient Mobile : +91-${cleanMobile}`);
+  console.log(`[DLT-SMS] SMS Provider     : ${config.provider.toUpperCase()}`);
+  console.log(`[DLT-SMS] Sender Header    : ${config.senderId}`);
+  console.log(`[DLT-SMS] MSG91 Flow ID    : ${config.templateId}`);
+  console.log(`[DLT-SMS] DLT Template ID  : ${process.env.MSG91_OTP_DLT_TE_ID || '1177179499136995960'}`);
+  console.log(`[DLT-SMS] Template Format  : "${template}"`);
+  console.log(`[DLT-SMS] SMS Sent To User : "${messageText}"`);
+  console.log(`============================================================\n`);
 
   // If no SMS API key is configured
   if (!config.apiKey) {
@@ -84,6 +103,8 @@ export async function sendDltOtpSms(
       success: !isProduction, // In non-prod, succeed simulation; in prod, flag misconfiguration
       messageId: `sim_${Date.now()}`,
       error: isProduction ? 'SMS Gateway credentials not configured in production' : undefined,
+      messageTemplate: template,
+      renderedMessage: messageText,
     };
   }
 
@@ -111,10 +132,10 @@ export async function sendDltOtpSms(
         const data: any = await response.json();
         if (data.return === true || data.status_code === 200) {
           console.log(`[DLT-SMS] Fast2SMS dispatched successfully to +91-${cleanMobile}. Request ID: ${data.request_id || ''}`);
-          return { success: true, messageId: data.request_id };
+          return { success: true, messageId: data.request_id, messageTemplate: template, renderedMessage: messageText };
         } else {
           console.error(`[DLT-SMS] Fast2SMS dispatch error:`, data);
-          return { success: false, error: data.message?.[0] || data.message || 'Fast2SMS dispatch failed' };
+          return { success: false, error: data.message?.[0] || data.message || 'Fast2SMS dispatch failed', messageTemplate: template, renderedMessage: messageText };
         }
       }
 
@@ -123,12 +144,14 @@ export async function sendDltOtpSms(
         const endpoint = 'https://control.msg91.com/api/v5/flow/';
         const payload = {
           template_id: config.templateId,
+          flow_id: config.templateId,
           sender: config.senderId,
           short_url: '0',
           mobiles: `91${cleanMobile}`,
           otp: otp,
           VAR1: otp,
           var1: otp,
+          var: otp,
           code: otp,
           VAR2: 'NexGate',
           var2: 'NexGate',
@@ -136,7 +159,7 @@ export async function sendDltOtpSms(
           VAR3: '10',
           var3: '10',
           minutes: '10',
-          DLT_TE_ID: process.env.MSG91_OTP_DLT_TE_ID || config.templateId,
+          DLT_TE_ID: process.env.MSG91_OTP_DLT_TE_ID || '1177179499136995960',
         };
 
         console.log(`[DLT-SMS] [MSG91] Sending request to Flow API:`, {
@@ -168,7 +191,7 @@ export async function sendDltOtpSms(
 
         if ((data.type === 'success' || (response.ok && data.type !== 'error')) && data.type !== 'error') {
           console.log(`[DLT-SMS] MSG91 Flow dispatched successfully to +91-${cleanMobile}. Message/Req ID: ${data.message || 'ok'}`);
-          return { success: true, messageId: data.message };
+          return { success: true, messageId: data.message, messageTemplate: template, renderedMessage: messageText };
         } else {
           console.warn(`[DLT-SMS] MSG91 Flow dispatch error:`, data, `Attempting MSG91 OTP API fallback...`);
           try {
@@ -184,17 +207,21 @@ export async function sendDltOtpSms(
             console.log(`[DLT-SMS] [MSG91-OTP-FALLBACK-RESPONSE] HTTP ${otpRes.status}:`, JSON.stringify(otpData));
             if ((otpData.type === 'success' || (otpRes.ok && otpData.type !== 'error')) && otpData.type !== 'error') {
               console.log(`[DLT-SMS] MSG91 OTP API fallback dispatched successfully to +91-${cleanMobile}`);
-              return { success: true, messageId: otpData.message };
+              return { success: true, messageId: otpData.message || otpData.request_id, messageTemplate: template, renderedMessage: messageText };
             }
             return {
               success: false,
               error: `MSG91 Flow failed: ${data.message || rawText}. Fallback: ${otpData.message || otpRaw}`,
+              messageTemplate: template,
+              renderedMessage: messageText,
             };
           } catch (fallbackErr: any) {
             console.error(`[DLT-SMS] MSG91 OTP API fallback failed:`, fallbackErr.message);
             return {
               success: false,
               error: `MSG91 Flow failed: ${data.message || rawText}. Fallback error: ${fallbackErr.message}`,
+              messageTemplate: template,
+              renderedMessage: messageText,
             };
           }
         }
@@ -219,10 +246,10 @@ export async function sendDltOtpSms(
         const data: any = await response.json();
         if (data.status === 'success') {
           console.log(`[DLT-SMS] Textlocal dispatched successfully to +91-${cleanMobile}`);
-          return { success: true, messageId: data.batch_id };
+          return { success: true, messageId: data.batch_id, messageTemplate: template, renderedMessage: messageText };
         } else {
           console.error(`[DLT-SMS] Textlocal dispatch error:`, data);
-          return { success: false, error: data.errors?.[0]?.message || 'Textlocal dispatch failed' };
+          return { success: false, error: data.errors?.[0]?.message || 'Textlocal dispatch failed', messageTemplate: template, renderedMessage: messageText };
         }
       }
 
@@ -259,12 +286,12 @@ export async function sendDltOtpSms(
 
         const resText = await response.text();
         console.log(`[DLT-SMS] Custom Gateway HTTP response (${response.status}):`, resText.slice(0, 200));
-        return { success: response.ok, messageId: `cust_${Date.now()}` };
+        return { success: response.ok, messageId: `cust_${Date.now()}`, messageTemplate: template, renderedMessage: messageText };
       }
     }
   } catch (err: any) {
     console.error(`[DLT-SMS] Exception in SMS dispatch:`, err.message);
-    return { success: false, error: err.message };
+    return { success: false, error: err.message, messageTemplate: template, renderedMessage: messageText };
   }
 }
 
