@@ -1042,6 +1042,22 @@ export async function rejectMaintenancePayment(paymentId: string, reason: string
   return json.data;
 }
 
+export async function fetchSocietyUpiConfig(): Promise<{
+  merchantVpa: string;
+  merchantName: string;
+  bankName: string;
+  accountNumber: string;
+  ifscCode?: string;
+  isConfigured: boolean;
+}> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/maintenance/upi-config`);
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.error?.message || 'Failed to fetch UPI config');
+  }
+  return json.data;
+}
+
 export async function setSocietyUpiConfig(data: {
   merchantVpa: string;
   merchantName: string;

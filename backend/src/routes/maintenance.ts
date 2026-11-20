@@ -42,6 +42,31 @@ router.get(['/current-bill', '/resident/current-bill'], authenticateToken, async
 });
 
 /**
+ * GET /api/resident/maintenance/history
+ * Fetch past maintenance invoices and payment receipts for the resident flat
+ */
+router.get(['/history', '/resident/history'], authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const societyId = req.user?.societyId || 'soc_greengate';
+    const residentId = req.user?.id || 'res_sahil';
+    const flatId = req.user?.flatId;
+
+    const history = await MaintenanceService.getResidentHistory(societyId, residentId, flatId);
+
+    return res.json({
+      success: true,
+      data: history,
+    });
+  } catch (error: any) {
+    console.error('[MAINTENANCE RESIDENT API] Error fetching history:', error);
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: error.message || 'Failed to fetch payment history' },
+    });
+  }
+});
+
+/**
  * POST /api/resident/maintenance/submit-payment
  * Resident submits 12-digit UTR with optional payment screenshot
  */
@@ -271,6 +296,33 @@ router.post(
       return res.status(400).json({
         success: false,
         error: { code: 'REJECTION_ERROR', message: error.message || 'Failed to reject payment' },
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/maintenance/upi-config
+ * Fetch current Society Merchant UPI & Bank settings
+ */
+router.get(
+  '/upi-config',
+  authenticateToken,
+  authorizeRoles('ADMIN'),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const societyId = req.user?.societyId || 'soc_greengate';
+      const config = await MaintenanceService.getSocietyUpiConfig(societyId);
+
+      return res.json({
+        success: true,
+        data: config,
+      });
+    } catch (error: any) {
+      console.error('[MAINTENANCE ADMIN API] Error fetching UPI config:', error);
+      return res.status(500).json({
+        success: false,
+        error: { code: 'SERVER_ERROR', message: error.message || 'Failed to fetch UPI config' },
       });
     }
   }

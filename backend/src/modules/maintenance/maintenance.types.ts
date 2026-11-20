@@ -49,12 +49,22 @@ export interface VerificationQueueItem {
   receiptNumber?: string;
 }
 
+export interface SocietyUpiConfig {
+  merchantVpa: string;
+  merchantName: string;
+  bankName: string;
+  accountNumber: string;
+  ifscCode?: string;
+  isConfigured: boolean;
+}
+
 export interface AdminMaintenanceOverview {
   collectedNov: number;
   collectedNovFormatted: string;
   pendingCheck: number;
   unpaidFlats: number;
   gatewayFees: number; // Strictly 0
+  paymentConfig?: SocietyUpiConfig;
 }
 
 export interface SubmitPaymentInput {

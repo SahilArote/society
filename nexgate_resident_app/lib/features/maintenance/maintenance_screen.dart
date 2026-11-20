@@ -49,6 +49,7 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
   MaintenanceBillModel? _bill;
   bool _isLoading = true;
   String? _errorMessage;
+  List<MaintenanceHistoryItemModel> _history = [];
 
   // Step 2 & 3 state
   String _selectedPaymentType = 'upi'; // 'upi' | 'qr' | 'bank'
@@ -79,11 +80,18 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
     }
 
     try {
-      final bill = await ApiService.fetchCurrentMaintenanceBill();
+      final results = await Future.wait([
+        ApiService.fetchCurrentMaintenanceBill(),
+        ApiService.fetchMaintenanceHistory(),
+      ]);
       if (!mounted) return;
+
+      final bill = results[0] as MaintenanceBillModel;
+      final history = results[1] as List<MaintenanceHistoryItemModel>;
 
       setState(() {
         _bill = bill;
+        _history = history;
         _isLoading = false;
 
         // Auto-navigate to receipt step if bill is paid or submitted for check
@@ -126,29 +134,38 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
     if (_bill == null) return;
     HapticHelper.mediumImpact();
 
-    final baseUri = _buildUpiUri();
-
-    Uri targetUri;
-    if (package != null && Platform.isAndroid) {
-      final upiParams = baseUri.replaceFirst('upi://pay?', '');
-      targetUri = Uri.parse('intent://pay?$upiParams#Intent;scheme=upi;package=$package;end');
-    } else {
-      targetUri = Uri.parse(baseUri);
+    final vpa = _bill!.merchantVpa.trim();
+    if (vpa.isEmpty || !vpa.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Society has not configured merchant UPI yet. Please use Bank Transfer or contact the society office.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
     }
+
+    final baseUri = _buildUpiUri();
+    bool launched = false;
 
     try {
-      final launched = await launchUrl(targetUri, mode: LaunchMode.externalApplication);
-      if (!launched && package != null) {
-        await launchUrl(Uri.parse(baseUri), mode: LaunchMode.externalApplication);
-      }
-    } catch (e) {
+      final uri = Uri.parse(baseUri);
+      launched = await launchUrl(uri, mode: LaunchMode.externalNonBrowserApplication);
+    } catch (_) {
       try {
-        await launchUrl(Uri.parse(baseUri), mode: LaunchMode.externalApplication);
-      } catch (_) {}
+        launched = await launchUrl(Uri.parse(baseUri), mode: LaunchMode.externalApplication);
+      } catch (_) {
+        launched = false;
+      }
     }
 
-    if (mounted) {
-      _showPaymentConfirmationSheet('Google Pay');
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open UPI app. Please ensure Google Pay or a UPI app is installed on your phone.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -630,20 +647,44 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
         ),
         const SizedBox(height: 12),
 
-        // Previous paid records mock/real list
-        _buildHistoryCard(
-          month: 'October 2026',
-          paidDate: '10 Oct · UPI (GPay)',
-          amount: 2500,
-          receiptCode: 'RCPT-A101-04A1',
-        ),
-        const SizedBox(height: 10),
-        _buildHistoryCard(
-          month: 'September 2026',
-          paidDate: '08 Sep · Google Pay',
-          amount: 2500,
-          receiptCode: 'RCPT-A101-039B',
-        ),
+        if (_history.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            decoration: BoxDecoration(
+              color: RefferTheme.cardBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: RefferTheme.border),
+            ),
+            child: Row(
+              children: const [
+                Icon(Icons.info_outline_rounded, color: RefferTheme.textMuted, size: 20),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'No past payment records found for your flat yet.',
+                    style: TextStyle(fontSize: 13, color: RefferTheme.textMuted),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          ..._history.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 10.0),
+              child: _buildHistoryCard(
+                month: item.billingPeriod,
+                paidDate: item.paidDateFormatted.isNotEmpty
+                    ? item.paidDateFormatted
+                    : (item.isPaid
+                        ? 'Paid'
+                        : (item.isPendingCheck ? 'Pending Verification' : 'Unpaid')),
+                amount: item.paidAmount > 0 ? item.paidAmount : item.totalAmount,
+                receiptCode: item.receiptNumber ?? item.invoiceNumber,
+                isPending: item.isPendingCheck,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -653,6 +694,7 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
     required String paidDate,
     required double amount,
     required String receiptCode,
+    bool isPending = false,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -670,10 +712,14 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: RefferTheme.greenLight,
+                  color: isPending ? const Color(0xFFFEF3C7) : RefferTheme.greenLight,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.check_circle_rounded, color: RefferTheme.green, size: 18),
+                child: Icon(
+                  isPending ? Icons.hourglass_top_rounded : Icons.check_circle_rounded,
+                  color: isPending ? const Color(0xFFD97706) : RefferTheme.green,
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 12),
               Column(

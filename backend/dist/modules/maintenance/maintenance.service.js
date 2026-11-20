@@ -38,19 +38,30 @@ class MaintenanceService {
     static isVpaConfigured(config) {
         if (!config)
             return false;
-        const vpa = (config.merchant_vpa || '').trim().toLowerCase();
-        // Reject placeholder / fake VPAs
-        if (!vpa.includes('@'))
+        const vpa = (config.merchant_vpa || '').trim();
+        if (!vpa || !vpa.includes('@'))
             return false;
-        if (vpa === 'ecoresidency@icici')
+        const parts = vpa.split('@');
+        if (parts.length !== 2 || !parts[0] || !parts[1])
             return false;
-        if (vpa === 'greenvalley@icici')
-            return false;
-        if (vpa.startsWith('example@'))
-            return false;
-        if (vpa.startsWith('test@'))
+        const lower = vpa.toLowerCase();
+        if (lower.startsWith('example@') || lower.startsWith('test@'))
             return false;
         return true;
+    }
+    /**
+     * ADMIN: Fetch current society UPI & Bank configuration
+     */
+    static async getSocietyUpiConfig(societyId) {
+        const config = await this.getSocietyPaymentConfig(societyId);
+        return {
+            merchantVpa: config?.merchant_vpa || '',
+            merchantName: config?.merchant_name || '',
+            bankName: config?.bank_name || 'ICICI Bank',
+            accountNumber: config?.account_number_masked || '',
+            ifscCode: config?.ifsc_code || '',
+            isConfigured: this.isVpaConfigured(config),
+        };
     }
     /**
      * Build a correctly-encoded NPCI UPI Intent URI.
@@ -297,12 +308,14 @@ class MaintenanceService {
         // 3. Unpaid flats count
         const [unpaidRows] = await pool.query("SELECT COUNT(*) as cnt FROM maintenance_invoices WHERE society_id = ? AND status = 'UNPAID'", [societyId]);
         const unpaidFlats = Number(unpaidRows[0]?.cnt) || 0;
+        const paymentConfig = await this.getSocietyUpiConfig(societyId);
         return {
             collectedNov,
             collectedNovFormatted: this.formatLakhs(collectedNov),
             pendingCheck,
             unpaidFlats,
             gatewayFees: 0, // ₹0 gateway fees
+            paymentConfig,
         };
     }
     /**
@@ -447,10 +460,12 @@ class MaintenanceService {
                 cleanVpa,
                 input.merchantName.trim(),
                 input.bankName?.trim() || 'ICICI Bank',
-                input.accountNumber ? `•••• •••• •••• ${input.accountNumber.trim().slice(-4)}` : null,
+                input.accountNumber ? (input.accountNumber.trim().startsWith('••••') ? input.accountNumber.trim() : `•••• •••• •••• ${input.accountNumber.trim().slice(-4)}`) : null,
                 input.ifscCode?.trim() || null,
                 societyId,
             ]);
+            // Keep societies table upi_id in sync
+            await pool.query('UPDATE societies SET upi_id = ?, updated_at = NOW() WHERE id = ?', [cleanVpa, societyId]);
         }
         else {
             const id = `spc_${(0, uuid_1.v4)().slice(0, 8)}`;
@@ -462,13 +477,15 @@ class MaintenanceService {
                 cleanVpa,
                 input.merchantName.trim(),
                 input.bankName?.trim() || 'ICICI Bank',
-                input.accountNumber ? `•••• •••• •••• ${input.accountNumber.trim().slice(-4)}` : null,
+                input.accountNumber ? (input.accountNumber.trim().startsWith('••••') ? input.accountNumber.trim() : `•••• •••• •••• ${input.accountNumber.trim().slice(-4)}`) : null,
                 input.ifscCode?.trim() || null,
             ]);
         }
+        // Keep societies table upi_id in sync
+        await pool.query('UPDATE societies SET upi_id = ?, updated_at = NOW() WHERE id = ?', [cleanVpa, societyId]);
         return {
             success: true,
-            message: 'Society Merchant UPI ID updated successfully.',
+            message: 'Society Merchant UPI ID & bank details updated successfully.',
         };
     }
     /**
@@ -647,6 +664,70 @@ class MaintenanceService {
             success: true,
             message: 'Submission cancelled. You can now choose a payment app and pay again.',
         };
+    }
+    /**
+     * RESIDENT: Fetch payment and billing history for resident's flat
+     */
+    static async getResidentHistory(societyId, residentId, flatId) {
+        const pool = await (0, mysql_1.getMysqlPool)();
+        if (!pool)
+            throw new Error('Database connection unavailable');
+        let targetFlatId = flatId;
+        if (!targetFlatId) {
+            const [flats] = await pool.query('SELECT id FROM flats WHERE resident_id = ? AND society_id = ? LIMIT 1', [residentId, societyId]);
+            if (flats.length > 0) {
+                targetFlatId = flats[0].id;
+            }
+        }
+        if (!targetFlatId)
+            return [];
+        const [rows] = await pool.query(`SELECT 
+        mi.id as invoice_id,
+        mi.invoice_number,
+        mi.billing_period,
+        mi.total_amount,
+        mi.paid_amount,
+        mi.status as invoice_status,
+        mi.due_date,
+        mi.paid_at,
+        mi.created_at,
+        mp.id as payment_id,
+        mp.utr,
+        mp.receipt_number,
+        mp.status as payment_status,
+        mp.submitted_at,
+        mp.verified_at
+      FROM maintenance_invoices mi
+      LEFT JOIN maintenance_payments mp ON mi.id = mp.invoice_id
+      WHERE mi.society_id = ? AND mi.flat_id = ?
+      ORDER BY mi.created_at DESC`, [societyId, targetFlatId]);
+        return rows.map((r) => {
+            const isPaid = r.invoice_status === 'PAID' || r.payment_status === 'APPROVED';
+            const isPending = r.invoice_status === 'PENDING_CHECK' || r.payment_status === 'PENDING_CHECK';
+            const effectiveStatus = isPaid ? 'PAID' : isPending ? 'PENDING_CHECK' : r.invoice_status;
+            const paidDate = r.paid_at || r.verified_at || r.submitted_at;
+            let formattedPaidDate = '';
+            if (paidDate) {
+                const d = new Date(paidDate);
+                const day = String(d.getDate()).padStart(2, '0');
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                formattedPaidDate = `${day} ${months[d.getMonth()]} · UPI`;
+            }
+            return {
+                invoiceId: r.invoice_id,
+                invoiceNumber: r.invoice_number,
+                billingPeriod: r.billing_period,
+                totalAmount: Number(r.total_amount),
+                paidAmount: Number(r.paid_amount || r.total_amount),
+                status: effectiveStatus,
+                dueDate: r.due_date ? new Date(r.due_date).toISOString().slice(0, 10) : '',
+                paidAt: r.paid_at,
+                paidDateFormatted: formattedPaidDate,
+                utr: r.utr,
+                receiptNumber: r.receipt_number || (isPaid ? `RCPT-${r.invoice_number?.slice(-8)}` : null),
+                submittedAt: r.submitted_at,
+            };
+        });
     }
 }
 exports.MaintenanceService = MaintenanceService;

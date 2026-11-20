@@ -53,6 +53,7 @@ class ApiEndpoints {
   static String get residentMaintenanceBill => '$baseUrl/resident/maintenance/current-bill';
   static String get residentMaintenanceSubmit => '$baseUrl/resident/maintenance/submit-payment';
   static String get residentMaintenanceCancel => '$baseUrl/resident/maintenance/cancel-submission';
+  static String get residentMaintenanceHistory => '$baseUrl/resident/maintenance/history';
 
   // Notifications
   static String get notifications => '$baseUrl/notifications';

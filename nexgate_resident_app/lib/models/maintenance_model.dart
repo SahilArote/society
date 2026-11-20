@@ -110,3 +110,54 @@ class MaintenanceBillModel {
   }
 }
 
+class MaintenanceHistoryItemModel {
+  final String invoiceId;
+  final String invoiceNumber;
+  final String billingPeriod;
+  final double totalAmount;
+  final double paidAmount;
+  final String status; // 'PAID' | 'PENDING_CHECK' | 'UNPAID'
+  final String dueDate;
+  final String? paidAt;
+  final String paidDateFormatted;
+  final String? utr;
+  final String? receiptNumber;
+  final String? submittedAt;
+
+  const MaintenanceHistoryItemModel({
+    required this.invoiceId,
+    required this.invoiceNumber,
+    required this.billingPeriod,
+    required this.totalAmount,
+    required this.paidAmount,
+    required this.status,
+    required this.dueDate,
+    this.paidAt,
+    required this.paidDateFormatted,
+    this.utr,
+    this.receiptNumber,
+    this.submittedAt,
+  });
+
+  bool get isPaid => status.toUpperCase() == 'PAID';
+  bool get isPendingCheck => status.toUpperCase() == 'PENDING_CHECK';
+  bool get isUnpaid => status.toUpperCase() == 'UNPAID';
+
+  factory MaintenanceHistoryItemModel.fromJson(Map<String, dynamic> json) {
+    return MaintenanceHistoryItemModel(
+      invoiceId: json['invoiceId']?.toString() ?? '',
+      invoiceNumber: json['invoiceNumber']?.toString() ?? '',
+      billingPeriod: json['billingPeriod']?.toString() ?? '',
+      totalAmount: double.tryParse(json['totalAmount']?.toString() ?? '0') ?? 0.0,
+      paidAmount: double.tryParse(json['paidAmount']?.toString() ?? '0') ?? 0.0,
+      status: json['status']?.toString() ?? 'UNPAID',
+      dueDate: json['dueDate']?.toString() ?? '',
+      paidAt: json['paidAt']?.toString(),
+      paidDateFormatted: json['paidDateFormatted']?.toString() ?? '',
+      utr: json['utr']?.toString(),
+      receiptNumber: json['receiptNumber']?.toString(),
+      submittedAt: json['submittedAt']?.toString(),
+    );
+  }
+}
+

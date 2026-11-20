@@ -1183,4 +1183,23 @@ class ApiService {
     );
     _handleResponse(response);
   }
+
+  static Future<List<MaintenanceHistoryItemModel>> fetchMaintenanceHistory() async {
+    try {
+      final response = await _get(
+        Uri.parse(ApiEndpoints.residentMaintenanceHistory),
+        headers: _headers(),
+      );
+      final json = _handleResponse(response);
+      if (json['data'] is List) {
+        return (json['data'] as List)
+            .map((item) => MaintenanceHistoryItemModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('[MAINTENANCE] Error fetching history: $e');
+      return [];
+    }
+  }
 }

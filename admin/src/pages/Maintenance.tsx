@@ -23,6 +23,7 @@ import {
   fetchVerificationQueue,
   approveMaintenancePayment,
   rejectMaintenancePayment,
+  fetchSocietyUpiConfig,
   setSocietyUpiConfig,
   remindUnpaidResidents,
   uploadBankStatementFile,
@@ -59,11 +60,19 @@ export default function Maintenance() {
 
   // Form State for Set Society UPI
   const [upiForm, setUpiForm] = useState({
-    merchantVpa: 'ecoresidency@icici',
-    merchantName: 'Eco Residency CHS',
+    merchantVpa: '',
+    merchantName: '',
     bankName: 'ICICI Bank',
     accountNumber: '',
   });
+
+  const [savedUpiConfig, setSavedUpiConfig] = useState<{
+    merchantVpa: string;
+    merchantName: string;
+    bankName: string;
+    accountNumber: string;
+    isConfigured: boolean;
+  } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -74,12 +83,22 @@ export default function Maintenance() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [ovData, queueData] = await Promise.all([
+      const [ovData, queueData, upiData] = await Promise.all([
         fetchMaintenanceOverview(),
         fetchVerificationQueue(),
+        fetchSocietyUpiConfig().catch(() => null),
       ]);
       if (ovData) setOverview(ovData);
       if (queueData) setQueue(queueData);
+      if (upiData) {
+        setSavedUpiConfig(upiData);
+        setUpiForm({
+          merchantVpa: upiData.merchantVpa || '',
+          merchantName: upiData.merchantName || '',
+          bankName: upiData.bankName || 'ICICI Bank',
+          accountNumber: upiData.accountNumber || '',
+        });
+      }
     } catch (err: any) {
       console.warn('Maintenance load error:', err);
     } finally {
@@ -135,6 +154,7 @@ export default function Maintenance() {
       await setSocietyUpiConfig(upiForm);
       showFeedback('success', 'Society Merchant UPI ID updated successfully!');
       setIsUpiModalOpen(false);
+      await loadData();
     } catch (err: any) {
       showFeedback('error', err.message || 'Failed to update UPI ID');
     } finally {
@@ -667,11 +687,33 @@ export default function Maintenance() {
             fontSize: 13,
             fontWeight: 600,
             borderRadius: 'var(--r-sm)',
+            border: savedUpiConfig?.isConfigured ? '1px solid var(--accent)' : undefined,
           }}
         >
           <Settings size={15} />
-          Set society UPI ID
+          {savedUpiConfig?.isConfigured && savedUpiConfig.merchantVpa
+            ? `UPI: ${savedUpiConfig.merchantVpa}`
+            : 'Set society UPI ID'}
         </button>
+
+        {savedUpiConfig?.isConfigured && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 12px',
+              borderRadius: 'var(--r-sm)',
+              background: 'rgba(16, 185, 129, 0.1)',
+              color: '#10B981',
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            <Check size={14} />
+            <span>Active: {savedUpiConfig.merchantName} ({savedUpiConfig.bankName} {savedUpiConfig.accountNumber ? `· ${savedUpiConfig.accountNumber}` : ''})</span>
+          </div>
+        )}
 
         {/* Remind unpaid */}
         <button
