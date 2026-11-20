@@ -1,5 +1,5 @@
 -- ============================================================
--- GreenGate Residential Security Platform - MySQL Schema
+-- NexGate Residential Security Platform - MySQL Schema
 -- Version: 1.0.0
 -- ============================================================
 
