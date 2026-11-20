@@ -461,11 +461,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
         _isSameDay(_selectedDateFilter!,
             DateTime.now().subtract(const Duration(days: 1)));
 
-    final isCustomDate = !_isAllDates &&
-        _selectedDateFilter != null &&
-        !isToday &&
-        !isYesterday;
-
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -499,17 +494,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
               isSelected: _isAllDates,
               onTap: _selectAllDates,
             ),
-
-            // If a custom date is selected from top calendar, display active indicator chip
-            if (isCustomDate) ...[
-              const SizedBox(width: 8),
-              _buildDateChip(
-                icon: Icons.calendar_month_rounded,
-                label: DateFormat('dd MMM yyyy').format(_selectedDateFilter!),
-                isSelected: true,
-                onTap: _pickDate,
-              ),
-            ],
           ],
         ),
       ),

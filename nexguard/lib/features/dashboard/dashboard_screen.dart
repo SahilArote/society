@@ -345,7 +345,7 @@ class DashboardScreen extends StatelessWidget {
                     children: [
                       // HERO CONTAINER
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 36),
+                        padding: const EdgeInsets.only(bottom: 46),
                         child: Container(
                           width: double.infinity,
                           decoration: const BoxDecoration(
@@ -355,10 +355,10 @@ class DashboardScreen extends StatelessWidget {
                             ),
                           ),
                           padding: EdgeInsets.only(
-                            top: statusBarHeight + 16,
+                            top: statusBarHeight + 14,
                             left: 16,
                             right: 16,
-                            bottom: 52,
+                            bottom: 76,
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -458,7 +458,7 @@ class DashboardScreen extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 10),
                               // Sub-text: Gate & Society Name (Multi-line, fully visible)
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,13 +474,17 @@ class DashboardScreen extends StatelessWidget {
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
-                                      '$societyName · $gateName',
+                                      societyName.isNotEmpty
+                                          ? (gateName.isNotEmpty
+                                              ? '$societyName · $gateName'
+                                              : societyName)
+                                          : gateName,
                                       style: const TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w500,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
                                         color: AppColors.heroSubText, // #C7CBFF
                                         fontFamily: 'Inter',
-                                        height: 1.35,
+                                        height: 1.3,
                                       ),
                                       maxLines: 2,
                                       softWrap: true,

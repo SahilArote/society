@@ -1067,6 +1067,7 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeInOut,
           height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
             color: isSelected ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
@@ -1083,31 +1084,38 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
           alignment: Alignment.center,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected
-                      ? const Color(0xFF0F172A)
-                      : const Color(0xFF64748B),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                      color: isSelected
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFF64748B),
+                    ),
+                    maxLines: 1,
+                  ),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 5),
               Container(
-                constraints: const BoxConstraints(minWidth: 20),
-                height: 20,
-                padding: const EdgeInsets.symmetric(horizontal: 6),
+                constraints: const BoxConstraints(minWidth: 18),
+                height: 18,
+                padding: const EdgeInsets.symmetric(horizontal: 5),
                 decoration: BoxDecoration(
                   color: isSelected ? selectedBadgeBg : unselectedBadgeBg,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(9),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   '$count',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w800,
                     color: isSelected
                         ? selectedBadgeText

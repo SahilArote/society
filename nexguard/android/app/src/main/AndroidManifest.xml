@@ -9,6 +9,7 @@
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
@@ -102,6 +103,17 @@
                 <action android:name="android.telecom.InCallService" />
             </intent-filter>
         </service>
+
+        <!-- CallNotificationReceiver: Handles Answer / Reject / Silence notification actions -->
+        <receiver
+            android:name=".CallNotificationReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.nexbuild.nexguard.ACTION_ANSWER" />
+                <action android:name="com.nexbuild.nexguard.ACTION_REJECT" />
+                <action android:name="com.nexbuild.nexguard.ACTION_SILENCE" />
+            </intent-filter>
+        </receiver>
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

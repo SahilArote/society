@@ -6,6 +6,7 @@ import '../models/visitor.dart';
 import '../models/visitor_request.dart';
 import '../services/storage_service.dart';
 import '../services/api_service.dart';
+import '../services/call_service.dart';
 
 class VisitorRepository extends ChangeNotifier {
   final StorageService _storage;
@@ -239,9 +240,38 @@ class VisitorRepository extends ChangeNotifier {
     super.dispose();
   }
 
-  // Directory Data - Strictly Dynamic from Database
-  List<String> wings = [];
-  Map<String, List<Flat>> wingFlats = {};
+  // Directory Data - Instant Default + Cached + Dynamic from Database
+  static final Map<String, List<Flat>> _defaultWingFlats = {
+    'Wing A': const [
+      Flat(flatNumber: '101', buildingWing: 'Wing A', floor: '1st Floor', residents: []),
+      Flat(flatNumber: '102', buildingWing: 'Wing A', floor: '1st Floor', residents: []),
+      Flat(flatNumber: '201', buildingWing: 'Wing A', floor: '2nd Floor', residents: []),
+      Flat(flatNumber: '202', buildingWing: 'Wing A', floor: '2nd Floor', residents: []),
+      Flat(flatNumber: '301', buildingWing: 'Wing A', floor: '3rd Floor', residents: []),
+      Flat(flatNumber: '302', buildingWing: 'Wing A', floor: '3rd Floor', residents: []),
+    ],
+    'Wing B': const [
+      Flat(flatNumber: '101', buildingWing: 'Wing B', floor: '1st Floor', residents: []),
+      Flat(flatNumber: '102', buildingWing: 'Wing B', floor: '1st Floor', residents: []),
+      Flat(flatNumber: '201', buildingWing: 'Wing B', floor: '2nd Floor', residents: []),
+      Flat(flatNumber: '202', buildingWing: 'Wing B', floor: '2nd Floor', residents: []),
+      Flat(flatNumber: '301', buildingWing: 'Wing B', floor: '3rd Floor', residents: []),
+      Flat(flatNumber: '302', buildingWing: 'Wing B', floor: '3rd Floor', residents: []),
+    ],
+    'Wing C': const [
+      Flat(flatNumber: '101', buildingWing: 'Wing C', floor: '1st Floor', residents: []),
+      Flat(flatNumber: '102', buildingWing: 'Wing C', floor: '1st Floor', residents: []),
+      Flat(flatNumber: '201', buildingWing: 'Wing C', floor: '2nd Floor', residents: []),
+      Flat(flatNumber: '202', buildingWing: 'Wing C', floor: '2nd Floor', residents: []),
+    ],
+  };
+
+  List<String> wings = ['Wing A', 'Wing B', 'Wing C'];
+  Map<String, List<Flat>> wingFlats = {
+    'Wing A': List.from(_defaultWingFlats['Wing A']!),
+    'Wing B': List.from(_defaultWingFlats['Wing B']!),
+    'Wing C': List.from(_defaultWingFlats['Wing C']!),
+  };
 
   String _normalizeWing(String raw) {
     var w = raw.trim();
@@ -251,61 +281,82 @@ class VisitorRepository extends ChangeNotifier {
     return 'Wing $w';
   }
 
+  bool _applyDirectoryData(Map<String, dynamic> data, {bool saveToCache = true}) {
+    try {
+      if (data['wingFlats'] == null) return false;
+      final Map<String, dynamic> rawMap =
+          Map<String, dynamic>.from(data['wingFlats']);
+      final Map<String, List<Flat>> loadedWingFlats = {};
+
+      rawMap.forEach((rawWingName, flatList) {
+        final normalizedWing = _normalizeWing(rawWingName);
+        if (flatList is List) {
+          final parsed = flatList.map((f) {
+            final rawWing = f['buildingWing']?.toString() ?? rawWingName;
+            final cleanWing = _normalizeWing(rawWing);
+            final residentsList = (f['residents'] as List? ?? [])
+                .map((r) => Resident(
+                      id: r['id']?.toString() ?? '',
+                      name: r['name']?.toString() ?? '',
+                      phoneNumber: r['phoneNumber']?.toString() ?? '',
+                      flatNumber: r['flatNumber']?.toString() ?? '',
+                      buildingWing: cleanWing,
+                    ))
+                .toList();
+
+            return Flat(
+              flatNumber: f['flatNumber']?.toString() ?? '',
+              buildingWing: cleanWing,
+              floor: f['floor']?.toString() ?? '',
+              residents: residentsList,
+            );
+          }).toList();
+
+          loadedWingFlats.putIfAbsent(normalizedWing, () => []);
+          for (final item in parsed) {
+            if (!loadedWingFlats[normalizedWing]!.any((existing) =>
+                existing.flatNumber.toLowerCase().trim() ==
+                item.flatNumber.toLowerCase().trim())) {
+              loadedWingFlats[normalizedWing]!.add(item);
+            }
+          }
+        }
+      });
+
+      // Sort flats by flat number for easy reading
+      loadedWingFlats.forEach((_, list) {
+        list.sort((a, b) => a.flatNumber.compareTo(b.flatNumber));
+      });
+
+      final uniqueWings = loadedWingFlats.keys.toList()..sort();
+
+      if (uniqueWings.isNotEmpty) {
+        wings = uniqueWings;
+        wingFlats = loadedWingFlats;
+
+        final allResidents = loadedWingFlats.values
+            .expand((flats) => flats)
+            .expand((flat) => flat.residents)
+            .toList();
+        CallService.instance.updateResidentDirectory(allResidents);
+
+        if (saveToCache) {
+          _storage.saveCachedDirectory(data);
+        }
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Notice: Error applying directory data: $e');
+    }
+    return false;
+  }
+
   Future<void> fetchDirectoryFromBackend() async {
     try {
       final data = await ApiService.fetchDirectory();
       if (data != null && data['wings'] != null && data['wingFlats'] != null) {
-        final Map<String, dynamic> rawMap =
-            Map<String, dynamic>.from(data['wingFlats']);
-        final Map<String, List<Flat>> loadedWingFlats = {};
-
-        rawMap.forEach((rawWingName, flatList) {
-          final normalizedWing = _normalizeWing(rawWingName);
-          if (flatList is List) {
-            final parsed = flatList.map((f) {
-              final rawWing = f['buildingWing']?.toString() ?? rawWingName;
-              final cleanWing = _normalizeWing(rawWing);
-              final residentsList = (f['residents'] as List? ?? [])
-                  .map((r) => Resident(
-                        id: r['id'] ?? '',
-                        name: r['name'] ?? '',
-                        phoneNumber: r['phoneNumber'] ?? '',
-                        flatNumber: r['flatNumber'] ?? '',
-                        buildingWing: cleanWing,
-                      ))
-                  .toList();
-
-              return Flat(
-                flatNumber: f['flatNumber'] ?? '',
-                buildingWing: cleanWing,
-                floor: f['floor'] ?? '',
-                residents: residentsList,
-              );
-            }).toList();
-
-            loadedWingFlats.putIfAbsent(normalizedWing, () => []);
-            for (final item in parsed) {
-              if (!loadedWingFlats[normalizedWing]!.any((existing) =>
-                  existing.flatNumber.toLowerCase().trim() ==
-                  item.flatNumber.toLowerCase().trim())) {
-                loadedWingFlats[normalizedWing]!.add(item);
-              }
-            }
-          }
-        });
-
-        // Sort flats by flat number for easy reading
-        loadedWingFlats.forEach((_, list) {
-          list.sort((a, b) => a.flatNumber.compareTo(b.flatNumber));
-        });
-
-        final uniqueWings = loadedWingFlats.keys.toList()..sort();
-
-        if (uniqueWings.isNotEmpty) {
-          wings = uniqueWings;
-          wingFlats = loadedWingFlats;
-          notifyListeners();
-        }
+        _applyDirectoryData(data, saveToCache: true);
       }
     } catch (e) {
       debugPrint('Notice: Could not refresh dynamic directory from API: $e');
@@ -317,6 +368,12 @@ class VisitorRepository extends ChangeNotifier {
     _exitedEntryIds = _storage.getExitedEntryIds();
     _guardApprovedIds.addAll(_storage.getGuardApprovedIds());
     _guardRejectedIds.addAll(_storage.getGuardRejectedIds());
+
+    // Restore cached directory instantly from local storage
+    final cachedDir = _storage.getCachedDirectory();
+    if (cachedDir != null && cachedDir['wingFlats'] != null) {
+      _applyDirectoryData(cachedDir, saveToCache: false);
+    }
 
     final stored = _storage.getRequests();
     if (stored != null && stored.isNotEmpty) {

@@ -349,7 +349,7 @@ class ProfileScreen extends StatelessWidget {
                   _buildTitleRow(),
 
                   // 2. OFFICER CARD
-                  _buildOfficerCard(guardName, guardId, gate),
+                  _buildOfficerCard(guardName, guardId, gate, society),
 
                   // 3. APP LANGUAGE SELECTOR CARD (English / Hindi / Marathi)
                   _buildLanguageCard(context),
@@ -491,11 +491,11 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 14),
           Row(
             children: [
-              _buildLangChip(AppLang.en, '🇬🇧 English'),
+              _buildLangChip(AppLang.en, 'English'),
               const SizedBox(width: 8),
-              _buildLangChip(AppLang.hi, '🇮🇳 हिंदी'),
+              _buildLangChip(AppLang.hi, 'हिंदी'),
               const SizedBox(width: 8),
-              _buildLangChip(AppLang.mr, '🇮🇳 मराठी'),
+              _buildLangChip(AppLang.mr, 'मराठी'),
             ],
           ),
         ],
@@ -541,7 +541,8 @@ class ProfileScreen extends StatelessWidget {
   }
 
   // 2. OFFICER CARD
-  Widget _buildOfficerCard(String name, String badgeId, String gate) {
+  Widget _buildOfficerCard(
+      String name, String badgeId, String gate, String society) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(18),
@@ -586,16 +587,19 @@ class ProfileScreen extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 4),
                     Text(
-                      '${tr("securityOfficer")} · $gate',
+                      society.isNotEmpty
+                          ? (gate.isNotEmpty ? '$society · $gate' : society)
+                          : '${tr("securityOfficer")} · $gate',
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: 13.5,
                         color: AppColors.heroSubText, // #C7CBFF
                         fontFamily: 'Inter',
+                        height: 1.3,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      maxLines: 3,
+                      softWrap: true,
                     ),
                   ],
                 ),
