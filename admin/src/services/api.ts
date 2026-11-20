@@ -1,4 +1,16 @@
 function resolveApiBaseUrl(): string {
+  // If running in browser on a production domain (not localhost/127.0.0.1)
+  if (typeof window !== 'undefined' && window.location) {
+    const hostname = window.location.hostname;
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+    if (!isLocalhost) {
+      if (hostname.endsWith('nexgate.co.in')) {
+        return 'https://nexgate.co.in/api';
+      }
+      return `${window.location.origin}/api`;
+    }
+  }
+
   const envUrl = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL)
     || (typeof globalThis !== 'undefined' && (globalThis as any).process?.env?.VITE_API_URL)
     || 'https://nexgate.co.in/api';

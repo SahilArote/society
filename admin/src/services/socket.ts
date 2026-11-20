@@ -2,6 +2,17 @@ import { io, Socket } from 'socket.io-client';
 import { getAdminToken } from './api';
 
 function resolveSocketUrl(): string {
+  if (typeof window !== 'undefined' && window.location) {
+    const hostname = window.location.hostname;
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+    if (!isLocalhost) {
+      if (hostname.endsWith('nexgate.co.in')) {
+        return 'https://nexgate.co.in';
+      }
+      return window.location.origin;
+    }
+  }
+
   let url = (import.meta.env.VITE_SOCKET_URL || 'https://nexgate.co.in').trim();
   if (url.endsWith('/')) {
     url = url.slice(0, -1);
