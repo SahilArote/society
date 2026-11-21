@@ -1006,54 +1006,142 @@ router.post('/admin/login', async (req: Request, res: Response) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = String(password).trim();
+    const cleanDigits = cleanEmail.replace(/\D/g, '').slice(-10);
 
-    // Locate Admin or Super Admin (Supports email, mobile, or legacy admin emails)
-    let user = await findUserByEmail(cleanEmail);
-    if (!user) {
-      const cleanDigits = cleanEmail.replace(/\D/g, '').slice(-10);
-      if (cleanDigits.length >= 10) {
-        user = await findUserByMobile(cleanDigits);
-      }
-    }
-    if (!user && (cleanEmail === 'admin@nexgate.co.in' || cleanEmail === 'admin@greengate.in')) {
-      user = (await findUserByEmail('admin@nexgate.co.in')) || (await findUserByEmail('admin@greengate.in'));
-    }
-    if (!user && cleanEmail === 'superadmin@nexgate.co.in') {
-      user = await findUserByEmail('superadmin@nexgate.co.in');
-    }
-
-    if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
-      return res.status(401).json({
+    const pool = await getMysqlPool();
+    if (!pool) {
+      return res.status(500).json({
         success: false,
-        error: { code: 'INVALID_CREDENTIALS', message: 'Invalid admin email or unauthorized' },
+        error: { code: 'DATABASE_ERROR', message: 'Database pool unavailable' },
       });
     }
 
-    // Verify Password
-    let pwdValid = false;
-    if (user.passwordHash) {
-      pwdValid = bcrypt.compareSync(password, user.passwordHash) ||
-                 (user.role === 'ADMIN' && password === 'admin123') ||
-                 (user.role === 'SUPER_ADMIN' && password === 'superadmin123');
-    } else {
-      pwdValid = (user.role === 'ADMIN' && password === 'admin123') ||
-                 (user.role === 'SUPER_ADMIN' && password === 'superadmin123');
+    // 1. Super Administrator Login Check (Dynamic - strictly by role = 'SUPER_ADMIN' without hardcoding any email)
+    const [superRows]: any = await pool.query(
+      `SELECT * FROM users 
+       WHERE (LOWER(email) = ? OR (mobile = ? AND ? != '')) 
+         AND role = 'SUPER_ADMIN' 
+         AND status = 'ACTIVE' 
+       LIMIT 1`,
+      [cleanEmail, cleanDigits, cleanDigits]
+    );
+
+    if (superRows && superRows.length > 0) {
+      const superUser = superRows[0];
+      const isSuperValid = superUser.password_hash
+        ? (bcrypt.compareSync(cleanPassword, superUser.password_hash) || (cleanPassword === 'superadmin123' && bcrypt.compareSync('superadmin123', superUser.password_hash)))
+        : cleanPassword === 'superadmin123';
+      if (isSuperValid) {
+        const tokenUser: AuthUser = {
+          id: superUser.id,
+          name: superUser.name,
+          mobile: superUser.mobile,
+          email: superUser.email,
+          role: 'SUPER_ADMIN',
+        };
+        const token = generateToken(tokenUser);
+        return res.json({
+          success: true,
+          data: { token, user: tokenUser },
+        });
+      }
+      return res.status(401).json({
+        success: false,
+        error: { code: 'INVALID_CREDENTIALS', message: 'Invalid super administrator password.' },
+      });
     }
+
+    // 2. Reject if this account is a RESIDENT or GUARD (Residents/guards can NEVER log into admin portal)
+    const [userByInput]: any = await pool.query(
+      `SELECT id, name, email, mobile, role, society_id, status FROM users 
+       WHERE LOWER(email) = ? OR (mobile = ? AND ? != '') LIMIT 1`,
+      [cleanEmail, cleanDigits, cleanDigits]
+    );
+
+    if (userByInput && userByInput.length > 0) {
+      const matchedUser = userByInput[0];
+      if (matchedUser.role === 'RESIDENT') {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'RESIDENT_ACCESS_DENIED',
+            message: 'This account is registered as a resident. Only the society administrator configured by Super Admin can access the Admin Portal.',
+          },
+        });
+      }
+      if (matchedUser.role === 'GUARD') {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'GUARD_ACCESS_DENIED',
+            message: 'This account is registered as a security guard. Please use the Guard tablet app.',
+          },
+        });
+      }
+    }
+
+    // 3. Strict Society Admin Authentication:
+    // Only the official administrator account configured for that society by Super Admin is authorized!
+    const [adminRows]: any = await pool.query(
+      `SELECT u.*, s.id as soc_id, s.name as soc_name, s.status as soc_status, s.contact_email, s.contact_phone
+       FROM users u
+       JOIN societies s ON u.society_id = s.id
+       WHERE u.role = 'ADMIN'
+         AND (
+           LOWER(u.email) = ?
+           OR (cleanDigits != '' AND u.mobile = ?)
+           OR (LOWER(COALESCE(s.contact_email, '')) = ?)
+           OR (cleanDigits != '' AND COALESCE(s.contact_phone, '') = ?)
+         )
+       ORDER BY u.created_at ASC
+       LIMIT 1`,
+      [cleanEmail, cleanDigits, cleanEmail, cleanDigits]
+    );
+
+    if (!adminRows || adminRows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        error: { code: 'INVALID_CREDENTIALS', message: 'Invalid admin credentials or unauthorized account' },
+      });
+    }
+
+    const adminUser = adminRows[0];
+
+    // Check status
+    if (adminUser.soc_status === 'INACTIVE') {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'SOCIETY_INACTIVE', message: 'This society account is currently inactive. Please contact Super Administrator.' },
+      });
+    }
+
+    if (adminUser.status !== 'ACTIVE') {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'ACCOUNT_INACTIVE', message: 'Your administrator account is inactive. Please contact Super Administrator.' },
+      });
+    }
+
+    // Verify Password strictly against bcrypt hash
+    const pwdValid = adminUser.password_hash
+      ? bcrypt.compareSync(cleanPassword, adminUser.password_hash)
+      : false;
 
     if (!pwdValid) {
       return res.status(401).json({
         success: false,
-        error: { code: 'INVALID_CREDENTIALS', message: 'Invalid admin credentials' },
+        error: { code: 'INVALID_CREDENTIALS', message: 'Invalid administrator password.' },
       });
     }
 
     const tokenUser: AuthUser = {
-      id: user.id,
-      name: user.name,
-      mobile: user.mobile,
-      email: user.email,
-      role: user.role,
-      societyId: user.societyId || undefined,
+      id: adminUser.id,
+      name: adminUser.name,
+      mobile: adminUser.mobile,
+      email: adminUser.email || adminUser.contact_email,
+      role: 'ADMIN',
+      societyId: adminUser.soc_id,
     };
 
     const token = generateToken(tokenUser);

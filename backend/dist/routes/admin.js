@@ -1122,27 +1122,30 @@ router.put('/flats/:id', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('A
             const cleanName = residentName?.trim() || `Resident ${flat.flat_number}`;
             const cleanEmail = residentEmail?.trim() || null;
             // Check if user with this mobile exists
-            const [existingUsers] = await pool.query(`SELECT id FROM users WHERE mobile = ? LIMIT 1`, [cleanMobile]);
+            const [existingUsers] = await pool.query(`SELECT id, role FROM users WHERE mobile = ? LIMIT 1`, [cleanMobile]);
             if (existingUsers && existingUsers.length > 0) {
                 targetResidentId = existingUsers[0].id;
                 await pool.query(`UPDATE users SET name = ?, email = COALESCE(?, email), society_id = ?, status = 'ACTIVE' WHERE id = ?`, [cleanName, cleanEmail, societyId, targetResidentId]);
             }
             else if (flat.resident_id) {
-                const [chkCurr] = await pool.query(`SELECT id FROM users WHERE id = ? LIMIT 1`, [flat.resident_id]);
-                if (chkCurr && chkCurr.length > 0) {
+                const [chkCurr] = await pool.query(`SELECT id, role FROM users WHERE id = ? LIMIT 1`, [flat.resident_id]);
+                if (chkCurr && chkCurr.length > 0 && chkCurr[0].role === 'RESIDENT') {
                     targetResidentId = flat.resident_id;
-                    await pool.query(`UPDATE users SET name = ?, mobile = ?, email = ?, society_id = ?, status = 'ACTIVE' WHERE id = ?`, [cleanName, cleanMobile, cleanEmail, societyId, targetResidentId]);
+                    await pool.query(`UPDATE users SET name = ?, mobile = ?, email = ?, society_id = ?, status = 'ACTIVE', role = 'RESIDENT' WHERE id = ?`, [cleanName, cleanMobile, cleanEmail, societyId, targetResidentId]);
                 }
                 else {
+                    // Previous resident was an admin account or unlinked -> NEVER overwrite admin, create clean resident account
                     targetResidentId = `res_${cleanMobile}`;
                     await pool.query(`INSERT INTO users (id, name, mobile, email, role, society_id, status)
-               VALUES (?, ?, ?, ?, 'RESIDENT', ?, 'ACTIVE')`, [targetResidentId, cleanName, cleanMobile, cleanEmail, societyId]);
+               VALUES (?, ?, ?, ?, 'RESIDENT', ?, 'ACTIVE')
+               ON DUPLICATE KEY UPDATE name = VALUES(name), email = VALUES(email), role = 'RESIDENT', status = 'ACTIVE'`, [targetResidentId, cleanName, cleanMobile, cleanEmail, societyId]);
                 }
             }
             else {
                 targetResidentId = `res_${cleanMobile}`;
                 await pool.query(`INSERT INTO users (id, name, mobile, email, role, society_id, status)
-             VALUES (?, ?, ?, ?, 'RESIDENT', ?, 'ACTIVE')`, [targetResidentId, cleanName, cleanMobile, cleanEmail, societyId]);
+             VALUES (?, ?, ?, ?, 'RESIDENT', ?, 'ACTIVE')
+             ON DUPLICATE KEY UPDATE name = VALUES(name), email = VALUES(email), role = 'RESIDENT', status = 'ACTIVE'`, [targetResidentId, cleanName, cleanMobile, cleanEmail, societyId]);
             }
             await pool.query(`UPDATE flats SET resident_id = ? WHERE id = ?`, [targetResidentId, flatId]);
         }

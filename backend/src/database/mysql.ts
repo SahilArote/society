@@ -215,6 +215,54 @@ export async function runMysqlMigrations() {
       );
     } catch (_) { }
 
+    // Security Migration: Clean up resident admin roles & ensure only Super-Admin configured admins have ADMIN role
+    try {
+      // 1. If admin_user was hijacked/overwritten by a flat edit with Gurpreet / suhas@gmail.com, separate them:
+      const [overwrittenAdmin]: any = await pool.query(
+        "SELECT id, name, mobile, email, society_id FROM users WHERE id = 'admin_user' AND (email LIKE '%suhas%' OR name LIKE '%Gurpreet%')"
+      );
+      if (overwrittenAdmin && overwrittenAdmin.length > 0) {
+        const u = overwrittenAdmin[0];
+        const resId = `res_${u.mobile || '9664646494'}`;
+        await pool.query(
+          `INSERT INTO users (id, name, mobile, email, role, society_id, status)
+           VALUES (?, ?, ?, ?, 'RESIDENT', ?, 'ACTIVE')
+           ON DUPLICATE KEY UPDATE name = VALUES(name), email = VALUES(email), role = 'RESIDENT'`,
+          [resId, u.name || 'Gurpreet N', u.mobile || '9664646494', u.email || 'suhas@gmail.com', u.society_id || 'soc_greengate']
+        );
+        // Re-point any flat pointing to admin_user to the dedicated resident record
+        await pool.query('UPDATE flats SET resident_id = ? WHERE resident_id = ?', [resId, 'admin_user']);
+
+        // Restore admin_user to pristine clean default
+        const defaultAdminHash = bcrypt.hashSync('admin123', 10);
+        await pool.query(
+          "UPDATE users SET name = 'Admin', mobile = '9999988888', email = 'admin@nexgate.co.in', role = 'ADMIN', password_hash = ? WHERE id = 'admin_user'",
+          [defaultAdminHash]
+        );
+        console.log('[MySQL] Restored pristine admin_user and decoupled Gurpreet N to dedicated resident ID.');
+      }
+
+      // 2. Demote suhas@gmail.com / 9664646494 to RESIDENT and clear admin password
+      await pool.query(
+        "UPDATE users SET role = 'RESIDENT', password_hash = NULL WHERE (email = 'suhas@gmail.com' OR mobile = '9664646494') AND role != 'SUPER_ADMIN'"
+      );
+
+      // 3. Demote any resident mapped to a flat whose credentials do not match the society's official admin
+      await pool.query(`
+        UPDATE users u
+        JOIN flats f ON f.resident_id = u.id
+        JOIN societies s ON f.society_id = s.id
+        SET u.role = 'RESIDENT', u.password_hash = NULL
+        WHERE u.role = 'ADMIN'
+          AND (s.contact_email IS NOT NULL AND LOWER(COALESCE(u.email, '')) != LOWER(s.contact_email))
+          AND (s.contact_phone IS NOT NULL AND u.mobile != s.contact_phone)
+          AND u.role != 'SUPER_ADMIN'
+      `);
+      console.log('[MySQL] Security Check: Verified resident role boundaries across all flats.');
+    } catch (e: any) {
+      console.warn('[MySQL] Note on resident role boundary check:', e.message);
+    }
+
     console.log('[MySQL] Schema migrations execution cycle complete.');
 
     // Run Initial Seed Data if society table empty
