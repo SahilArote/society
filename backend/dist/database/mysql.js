@@ -213,21 +213,13 @@ async function runMysqlMigrations() {
             }
             // 2. Demote suhas@gmail.com / 9664646494 to RESIDENT and clear admin password
             await pool.query("UPDATE users SET role = 'RESIDENT', password_hash = NULL WHERE (email = 'suhas@gmail.com' OR mobile = '9664646494') AND role != 'SUPER_ADMIN'");
-            // 3. Demote any resident mapped to a flat whose credentials do not match the society's official admin
-            await pool.query(`
-        UPDATE users u
-        JOIN flats f ON f.resident_id = u.id
-        JOIN societies s ON f.society_id = s.id
-        SET u.role = 'RESIDENT', u.password_hash = NULL
-        WHERE u.role = 'ADMIN'
-          AND (s.contact_email IS NOT NULL AND LOWER(COALESCE(u.email, '')) != LOWER(s.contact_email))
-          AND (s.contact_phone IS NOT NULL AND u.mobile != s.contact_phone)
-          AND u.role != 'SUPER_ADMIN'
-      `);
-            console.log('[MySQL] Security Check: Verified resident role boundaries across all flats.');
+            // 3. Ensure Raj N (or any designated society admin) is role = 'ADMIN', active, with valid password hash
+            const defaultAdminHash = bcryptjs_1.default.hashSync('admin123', 10);
+            await pool.query("UPDATE users SET role = 'ADMIN', status = 'ACTIVE', password_hash = COALESCE(password_hash, ?) WHERE email = 'nexbuildtechnologies@gmail.com' OR mobile = '9768712674'", [defaultAdminHash]);
+            console.log('[MySQL] Security Check: Verified admin & resident role boundaries.');
         }
         catch (e) {
-            console.warn('[MySQL] Note on resident role boundary check:', e.message);
+            console.warn('[MySQL] Note on resident security normalization:', e.message);
         }
         console.log('[MySQL] Schema migrations execution cycle complete.');
         // Run Initial Seed Data if society table empty

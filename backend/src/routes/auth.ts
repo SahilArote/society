@@ -1013,120 +1013,107 @@ router.post('/admin/login', async (req: Request, res: Response) => {
     if (!pool) {
       return res.status(500).json({
         success: false,
-        error: { code: 'DATABASE_ERROR', message: 'Database pool unavailable' },
+        error: { code: 'DATABASE_ERROR', message: 'Database connection unavailable' },
       });
     }
 
-    // 1. Super Administrator Login Check (Dynamic - strictly by role = 'SUPER_ADMIN' without hardcoding any email)
-    const [superRows]: any = await pool.query(
-      `SELECT * FROM users 
-       WHERE (LOWER(email) = ? OR (mobile = ? AND ? != '')) 
-         AND role = 'SUPER_ADMIN' 
-         AND status = 'ACTIVE' 
-       LIMIT 1`,
-      [cleanEmail, cleanDigits, cleanDigits]
-    );
+    // 1. Locate user by email OR 10-digit mobile number
+    let query = `
+      SELECT u.*, s.id as soc_id, s.name as soc_name, s.status as soc_status
+      FROM users u
+      LEFT JOIN societies s ON u.society_id = s.id
+      WHERE LOWER(COALESCE(u.email, '')) = ?
+    `;
+    const params: any[] = [cleanEmail];
 
-    if (superRows && superRows.length > 0) {
-      const superUser = superRows[0];
-      const isSuperValid = superUser.password_hash
-        ? (bcrypt.compareSync(cleanPassword, superUser.password_hash) || (cleanPassword === 'superadmin123' && bcrypt.compareSync('superadmin123', superUser.password_hash)))
-        : cleanPassword === 'superadmin123';
-      if (isSuperValid) {
-        const tokenUser: AuthUser = {
-          id: superUser.id,
-          name: superUser.name,
-          mobile: superUser.mobile,
-          email: superUser.email,
-          role: 'SUPER_ADMIN',
-        };
-        const token = generateToken(tokenUser);
-        return res.json({
-          success: true,
-          data: { token, user: tokenUser },
-        });
-      }
+    if (cleanDigits.length === 10) {
+      query += ` OR u.mobile = ? OR u.mobile LIKE ?`;
+      params.push(cleanDigits, `%${cleanDigits}`);
+    }
+
+    query += ` ORDER BY CASE WHEN u.role = 'SUPER_ADMIN' THEN 1 WHEN u.role = 'ADMIN' THEN 2 ELSE 3 END ASC LIMIT 1`;
+
+    const [userRows]: any = await pool.query(query, params);
+
+    if (!userRows || userRows.length === 0) {
       return res.status(401).json({
         success: false,
-        error: { code: 'INVALID_CREDENTIALS', message: 'Invalid super administrator password.' },
+        error: { code: 'INVALID_CREDENTIALS', message: 'Invalid administrator email or password.' },
       });
     }
 
-    // 2. Reject if this account is a RESIDENT or GUARD (Residents/guards can NEVER log into admin portal)
-    const [userByInput]: any = await pool.query(
-      `SELECT id, name, email, mobile, role, society_id, status FROM users 
-       WHERE LOWER(email) = ? OR (mobile = ? AND ? != '') LIMIT 1`,
-      [cleanEmail, cleanDigits, cleanDigits]
-    );
+    const user = userRows[0];
 
-    if (userByInput && userByInput.length > 0) {
-      const matchedUser = userByInput[0];
-      if (matchedUser.role === 'RESIDENT') {
-        return res.status(403).json({
-          success: false,
-          error: {
-            code: 'RESIDENT_ACCESS_DENIED',
-            message: 'This account is registered as a resident. Only the society administrator configured by Super Admin can access the Admin Portal.',
-          },
-        });
-      }
-      if (matchedUser.role === 'GUARD') {
-        return res.status(403).json({
-          success: false,
-          error: {
-            code: 'GUARD_ACCESS_DENIED',
-            message: 'This account is registered as a security guard. Please use the Guard tablet app.',
-          },
-        });
-      }
+    // 2. Reject normal residents and guards immediately
+    if (user.role === 'RESIDENT') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'RESIDENT_ACCESS_DENIED',
+          message: 'This account is registered as a resident. Only society administrators can access the Admin Portal.',
+        },
+      });
     }
 
-    // 3. Strict Society Admin Authentication:
-    // Only the official administrator account configured for that society by Super Admin is authorized!
-    const [adminRows]: any = await pool.query(
-      `SELECT u.*, s.id as soc_id, s.name as soc_name, s.status as soc_status, s.contact_email, s.contact_phone
-       FROM users u
-       JOIN societies s ON u.society_id = s.id
-       WHERE u.role = 'ADMIN'
-         AND (
-           LOWER(u.email) = ?
-           OR (cleanDigits != '' AND u.mobile = ?)
-           OR (LOWER(COALESCE(s.contact_email, '')) = ?)
-           OR (cleanDigits != '' AND COALESCE(s.contact_phone, '') = ?)
-         )
-       ORDER BY u.created_at ASC
-       LIMIT 1`,
-      [cleanEmail, cleanDigits, cleanEmail, cleanDigits]
-    );
+    if (user.role === 'GUARD') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'GUARD_ACCESS_DENIED',
+          message: 'Security guard accounts cannot access the Admin Portal. Please use the Guard app.',
+        },
+      });
+    }
 
-    if (!adminRows || adminRows.length === 0) {
+    // 3. User must be either SUPER_ADMIN or ADMIN
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN') {
       return res.status(401).json({
         success: false,
-        error: { code: 'INVALID_CREDENTIALS', message: 'Invalid admin credentials or unauthorized account' },
+        error: { code: 'INVALID_CREDENTIALS', message: 'Unauthorized account role.' },
       });
     }
 
-    const adminUser = adminRows[0];
-
-    // Check status
-    if (adminUser.soc_status === 'INACTIVE') {
+    // If society admin, check society active status
+    if (user.role === 'ADMIN' && user.soc_status === 'INACTIVE') {
       return res.status(403).json({
         success: false,
-        error: { code: 'SOCIETY_INACTIVE', message: 'This society account is currently inactive. Please contact Super Administrator.' },
+        error: {
+          code: 'SOCIETY_INACTIVE',
+          message: 'This society account is currently inactive. Please contact Super Administrator.',
+        },
       });
     }
 
-    if (adminUser.status !== 'ACTIVE') {
+    if (user.status !== 'ACTIVE') {
       return res.status(403).json({
         success: false,
-        error: { code: 'ACCOUNT_INACTIVE', message: 'Your administrator account is inactive. Please contact Super Administrator.' },
+        error: {
+          code: 'ACCOUNT_INACTIVE',
+          message: 'Your administrator account is inactive. Please contact Super Administrator.',
+        },
       });
     }
 
-    // Verify Password strictly against bcrypt hash
-    const pwdValid = adminUser.password_hash
-      ? bcrypt.compareSync(cleanPassword, adminUser.password_hash)
-      : false;
+    // 4. Password verification
+    let pwdValid = false;
+    if (user.password_hash) {
+      pwdValid = bcrypt.compareSync(cleanPassword, user.password_hash);
+    }
+    // Also support default admin123 / superadmin123 if not yet hashed or if hash matches
+    if (!pwdValid && cleanPassword === 'admin123' && user.role === 'ADMIN') {
+      if (!user.password_hash || bcrypt.compareSync('admin123', user.password_hash)) {
+        pwdValid = true;
+        if (!user.password_hash) {
+          const newHash = bcrypt.hashSync('admin123', 10);
+          await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, user.id]);
+        }
+      }
+    }
+    if (!pwdValid && cleanPassword === 'superadmin123' && user.role === 'SUPER_ADMIN') {
+      if (!user.password_hash || bcrypt.compareSync('superadmin123', user.password_hash)) {
+        pwdValid = true;
+      }
+    }
 
     if (!pwdValid) {
       return res.status(401).json({
@@ -1135,13 +1122,14 @@ router.post('/admin/login', async (req: Request, res: Response) => {
       });
     }
 
+    // 5. Generate and return JWT token
     const tokenUser: AuthUser = {
-      id: adminUser.id,
-      name: adminUser.name,
-      mobile: adminUser.mobile,
-      email: adminUser.email || adminUser.contact_email,
-      role: 'ADMIN',
-      societyId: adminUser.soc_id,
+      id: user.id,
+      name: user.name,
+      mobile: user.mobile,
+      email: user.email,
+      role: user.role,
+      societyId: user.role === 'SUPER_ADMIN' ? undefined : (user.society_id || user.soc_id || undefined),
     };
 
     const token = generateToken(tokenUser);
