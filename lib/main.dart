@@ -37,13 +37,6 @@ void main() async {
     debugPrint('[Main] StorageService init exception: $e\n$stack');
   }
 
-  // Initialize push & local notification channels safely
-  try {
-    await NotificationService.initialize();
-  } catch (e, stack) {
-    debugPrint('[Main] NotificationService init exception: $e\n$stack');
-  }
-
   // Route user to login and clear navigation stack whenever 401 occurs
   AuthService.onUnauthorized = () {
     residentNavigatorKey.currentState?.pushAndRemoveUntil(
@@ -53,6 +46,11 @@ void main() async {
   };
 
   runApp(const NexGateResidentApp());
+
+  // Initialize push & local notification channels asynchronously so it NEVER blocks app launch
+  NotificationService.initialize().catchError((e, stack) {
+    debugPrint('[Main] NotificationService init exception: $e\n$stack');
+  });
 }
 
 /// Root Application Widget for NexGate Resident Mobile.

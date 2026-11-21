@@ -485,10 +485,10 @@ class NotificationService {
 
 
       // 3. Obtain & Register FCM Device Token
-
-
-
-      await syncFcmToken();
+      await syncFcmToken().timeout(
+        const Duration(seconds: 4),
+        onTimeout: () => null,
+      );
 
 
 
@@ -726,11 +726,11 @@ class NotificationService {
       } else if (defaultTargetPlatform == TargetPlatform.iOS) {
         final iosImplementation = _notificationsPlugin
             .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
-        final granted = await iosImplementation?.requestPermissions(
+        final granted = await (iosImplementation?.requestPermissions(
           alert: true,
           badge: true,
           sound: true,
-        );
+        ).timeout(const Duration(seconds: 4), onTimeout: () => true));
         debugPrint('[NotificationService] iOS Notification Permission: $granted');
         return granted ?? true;
       }

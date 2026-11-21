@@ -46,5 +46,10 @@ app.*.map.json
 /android/.kotlin/
 .kotlin/
 
+# IPA and Payload packaging artifacts
+*.ipa
+Payload/
+Payload.zip
+
 # Widget Preview related
 .widget_preview/
