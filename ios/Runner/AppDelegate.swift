@@ -23,8 +23,9 @@ import UserNotifications
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
-    let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "NexGatePhonePlugin")
-    setupMethodChannels(messenger: registrar.messenger())
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "NexGatePhonePlugin") {
+      setupMethodChannels(messenger: registrar.messenger())
+    }
   }
 
   private func setupMethodChannels(messenger: FlutterBinaryMessenger) {
