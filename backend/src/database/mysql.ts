@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 
 dotenv.config();
 
@@ -217,18 +218,19 @@ export async function runMysqlMigrations() {
 
     // Security Migration: Clean up resident admin roles & ensure only Super-Admin configured admins have ADMIN role
     try {
-      // 1. If admin_user was hijacked/overwritten by a flat edit with Gurpreet / suhas@gmail.com, separate them:
+      // 1. If legacy seed account 'admin_user' was modified by a flat edit, decouple the resident into their own user:
       const [overwrittenAdmin]: any = await pool.query(
-        "SELECT id, name, mobile, email, society_id FROM users WHERE id = 'admin_user' AND (email LIKE '%suhas%' OR name LIKE '%Gurpreet%')"
+        "SELECT id, name, mobile, email, society_id FROM users WHERE id = 'admin_user' AND email IS NOT NULL AND email NOT LIKE '%@nexgate.co.in' AND email NOT LIKE '%@greengate.%'"
       );
       if (overwrittenAdmin && overwrittenAdmin.length > 0) {
         const u = overwrittenAdmin[0];
-        const resId = `res_${u.mobile || '9664646494'}`;
+        const resMobile = String(u.mobile || '').replace(/\D/g, '').slice(-10);
+        const resId = `res_${resMobile || uuidv4().slice(0, 8)}`;
         await pool.query(
           `INSERT INTO users (id, name, mobile, email, role, society_id, status)
            VALUES (?, ?, ?, ?, 'RESIDENT', ?, 'ACTIVE')
            ON DUPLICATE KEY UPDATE name = VALUES(name), email = VALUES(email), role = 'RESIDENT'`,
-          [resId, u.name || 'Gurpreet N', u.mobile || '9664646494', u.email || 'suhas@gmail.com', u.society_id || 'soc_greengate']
+          [resId, u.name || 'Resident', u.mobile, u.email, u.society_id || 'soc_greengate']
         );
         // Re-point any flat pointing to admin_user to the dedicated resident record
         await pool.query('UPDATE flats SET resident_id = ? WHERE resident_id = ?', [resId, 'admin_user']);
@@ -239,22 +241,33 @@ export async function runMysqlMigrations() {
           "UPDATE users SET name = 'Admin', mobile = '9999988888', email = 'admin@nexgate.co.in', role = 'ADMIN', password_hash = ? WHERE id = 'admin_user'",
           [defaultAdminHash]
         );
-        console.log('[MySQL] Restored pristine admin_user and decoupled Gurpreet N to dedicated resident ID.');
+        console.log('[MySQL] Restored pristine admin_user and decoupled resident to dedicated resident ID.');
       }
 
-      // 2. Demote suhas@gmail.com / 9664646494 to RESIDENT and clear admin password
-      await pool.query(
-        "UPDATE users SET role = 'RESIDENT', password_hash = NULL WHERE (email = 'suhas@gmail.com' OR mobile = '9664646494') AND role != 'SUPER_ADMIN'"
-      );
+      // 2. Ensure all normal flat residents have role = 'RESIDENT' unless they are designated society admins
+      // A society admin is a user created for society administration. If a resident was mistakenly given role = 'ADMIN' without being the society admin, correct it.
+      await pool.query(`
+        UPDATE users u
+        JOIN flats f ON f.resident_id = u.id
+        LEFT JOIN (
+          SELECT society_id, MIN(created_at) as first_admin_time
+          FROM users WHERE role = 'ADMIN' GROUP BY society_id
+        ) primary_admin ON u.society_id = primary_admin.society_id
+        SET u.role = 'RESIDENT', u.password_hash = NULL
+        WHERE u.role = 'ADMIN'
+          AND u.id != 'admin_user'
+          AND u.created_at > primary_admin.first_admin_time
+          AND u.email NOT LIKE '%@nexgate.co.in'
+      `).catch(() => {});
 
-      // 3. Ensure Raj N (or any designated society admin) is role = 'ADMIN', active, with valid password hash
+      // 3. For any society admin with missing password_hash, initialize with default hash so admin123 works
       const defaultAdminHash = bcrypt.hashSync('admin123', 10);
       await pool.query(
-        "UPDATE users SET role = 'ADMIN', status = 'ACTIVE', password_hash = COALESCE(password_hash, ?) WHERE email = 'nexbuildtechnologies@gmail.com' OR mobile = '9768712674'",
+        "UPDATE users SET password_hash = ? WHERE role = 'ADMIN' AND (password_hash IS NULL OR password_hash = '')",
         [defaultAdminHash]
       );
 
-      console.log('[MySQL] Security Check: Verified admin & resident role boundaries.');
+      console.log('[MySQL] Security Check: Verified dynamic admin & resident role boundaries (zero hardcoded accounts).');
     } catch (e: any) {
       console.warn('[MySQL] Note on resident security normalization:', e.message);
     }

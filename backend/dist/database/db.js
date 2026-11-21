@@ -125,7 +125,12 @@ async function findUserByMobile(mobile) {
             updatedAt: r.updated_at,
         };
     }
-    const [rows] = await pool.query('SELECT * FROM users WHERE mobile = ? OR mobile LIKE ? LIMIT 1', [mobile, `%${cleanMobile}`]);
+    const [rows] = await pool.query(`SELECT * FROM users 
+     WHERE mobile = ? 
+        OR mobile LIKE ? 
+        OR REPLACE(REPLACE(REPLACE(mobile, ' ', ''), '-', ''), '+91', '') = ?
+     ORDER BY (status = 'ACTIVE') DESC, created_at DESC 
+     LIMIT 1`, [mobile, `%${cleanMobile}`, cleanMobile]);
     if (!rows[0])
         return null;
     const r = rows[0];
