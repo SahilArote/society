@@ -20,6 +20,7 @@ exports.updateSociety = updateSociety;
 exports.updateSocietyAdminCredentials = updateSocietyAdminCredentials;
 exports.findFlatByNumberAndWing = findFlatByNumberAndWing;
 exports.findFlatByResidentId = findFlatByResidentId;
+exports.findFlatByResidentOrMobile = findFlatByResidentOrMobile;
 exports.findFlatById = findFlatById;
 exports.findFlatsBySociety = findFlatsBySociety;
 exports.createVisitor = createVisitor;
@@ -603,6 +604,48 @@ async function findFlatByResidentId(residentId) {
     }
     catch (err) {
         console.warn('[DB] Notice resolving flat:', err.message);
+    }
+    return null;
+}
+async function findFlatByResidentOrMobile(residentId, mobile) {
+    const pool = await (0, mysql_1.getMysqlPool)();
+    if (!pool)
+        return null;
+    try {
+        // 1. Direct resident_id match
+        const [rows] = await pool.query('SELECT * FROM flats WHERE resident_id = ? LIMIT 1', [residentId]);
+        if (rows && rows.length > 0) {
+            const r = rows[0];
+            return {
+                id: r.id,
+                societyId: r.society_id,
+                flatNumber: r.flat_number,
+                wing: r.wing,
+                floor: r.floor,
+                residentId: r.resident_id,
+            };
+        }
+        // 2. Mobile lookup via users table join
+        if (mobile) {
+            const cleanDigits = mobile.replace(/\D/g, '').slice(-10);
+            const [uRows] = await pool.query(`SELECT f.* FROM flats f 
+         JOIN users u ON f.resident_id = u.id 
+         WHERE u.mobile = ? OR u.mobile LIKE ? LIMIT 1`, [cleanDigits, `%${cleanDigits}`]);
+            if (uRows && uRows.length > 0) {
+                const r = uRows[0];
+                return {
+                    id: r.id,
+                    societyId: r.society_id,
+                    flatNumber: r.flat_number,
+                    wing: r.wing,
+                    floor: r.floor,
+                    residentId: r.resident_id,
+                };
+            }
+        }
+    }
+    catch (err) {
+        console.warn('[DB] Notice resolving flat by resident or mobile:', err.message);
     }
     return null;
 }

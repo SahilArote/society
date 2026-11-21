@@ -791,6 +791,53 @@ export async function findFlatByResidentId(residentId: string): Promise<FlatRow 
   return null;
 }
 
+export async function findFlatByResidentOrMobile(residentId: string, mobile?: string): Promise<FlatRow | null> {
+  const pool = await getMysqlPool();
+  if (!pool) return null;
+
+  try {
+    // 1. Direct resident_id match
+    const [rows]: any = await pool.query('SELECT * FROM flats WHERE resident_id = ? LIMIT 1', [residentId]);
+    if (rows && rows.length > 0) {
+      const r = rows[0];
+      return {
+        id: r.id,
+        societyId: r.society_id,
+        flatNumber: r.flat_number,
+        wing: r.wing,
+        floor: r.floor,
+        residentId: r.resident_id,
+      };
+    }
+
+    // 2. Mobile lookup via users table join
+    if (mobile) {
+      const cleanDigits = mobile.replace(/\D/g, '').slice(-10);
+      const [uRows]: any = await pool.query(
+        `SELECT f.* FROM flats f 
+         JOIN users u ON f.resident_id = u.id 
+         WHERE u.mobile = ? OR u.mobile LIKE ? LIMIT 1`,
+        [cleanDigits, `%${cleanDigits}`]
+      );
+      if (uRows && uRows.length > 0) {
+        const r = uRows[0];
+        return {
+          id: r.id,
+          societyId: r.society_id,
+          flatNumber: r.flat_number,
+          wing: r.wing,
+          floor: r.floor,
+          residentId: r.resident_id,
+        };
+      }
+    }
+  } catch (err: any) {
+    console.warn('[DB] Notice resolving flat by resident or mobile:', err.message);
+  }
+
+  return null;
+}
+
 export async function findFlatById(flatId: string): Promise<FlatRow | null> {
   const pool = await getMysqlPool();
   if (!pool) return null;

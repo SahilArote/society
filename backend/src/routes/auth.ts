@@ -8,6 +8,8 @@ import {
   findGuardByUserId,
   findGateById,
   findFlatByResidentId,
+  findFlatByResidentOrMobile,
+  findActiveFamilyMemberByPhone,
   saveOtpRecord,
   verifyOtpRecord,
   findLatestRegistrationByMobile,
@@ -47,10 +49,15 @@ router.post('/resident/send-otp', async (req: Request, res: Response) => {
       });
     }
 
-    const cleanMobile = String(mobile).replace(/\D/g, '');
+    const cleanMobile = String(mobile).replace(/\D/g, '').slice(-10);
     let user = await findUserByMobile(cleanMobile);
+    const familyData = (!user || !['RESIDENT', 'ADMIN', 'SUPER_ADMIN'].includes(user.role))
+      ? await findActiveFamilyMemberByPhone(cleanMobile)
+      : null;
 
-    if (!user || user.role !== 'RESIDENT') {
+    const isValidResident = (user && ['RESIDENT', 'ADMIN', 'SUPER_ADMIN'].includes(user.role)) || !!familyData;
+
+    if (!isValidResident) {
       const reg = await findLatestRegistrationByMobile(cleanMobile);
       if (reg && reg.status === 'PENDING') {
         return res.status(403).json({
@@ -95,7 +102,7 @@ router.post('/resident/send-otp', async (req: Request, res: Response) => {
       });
     }
 
-    if (user.status !== 'ACTIVE') {
+    if (user && user.status !== 'ACTIVE') {
       return res.status(403).json({
         success: false,
         error: {
@@ -105,8 +112,9 @@ router.post('/resident/send-otp', async (req: Request, res: Response) => {
       });
     }
 
-    if (user.societyId) {
-      const society = await findSocietyById(user.societyId);
+    const societyId = user?.societyId || familyData?.member?.societyId;
+    if (societyId) {
+      const society = await findSocietyById(societyId);
       if (society) {
         if (society.status === 'INACTIVE') {
           return res.status(403).json({
@@ -145,7 +153,7 @@ router.post('/resident/send-otp', async (req: Request, res: Response) => {
     // High-visibility test log in server console (PM2 logs)
     console.log(`\n======================================================================`);
     console.log(`[AUTH-OTP] >>> MOBILE: +91-${cleanMobile} | OTP CODE: [ ${otp} ] <<<`);
-    console.log(`[AUTH-OTP] Resident Name: "${user.name}" (ID: ${user.id}, Role: ${user.role})`);
+    console.log(`[AUTH-OTP] Resident Name: "${user?.name || familyData?.member?.name}" (ID: ${user?.id || familyData?.member?.id}, Role: ${user?.role || 'FAMILY_MEMBER'})`);
     console.log(`[AUTH-OTP] Template Format: "${smsResult.messageTemplate}"`);
     console.log(`[AUTH-OTP] SMS Sent to User: "${smsResult.renderedMessage}"`);
     console.log(`[AUTH-OTP] Delivery Status: ${smsResult.success ? 'SENT (MessageId: ' + (smsResult.messageId || 'ok') + ')' : 'FAILED (' + (smsResult.error || 'Unknown error') + ')'}`);
@@ -194,9 +202,14 @@ router.post('/resident/verify-otp', async (req: Request, res: Response) => {
     console.log(`\n[AUTH-VERIFY] Incoming verification request: mobile=+91-${cleanMobile}, otp="${trimmedOtp}"`);
 
     let user = await findUserByMobile(cleanMobile);
+    const familyData = (!user || !['RESIDENT', 'ADMIN', 'SUPER_ADMIN'].includes(user.role))
+      ? await findActiveFamilyMemberByPhone(cleanMobile)
+      : null;
 
-    if (!user || user.role !== 'RESIDENT') {
-      console.warn(`[AUTH-VERIFY] FAILED: Account not found or role is not RESIDENT for mobile: +91-${cleanMobile}`);
+    const isValidResident = (user && ['RESIDENT', 'ADMIN', 'SUPER_ADMIN'].includes(user.role)) || !!familyData;
+
+    if (!isValidResident) {
+      console.warn(`[AUTH-VERIFY] FAILED: Account not found or unauthorized role for mobile: +91-${cleanMobile}`);
       return res.status(404).json({
         success: false,
         error: { code: 'USER_NOT_FOUND', message: 'Account not found' },
@@ -212,15 +225,66 @@ router.post('/resident/verify-otp', async (req: Request, res: Response) => {
       });
     }
 
-    console.log(`[AUTH-VERIFY] SUCCESS: Verified resident "${user.name}" (+91-${cleanMobile})\n`);
+    // Auto-provision user record for verified family member if not already in users table
+    if (!user && familyData) {
+      const famUserId = `usr_fam_${cleanMobile}`;
+      const pool = await getMysqlPool();
+      if (pool) {
+        await pool.query(
+          `INSERT INTO users (id, name, mobile, role, society_id, status)
+           VALUES (?, ?, ?, 'RESIDENT', ?, 'ACTIVE')
+           ON DUPLICATE KEY UPDATE name = VALUES(name), society_id = VALUES(society_id), status = 'ACTIVE'`,
+          [famUserId, familyData.member.name || 'Resident', cleanMobile, familyData.member.societyId]
+        );
+      }
+      user = (await findUserByMobile(cleanMobile)) || {
+        id: famUserId,
+        name: familyData.member.name || 'Resident',
+        mobile: cleanMobile,
+        role: 'RESIDENT',
+        societyId: familyData.member.societyId,
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
 
-    const flat = await findFlatByResidentId(user.id);
+    console.log(`[AUTH-VERIFY] SUCCESS: Verified resident "${user!.name}" (+91-${cleanMobile})\n`);
+
+    let flat = await findFlatByResidentId(user!.id);
+    if (!flat && familyData?.flat) {
+      flat = familyData.flat;
+    }
+    if (!flat) {
+      flat = await findFlatByResidentOrMobile(user!.id, cleanMobile);
+    }
+    if (!flat && user!.societyId) {
+      const pool = await getMysqlPool();
+      if (pool) {
+        const [socFlats]: any = await pool.query(
+          'SELECT * FROM flats WHERE society_id = ? ORDER BY flat_number ASC LIMIT 1',
+          [user!.societyId]
+        );
+        if (socFlats && socFlats.length > 0) {
+          const r = socFlats[0];
+          flat = {
+            id: r.id,
+            societyId: r.society_id,
+            flatNumber: r.flat_number,
+            wing: r.wing,
+            floor: r.floor,
+            residentId: r.resident_id,
+          };
+        }
+      }
+    }
+
     const tokenUser: AuthUser = {
-      id: user.id,
-      name: user.name,
-      mobile: user.mobile,
+      id: user!.id,
+      name: user!.name,
+      mobile: user!.mobile,
       role: 'RESIDENT',
-      societyId: user.societyId || undefined,
+      societyId: user!.societyId || flat?.societyId || undefined,
       flatId: flat?.id || 'flat_a402',
       flatNumber: flat?.flatNumber || 'A-402',
       wing: flat?.wing || 'Tower A',
@@ -269,10 +333,15 @@ router.post('/resident/login', async (req: Request, res: Response) => {
       });
     }
 
-    const cleanMobile = String(mobile).replace(/\D/g, '');
+    const cleanMobile = String(mobile).replace(/\D/g, '').slice(-10);
     let user = await findUserByMobile(cleanMobile);
+    const familyData = (!user || !['RESIDENT', 'ADMIN', 'SUPER_ADMIN'].includes(user.role))
+      ? await findActiveFamilyMemberByPhone(cleanMobile)
+      : null;
 
-    if (!user || user.role !== 'RESIDENT') {
+    const isValidResident = (user && ['RESIDENT', 'ADMIN', 'SUPER_ADMIN'].includes(user.role)) || !!familyData;
+
+    if (!isValidResident) {
       const reg = await findLatestRegistrationByMobile(cleanMobile);
       if (reg && reg.status === 'PENDING') {
         return res.status(403).json({
@@ -317,7 +386,7 @@ router.post('/resident/login', async (req: Request, res: Response) => {
       });
     }
 
-    if (user.status !== 'ACTIVE') {
+    if (user && user.status !== 'ACTIVE') {
       return res.status(403).json({
         success: false,
         error: {
@@ -327,13 +396,63 @@ router.post('/resident/login', async (req: Request, res: Response) => {
       });
     }
 
-    const flat = await findFlatByResidentId(user.id);
+    if (!user && familyData) {
+      const famUserId = `usr_fam_${cleanMobile}`;
+      const pool = await getMysqlPool();
+      if (pool) {
+        await pool.query(
+          `INSERT INTO users (id, name, mobile, role, society_id, status)
+           VALUES (?, ?, ?, 'RESIDENT', ?, 'ACTIVE')
+           ON DUPLICATE KEY UPDATE name = VALUES(name), society_id = VALUES(society_id), status = 'ACTIVE'`,
+          [famUserId, familyData.member.name || 'Resident', cleanMobile, familyData.member.societyId]
+        );
+      }
+      user = (await findUserByMobile(cleanMobile)) || {
+        id: famUserId,
+        name: familyData.member.name || 'Resident',
+        mobile: cleanMobile,
+        role: 'RESIDENT',
+        societyId: familyData.member.societyId,
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    let flat = await findFlatByResidentId(user!.id);
+    if (!flat && familyData?.flat) {
+      flat = familyData.flat;
+    }
+    if (!flat) {
+      flat = await findFlatByResidentOrMobile(user!.id, cleanMobile);
+    }
+    if (!flat && user!.societyId) {
+      const pool = await getMysqlPool();
+      if (pool) {
+        const [socFlats]: any = await pool.query(
+          'SELECT * FROM flats WHERE society_id = ? ORDER BY flat_number ASC LIMIT 1',
+          [user!.societyId]
+        );
+        if (socFlats && socFlats.length > 0) {
+          const r = socFlats[0];
+          flat = {
+            id: r.id,
+            societyId: r.society_id,
+            flatNumber: r.flat_number,
+            wing: r.wing,
+            floor: r.floor,
+            residentId: r.resident_id,
+          };
+        }
+      }
+    }
+
     const tokenUser: AuthUser = {
-      id: user.id,
-      name: user.name,
-      mobile: user.mobile,
+      id: user!.id,
+      name: user!.name,
+      mobile: user!.mobile,
       role: 'RESIDENT',
-      societyId: user.societyId || undefined,
+      societyId: user!.societyId || flat?.societyId || undefined,
       flatId: flat?.id || 'flat_a402',
       flatNumber: flat?.flatNumber || 'A-402',
       wing: flat?.wing || 'Tower A',
@@ -408,8 +527,8 @@ router.get('/registration/status', async (req: Request, res: Response) => {
 
     // 1. Check if user already exists in users table and is ACTIVE
     const existingUser = await findUserByMobile(cleanMobile);
-    if (existingUser && existingUser.role === 'RESIDENT' && existingUser.status === 'ACTIVE') {
-      const flat = await findFlatByResidentId(existingUser.id);
+    if (existingUser && ['RESIDENT', 'ADMIN', 'SUPER_ADMIN'].includes(existingUser.role) && existingUser.status === 'ACTIVE') {
+      const flat = (await findFlatByResidentId(existingUser.id)) || (await findFlatByResidentOrMobile(existingUser.id, cleanMobile));
       return res.json({
         success: true,
         data: {

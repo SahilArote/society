@@ -226,7 +226,7 @@ router.post(
       }
 
       const resident = await findUserById(flat.residentId);
-      if (!resident || resident.role !== 'RESIDENT') {
+      if (!resident || !['RESIDENT', 'ADMIN', 'SUPER_ADMIN'].includes(resident.role)) {
         return res.status(400).json({
           success: false,
           error: {

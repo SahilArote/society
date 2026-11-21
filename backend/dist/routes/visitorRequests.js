@@ -185,7 +185,7 @@ router.post('/', auth_1.authenticateToken, (0, auth_1.authorizeRoles)('GUARD', '
             });
         }
         const resident = await (0, db_1.findUserById)(flat.residentId);
-        if (!resident || resident.role !== 'RESIDENT') {
+        if (!resident || !['RESIDENT', 'ADMIN', 'SUPER_ADMIN'].includes(resident.role)) {
             return res.status(400).json({
                 success: false,
                 error: {
